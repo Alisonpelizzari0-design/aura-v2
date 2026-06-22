@@ -17,8 +17,8 @@
 const AURA_DB_CONFIG = {
   // Configuré avec le projet Supabase d'Alison
   // Project Settings > API
-  url:    'https://mjkqsfuhtaqhekhdhsgd.supabase.co',
-  anonKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3FzZnVodGFxaGVraGRoc2dkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NTQ1ODUsImV4cCI6MjA5NzQzMDU4NX0.0ktQJqXSA1dc0YboF-i4Qul165J_mpqbdgmB2WfO1aQ',
+  url:    'https://sukgfnckxxllnhlcjlcs.supabase.co',
+  anonKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1a2dmbmNreHhsbG5obGNqbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMjg2MzYsImV4cCI6MjA5NzcwNDYzNn0.iyOqEjmnu-WKyFBav7aUVnOKHTs-011jIs7u0mzN2To',
 };
 
 /* ══════════════════════════════════════════════════════════════
