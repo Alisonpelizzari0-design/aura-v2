@@ -1,0 +1,543 @@
+<!-- ============================================================
+     AURA — params.html  (fragment SPA)
+     Paramètres complets : profil, Gemini, budget, alertes, thème
+     ============================================================ -->
+
+<style>
+.params-section { margin-bottom:1.5rem; }
+.params-section:last-child { margin-bottom:0; }
+.params-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--t3); margin-bottom:.75rem; display:flex; align-items:center; gap:6px; padding-bottom:.5rem; border-bottom:1px solid var(--bd); }
+.params-section-title i { font-size:14px; }
+.key-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:10px; }
+.key-status.ok  { background:var(--gr-l); color:var(--gr); border:1px solid var(--gr-b); }
+.key-status.ko  { background:var(--am-l); color:var(--am); border:1px solid var(--am-b); }
+.key-input-wrap { display:flex; gap:8px; align-items:center; }
+.key-input-wrap input { flex:1; font-family:monospace; font-size:12px; padding:8px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
+.key-input-wrap input:focus { border-color:var(--pu); }
+.save-btn { font-size:12px; padding:8px 14px; border-radius:var(--r-md); border:1px solid var(--pu); background:var(--pu); color:#fff; cursor:pointer; font-weight:700; white-space:nowrap; transition:opacity .15s; }
+.save-btn:hover { opacity:.88; }
+.save-btn.secondary { background:var(--pu-l); color:var(--pu-d); }
+.save-btn.secondary:hover { opacity:1; background:var(--pu-m); }
+.color-swatches { display:flex; gap:8px; flex-wrap:wrap; }
+.swatch { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform .12s; }
+.swatch:hover { transform:scale(1.15); }
+.swatch.active { outline:2.5px solid var(--text); outline-offset:2px; }
+</style>
+
+<!-- ── En-tête ── -->
+<div style="background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-xl);padding:1.25rem;display:flex;align-items:center;gap:14px;margin-bottom:0">
+  <div style="width:44px;height:44px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+    <i class="ti ti-settings" style="color:#fff;font-size:20px"></i>
+  </div>
+  <div>
+    <div style="font-size:15px;font-weight:700;color:var(--pu-d)">Paramètres AURA</div>
+    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Configure ton expérience, connecte l'IA et personnalise ton app</div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- Colonne gauche -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <!-- 🔑 Gemini IA -->
+    <div class="card glow">
+      <div class="params-section-title"><i class="ti ti-sparkles"></i> Google Gemini IA <span class="key-status" id="key-status-badge">⚠ Non configurée</span></div>
+
+      <div style="background:var(--bl-l);border:1px solid var(--bl-b);border-radius:var(--r-md);padding:.875rem;margin-bottom:1rem">
+        <div style="font-size:12px;font-weight:700;color:#1E40AF;margin-bottom:.375rem">🎁 Gratuit — Google AI Studio</div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6">
+          1. Va sur <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--pu);font-weight:700">aistudio.google.com/app/apikey</a><br>
+          2. Clique "Create API Key" → copie la clé<br>
+          3. Colle-la ci-dessous et sauvegarde<br>
+          <span style="color:var(--gr);font-weight:600">✓ Quota gratuit : 15 req/min · 1 million tokens/jour</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:.75rem">
+        <label class="field-lbl">Ta clé API Gemini</label>
+        <div class="key-input-wrap">
+          <input type="password" id="gemini-key-input" placeholder="AIzaSy..." autocomplete="off">
+          <button class="save-btn" onclick="saveGeminiKey()"><i class="ti ti-check"></i> Sauvegarder</button>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:5px">
+          Stockée localement dans ton navigateur. Jamais envoyée ailleurs que Google.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="save-btn secondary" onclick="testGemini()" style="font-size:11px;padding:6px 12px">
+          <i class="ti ti-player-play"></i> Tester la connexion
+        </button>
+        <button class="save-btn secondary" onclick="clearGeminiKey()" style="font-size:11px;padding:6px 12px;border-color:var(--re);color:var(--re);background:var(--re-l)">
+          <i class="ti ti-trash"></i> Supprimer
+        </button>
+      </div>
+      <div id="gemini-test-result" style="margin-top:.625rem;font-size:12px;display:none"></div>
+    </div>
+
+    <!-- 🔐 Mon compte -->
+    <div class="card" id="account-status-card">
+      <div class="params-section-title"><i class="ti ti-shield-lock"></i> Mon compte</div>
+
+      <div id="account-status-connected" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;padding:.875rem;background:var(--gr-l);border:1px solid var(--gr-b);border-radius:var(--r-md);margin-bottom:.875rem">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--gr);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="ti ti-check" style="color:#fff;font-size:18px"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:#166534">Connectée et synchronisée</div>
+            <div style="font-size:11px;color:#15803D;overflow:hidden;text-overflow:ellipsis" id="account-email-display">--</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:.875rem">
+          Tes données sont sauvegardées sur ce compte et accessibles uniquement par toi. Sur cet appareil, tu te reconnectes en quelques secondes avec ton PIN.
+        </div>
+        <button class="save-btn secondary" onclick="handleAccountDisconnect()" style="font-size:11px;padding:6px 12px;border-color:var(--re);color:var(--re);background:var(--re-l);width:100%;justify-content:center">
+          <i class="ti ti-logout"></i> Se déconnecter de ce compte
+        </button>
+      </div>
+
+      <div id="account-status-local" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;padding:.875rem;background:var(--am-l);border:1px solid var(--am-b);border-radius:var(--r-md);margin-bottom:.875rem">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--am);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="ti ti-alert-triangle" style="color:#fff;font-size:18px"></i>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:#92400E">Mode local — non sauvegardé</div>
+            <div style="font-size:11px;color:#B45309">Tes données restent uniquement sur cet appareil</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:.875rem">
+          Crée ton compte AURA pour sauvegarder tes données en sécurité et y accéder facilement avec un code PIN à chaque retour.
+        </div>
+        <button class="save-btn" onclick="AuraAuth.showLoginModal()" style="width:100%;justify-content:center">
+          <i class="ti ti-user-plus"></i> Créer mon compte AURA
+        </button>
+      </div>
+    </div>
+
+    <!-- 👤 Profil -->
+    <div class="card">
+      <div class="params-section-title"><i class="ti ti-user"></i> Mon profil</div>
+
+      <div class="param-row">
+        <div><div class="param-lbl">Prénom / pseudo</div></div>
+        <input class="field-input" id="p-name" type="text" style="width:150px;text-align:right" placeholder="Mon AURA">
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Affirmation d'ancrage</div></div>
+        <input class="field-input" id="p-affirmation" type="text" style="width:180px;text-align:right;font-size:11px" placeholder="Je suis alignée et en expansion">
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Signe astrologique</div></div>
+        <select class="field-select" id="p-sign" style="width:140px">
+          <option value="belier">♈ Bélier</option>
+          <option value="taureau">♉ Taureau</option>
+          <option value="gemeaux">♊ Gémeaux</option>
+          <option value="cancer">♋ Cancer</option>
+          <option value="lion">♌ Lion</option>
+          <option value="vierge">♍ Vierge</option>
+          <option value="balance">♎ Balance</option>
+          <option value="scorpion">♏ Scorpion</option>
+          <option value="sagittaire">♐ Sagittaire</option>
+          <option value="capricorne">♑ Capricorne</option>
+          <option value="verseau">♒ Verseau</option>
+          <option value="poissons">♓ Poissons</option>
+        </select>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Personnes au foyer</div></div>
+        <select class="field-select" id="p-foyer" style="width:80px">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4+</option>
+        </select>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Appareils cuisine</div></div>
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-airfryer" checked> Air fryer</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-four" checked> Four</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-thermomix"> Thermomix</label>
+        </div>
+      </div>
+
+      <button class="save-btn" onclick="saveProfile()" style="width:100%;margin-top:.875rem">
+        <i class="ti ti-device-floppy"></i> Sauvegarder le profil
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Colonne droite -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <!-- 💰 Budget mensuel -->
+    <div class="card">
+      <div class="params-section-title"><i class="ti ti-chart-pie"></i> Budget mensuel</div>
+
+      <div class="param-row">
+        <div class="param-lbl">Revenus nets</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input class="field-input" id="b-revenus" type="number" value="3400" min="0" style="width:90px;text-align:right">
+          <span style="font-size:12px;color:var(--t2)">€</span>
+        </div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Logement</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-logement"     type="number" value="900"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Alimentation</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-alimentation" type="number" value="350"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Loisirs</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-loisirs"      type="number" value="250"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Transport</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-transport"    type="number" value="150"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Abonnements</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-abonnements"  type="number" value="200"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+      <div class="param-row">
+        <div class="param-lbl">Santé</div>
+        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-sante"        type="number" value="100"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+      </div>
+
+      <button class="save-btn secondary" onclick="saveBudget()" style="width:100%;margin-top:.875rem">
+        <i class="ti ti-device-floppy"></i> Sauvegarder le budget
+      </button>
+    </div>
+
+    <!-- 🔔 Alertes -->
+    <div class="card">
+      <div class="params-section-title"><i class="ti ti-bell"></i> Alertes & notifications</div>
+
+      <div class="param-row">
+        <div><div class="param-lbl">Dépassement budget</div><div class="param-sub">Quand une enveloppe dépasse 90%</div></div>
+        <button class="toggle on" onclick="toggleSwitch(this)" id="t-budget" aria-label="toggle"></button>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Rappel rituel matin</div><div class="param-sub">Chaque matin</div></div>
+        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Rappel habitudes</div><div class="param-sub">20h00 chaque soir</div></div>
+        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Bilan hebdomadaire</div><div class="param-sub">Dimanche soir</div></div>
+        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Idée recette Air Fryer</div><div class="param-sub">Chaque matin</div></div>
+        <button class="toggle off" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      </div>
+      <div class="param-row">
+        <div><div class="param-lbl">Coach IA proactif</div><div class="param-sub">Conseils si anomalie détectée</div></div>
+        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Liens & Apparence ── -->
+<div class="g2">
+
+  <!-- Liens externes -->
+  <div class="card">
+    <div class="params-section-title"><i class="ti ti-link"></i> Liens & intégrations</div>
+
+    <div class="param-row">
+      <div><div class="param-lbl">Application bancaire</div></div>
+      <input class="field-input" id="l-bank" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
+    </div>
+    <div class="param-row">
+      <div><div class="param-lbl">Livret A / épargne</div></div>
+      <input class="field-input" id="l-livret" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
+    </div>
+    <div class="param-row">
+      <div class="param-lbl">Marmiton</div>
+      <a href="https://www.marmiton.org/recettes/recherche.aspx?aqt=air+fryer" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700">
+        marmiton.org <i class="ti ti-external-link" style="font-size:11px"></i>
+      </a>
+    </div>
+    <div class="param-row">
+      <div class="param-lbl">YouTube Air Fryer</div>
+      <a href="https://www.youtube.com/results?search_query=recette+air+fryer+facile" target="_blank" style="font-size:11px;color:#DC2626;display:flex;align-items:center;gap:4px;font-weight:700">
+        <i class="ti ti-brand-youtube"></i> YouTube <i class="ti ti-external-link" style="font-size:11px"></i>
+      </a>
+    </div>
+    <div class="param-row">
+      <div class="param-lbl">Google AI Studio</div>
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:#4285F4;display:flex;align-items:center;gap:4px;font-weight:700">
+        <i class="ti ti-brand-google"></i> Clé gratuite <i class="ti ti-external-link" style="font-size:11px"></i>
+      </a>
+    </div>
+    <div class="param-row">
+      <div class="param-lbl">Mon AURA (Vercel)</div>
+      <a href="https://auraos-tau.vercel.app" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700">
+        <i class="ti ti-sun"></i> auraos-tau.vercel.app <i class="ti ti-external-link" style="font-size:11px"></i>
+      </a>
+    </div>
+  </div>
+
+  <!-- Apparence -->
+  <div class="card">
+    <div class="params-section-title"><i class="ti ti-palette"></i> Apparence & préférences</div>
+
+    <div class="param-row">
+      <div class="param-lbl">Thème</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="setTheme('light')" id="btn-theme-light" class="save-btn secondary" style="font-size:11px;padding:5px 10px">☀️ Clair</button>
+        <button onclick="setTheme('dark')"  id="btn-theme-dark"  class="save-btn secondary" style="font-size:11px;padding:5px 10px">🌙 Sombre</button>
+      </div>
+    </div>
+
+    <div class="param-row">
+      <div class="param-lbl">Couleur principale</div>
+      <div class="color-swatches" id="color-swatches">
+        <div class="swatch active" style="background:#7C3AED" data-color="#7C3AED" onclick="setAccent('#7C3AED','#F5F3FF','#DDD6FE')" title="Violet"></div>
+        <div class="swatch" style="background:#0D9488" data-color="#0D9488" onclick="setAccent('#0D9488','#F0FDFA','#99F6E4')" title="Teal"></div>
+        <div class="swatch" style="background:#DB2777" data-color="#DB2777" onclick="setAccent('#DB2777','#FDF2F8','#F9A8D4')" title="Rose"></div>
+        <div class="swatch" style="background:#EA580C" data-color="#EA580C" onclick="setAccent('#EA580C','#FFF7ED','#FED7AA')" title="Orange"></div>
+        <div class="swatch" style="background:#2563EB" data-color="#2563EB" onclick="setAccent('#2563EB','#EFF6FF','#BFDBFE')" title="Bleu"></div>
+        <div class="swatch" style="background:#16A34A" data-color="#16A34A" onclick="setAccent('#16A34A','#F0FDF4','#BBF7D0')" title="Vert"></div>
+      </div>
+    </div>
+
+    <div class="param-row">
+      <div><div class="param-lbl">Page d'accueil</div></div>
+      <select class="field-select" id="p-home" style="width:130px">
+        <option value="dashboard" selected>Ancre du jour</option>
+        <option value="rituel">Rituel du matin</option>
+        <option value="habitudes">Habitudes</option>
+        <option value="budget">Finances</option>
+        <option value="coach">Coach IA</option>
+      </select>
+    </div>
+
+    <div class="param-row">
+      <div><div class="param-lbl">Toasts XP</div><div class="param-sub">Afficher les gains XP</div></div>
+      <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+    </div>
+
+    <button class="save-btn secondary" onclick="saveAppearance()" style="width:100%;margin-top:.875rem">
+      <i class="ti ti-device-floppy"></i> Sauvegarder l'apparence
+    </button>
+  </div>
+</div>
+
+<!-- ── Danger zone ── -->
+<div class="card" style="border-color:var(--re-b)">
+  <div class="params-section-title" style="color:var(--re)"><i class="ti ti-alert-triangle"></i> Réinitialisation</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+    <div>
+      <div class="param-lbl">Remettre à zéro les données</div>
+      <div class="param-sub">Efface XP, paramètres et historique. Irréversible.</div>
+    </div>
+    <button onclick="resetAura()" style="font-size:12px;padding:7px 14px;border-radius:var(--r-md);border:1px solid var(--re);background:var(--re-l);color:var(--re);cursor:pointer;font-weight:700">
+      <i class="ti ti-trash"></i> Réinitialiser AURA
+    </button>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'params') return;
+  initParams();
+};
+
+function initParams() {
+  const d = AuraStore.get();
+  // Charger les valeurs
+  _val('p-name',        d.prefs?.name         || '');
+  _val('p-affirmation', d.prefs?.affirmation   || '');
+  _val('p-sign',        d.prefs?.sign          || 'vierge');
+  _val('p-home',        d.prefs?.homeModule    || 'dashboard');
+  // Clé Gemini — afficher seulement si configurée
+  const key = d.prefs?.geminiKey || '';
+  if (key) {
+    document.getElementById('gemini-key-input').value = key;
+    updateKeyStatus(true);
+  } else {
+    updateKeyStatus(false);
+  }
+  // État du compte — connecté (Supabase) ou mode local
+  renderAccountStatus();
+}
+
+/* ── Affiche clairement l'état réel de connexion, avec l'email du compte actif ── */
+function renderAccountStatus() {
+  const connectedEl = document.getElementById('account-status-connected');
+  const localEl      = document.getElementById('account-status-local');
+  if (!connectedEl || !localEl) return;
+
+  const isLoggedIn = window.SupaClient?.isLoggedIn?.();
+  if (isLoggedIn) {
+    connectedEl.style.display = 'block';
+    localEl.style.display = 'none';
+    const session = SupaClient._loadSession?.();
+    const email = session?.user?.email || '';
+    document.getElementById('account-email-display').textContent = email;
+  } else {
+    connectedEl.style.display = 'none';
+    localEl.style.display = 'block';
+  }
+}
+
+/* ── Déconnexion depuis Paramètres, avec confirmation ── */
+async function handleAccountDisconnect() {
+  if (!confirm('Se déconnecter de ton compte AURA ? Tu pourras te reconnecter avec ton PIN.')) return;
+  await AuraAuth.logout();
+  renderAccountStatus();
+  AuraUI.showToast('Déconnectée — tes données restent en sécurité sur ton compte');
+}
+
+function updateKeyStatus(ok) {
+  const b = document.getElementById('key-status-badge');
+  if (!b) return;
+  b.className = 'key-status ' + (ok ? 'ok' : 'ko');
+  b.textContent = ok ? '✓ Configurée' : '⚠ Non configurée';
+}
+
+function saveGeminiKey() {
+  const val = document.getElementById('gemini-key-input')?.value?.trim();
+  if (!val) { showSaveMsg('gemini-test-result', '⚠ Clé vide', 'var(--re)'); return; }
+  AuraStore.set('prefs.geminiKey', val);
+  window.AuraGemini.API_KEY = val;
+  updateKeyStatus(true);
+  showSaveMsg('gemini-test-result', '✓ Clé sauvegardée avec succès !', 'var(--gr)');
+}
+
+function clearGeminiKey() {
+  if (!confirm('Supprimer la clé Gemini ?')) return;
+  AuraStore.set('prefs.geminiKey', '');
+  document.getElementById('gemini-key-input').value = '';
+  updateKeyStatus(false);
+}
+
+async function testGemini() {
+  const key = document.getElementById('gemini-key-input')?.value?.trim() || AuraStore.get().prefs?.geminiKey;
+  const el  = document.getElementById('gemini-test-result');
+  if (!key) { showSaveMsg('gemini-test-result', '⚠ Entre une clé d\'abord', 'var(--am)'); return; }
+  el.style.display = 'block';
+  el.style.color = 'var(--t2)';
+  el.textContent = '⏳ Test en cours...';
+  try {
+    window.AuraGemini.API_KEY = key;
+    const txt = await AuraGemini.call({ prompt:'Réponds juste "OK AURA" en français.', maxTokens:20 });
+    if (txt.includes('OK') || txt.length > 0) {
+      showSaveMsg('gemini-test-result', `✓ Connexion réussie — Gemini répond ! "${txt.trim().slice(0,40)}"`, 'var(--gr)');
+    } else {
+      showSaveMsg('gemini-test-result', '⚠ Réponse inattendue — vérifie la clé', 'var(--am)');
+    }
+  } catch(e) {
+    showSaveMsg('gemini-test-result', `✗ Erreur : ${e.message}`, 'var(--re)');
+  }
+}
+
+function saveProfile() {
+  const d = AuraStore.get();
+  AuraStore.set('prefs.name',        document.getElementById('p-name')?.value        || d.prefs.name);
+  AuraStore.set('prefs.affirmation', document.getElementById('p-affirmation')?.value || d.prefs.affirmation);
+  AuraStore.set('prefs.sign',        document.getElementById('p-sign')?.value        || d.prefs.sign);
+  AuraUI.updateXPDisplays();
+  earnXP(5, 'Profil mis à jour', '👤');
+  AuraUI.showToast('Profil sauvegardé ✓');
+}
+
+function saveBudget() {
+  const fields = ['revenus','logement','alimentation','loisirs','transport','abonnements','sante'];
+  fields.forEach(f => {
+    const v = document.getElementById(`b-${f}`)?.value;
+    if (v !== undefined) AuraStore.set(`budget.${f}`, parseFloat(v)||0);
+  });
+  
+  AuraUI.showToast('Budget sauvegardé ✓');
+  
+  // NOUVEAU : On met à jour l'affichage immédiatement
+  updateDisplay();
+}
+
+function updateDisplay() {
+  // Récupération des données du store
+  const b = {
+    revenus: AuraStore.get('budget.revenus') || 0,
+    charges: (
+      (AuraStore.get('budget.logement') || 0) +
+      (AuraStore.get('budget.alimentation') || 0) +
+      (AuraStore.get('budget.loisirs') || 0) +
+      (AuraStore.get('budget.transport') || 0) +
+      (AuraStore.get('budget.abonnements') || 0) +
+      (AuraStore.get('budget.sante') || 0)
+    )
+  };
+
+  // Mise à jour automatique de votre HTML (le module Bilan)
+  if(document.getElementById('bilan-revenus')) {
+      document.getElementById('bilan-revenus').textContent = `${b.revenus} €`;
+  }
+  
+  if(document.getElementById('bilan-charges')) {
+      document.getElementById('bilan-charges').textContent = `-${b.charges} €`;
+  }
+
+  // Calcul du solde
+  const solde = b.revenus - b.charges;
+  if(document.getElementById('bilan-solde')) {
+      document.getElementById('bilan-solde').textContent = `${solde >= 0 ? '+' : ''}${solde} €`;
+  }
+}
+
+
+function saveAppearance() {
+  AuraStore.set('prefs.homeModule', document.getElementById('p-home')?.value || 'dashboard');
+  AuraUI.showToast('Apparence sauvegardée ✓');
+}
+
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : '');
+  document.getElementById('theme-icon') && (document.getElementById('theme-icon').className = t === 'dark' ? 'ti ti-sun' : 'ti ti-moon');
+  AuraStore.set('prefs.theme', t);
+  AuraUI.showToast(t === 'dark' ? '🌙 Thème sombre activé' : '☀️ Thème clair activé');
+}
+
+function setAccent(color, light, border) {
+  document.documentElement.style.setProperty('--pu',   color);
+  document.documentElement.style.setProperty('--pu-l', light);
+  document.documentElement.style.setProperty('--pu-b', border);
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === color));
+  AuraStore.set('prefs.accentColor', color);
+  AuraUI.showToast('Couleur appliquée ✓');
+}
+
+function resetAura() {
+  if (!confirm('Réinitialiser complètement AURA ? Toutes tes données XP et paramètres seront effacés.')) return;
+  localStorage.removeItem('aura_data_v2');
+  AuraUI.showToast('AURA réinitialisée — rechargement...');
+  setTimeout(() => location.reload(), 1500);
+}
+
+function showSaveMsg(id, msg, color) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color   = color;
+  el.textContent   = msg;
+}
+
+function _val(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+if (document.readyState !== 'loading') initParams();
+</script>
