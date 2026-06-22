@@ -1,0 +1,572 @@
+<!-- ============================================================
+     AURA — maison.html  (fragment SPA)
+     Rubrique pratique "Maison" — liée à la sphère coaching "maison" :
+     - Score de bien-être habitat
+     - Ménage & entretien (planning récurrent par zone)
+     - Rangement & organisation (pièce par pièce, checklist)
+     - Inventaire & projets travaux
+     - Budget maison (lien Finance)
+     ============================================================ -->
+
+<style>
+.mai-hero {
+  background:linear-gradient(135deg,var(--bl-l) 0%,var(--te-l) 100%);
+  border:1px solid var(--bl-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+.mai-hero-icon { font-size:42px; flex-shrink:0; }
+.mai-hero-score { font-size:30px; font-weight:800; color:#1E40AF; line-height:1; }
+.mai-hero-bar { height:8px; background:rgba(255,255,255,.5); border-radius:4px; overflow:hidden; margin-top:6px; max-width:200px; }
+.mai-hero-fill { height:100%; background:linear-gradient(90deg,var(--bl),var(--te)); border-radius:4px; transition:width .5s; }
+
+.mai-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.mai-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; }
+.mai-tab:hover  { background:var(--bg); }
+.mai-tab.active { border-color:var(--bl); color:var(--bl); background:var(--bl-l); }
+.mai-panel { display:none; flex-direction:column; gap:1.25rem; }
+.mai-panel.on { display:flex; }
+
+/* ── Pièces de la maison (rangement) ── */
+.room-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.875rem; }
+.room-card {
+  border-radius:var(--r-lg); padding:1.125rem; cursor:pointer; border:1.5px solid;
+  transition:all .15s; position:relative; overflow:hidden;
+}
+.room-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.08); }
+.room-icon { font-size:28px; margin-bottom:6px; }
+.room-name { font-size:12.5px; font-weight:700; }
+.room-progress { font-size:11px; opacity:.85; margin-top:3px; }
+.room-bar { height:5px; border-radius:3px; margin-top:8px; overflow:hidden; background:rgba(255,255,255,.5); }
+.room-fill { height:100%; border-radius:3px; background:rgba(255,255,255,.9); transition:width .5s; }
+
+/* ── Tâches récurrentes ── */
+.task-row {
+  display:flex; align-items:center; gap:10px; padding:.625rem .75rem;
+  border-radius:var(--r-md); border:1px solid var(--bd); background:var(--white);
+  cursor:pointer; transition:background .1s; margin-bottom:.5rem;
+}
+.task-row:last-child { margin-bottom:0; }
+.task-row:hover { background:var(--bg); }
+.task-row.done { opacity:.55; }
+.task-cb { width:20px; height:20px; border-radius:6px; border:1.5px solid var(--bd2); display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; transition:all .12s; }
+.task-cb.on { background:#22C55E; border-color:#22C55E; }
+.task-cb.on i { color:#fff; font-size:12px; display:block; }
+.task-cb i { display:none; }
+.task-info { flex:1; min-width:0; }
+.task-name { font-size:12.5px; font-weight:600; color:var(--text); }
+.task-name.done { text-decoration:line-through; color:var(--t3); }
+.task-freq { font-size:10px; color:var(--t3); margin-top:1px; }
+.task-room-tag { font-size:9px; font-weight:700; padding:2px 7px; border-radius:7px; flex-shrink:0; }
+.task-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:13px; opacity:0; transition:opacity .12s; flex-shrink:0; }
+.task-row:hover .task-del { opacity:1; }
+
+/* ── Checklist rangement détail pièce ── */
+.declutter-item { display:flex; align-items:center; gap:8px; padding:.5rem 0; border-bottom:1px solid var(--bd); }
+.declutter-item:last-child { border-bottom:none; }
+
+/* ── Projets travaux ── */
+.project-card { border:1px solid var(--bd); border-radius:var(--r-lg); padding:1rem; margin-bottom:.75rem; }
+.project-card:last-child { margin-bottom:0; }
+.project-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+.project-name { font-size:13px; font-weight:700; color:var(--text); }
+.project-status { font-size:10px; font-weight:700; padding:2px 9px; border-radius:10px; }
+.project-status.todo { background:var(--bg); color:var(--t2); }
+.project-status.progress { background:var(--am-l); color:var(--am); }
+.project-status.done { background:var(--gr-l); color:var(--gr); }
+.project-bar { height:6px; background:var(--bg); border-radius:3px; overflow:hidden; margin:.5rem 0; }
+.project-fill { height:100%; background:var(--bl); border-radius:3px; transition:width .5s; }
+.project-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--t2); }
+
+/* ── Inventaire ── */
+.inv-row { display:grid; grid-template-columns:28px 1fr auto auto; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--bd); }
+.inv-row:last-child { border-bottom:none; }
+.inv-ic { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; }
+
+@media(max-width:768px) {
+  .room-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO — Score maison
+════════════════════════════════════════════════════ -->
+<div class="mai-hero">
+  <div class="mai-hero-icon">🏡</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#1E40AF">Score Maison & Organisation</div>
+    <div class="mai-hero-score" id="mai-score">85<span style="font-size:16px;color:var(--t2)">/100</span></div>
+    <div class="mai-hero-bar"><div class="mai-hero-fill" id="mai-score-bar" style="width:85%"></div></div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#1E40AF" id="mai-stat-tasks">5<span style="font-size:12px;color:var(--t2)">/7</span></div>
+      <div style="font-size:10px;color:var(--t2)">Tâches semaine</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#1E40AF" id="mai-stat-projects">2</div>
+      <div style="font-size:10px;color:var(--t2)">Projets en cours</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#1E40AF" id="mai-stat-budget">145€</div>
+      <div style="font-size:10px;color:var(--t2)">Budget mois</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TABS
+════════════════════════════════════════════════════ -->
+<div class="mai-tabs">
+  <button class="mai-tab active" onclick="Maison.showTab('apercu')"><i class="ti ti-layout-grid" style="font-size:13px"></i> Vue par pièce</button>
+  <button class="mai-tab" onclick="Maison.showTab('entretien')"><i class="ti ti-spray" style="font-size:13px"></i> Ménage & entretien</button>
+  <button class="mai-tab" onclick="Maison.showTab('rangement')"><i class="ti ti-archive" style="font-size:13px"></i> Rangement</button>
+  <button class="mai-tab" onclick="Maison.showTab('projets')"><i class="ti ti-hammer" style="font-size:13px"></i> Projets & travaux</button>
+  <button class="mai-tab" onclick="Maison.showTab('inventaire')"><i class="ti ti-clipboard-list" style="font-size:13px"></i> Inventaire</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : VUE PAR PIÈCE
+════════════════════════════════════════════════════ -->
+<div class="mai-panel on" id="mai-panel-apercu">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-layout-grid"></i> <span data-aura-edit="maison.title.1" data-aura-edit-label="Titre : Mes pièces">Mes pièces</span></span>
+      <span style="font-size:11px;color:var(--t2)">Clique pour voir le détail</span>
+    </div>
+    <div class="room-grid" id="room-grid"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : MÉNAGE & ENTRETIEN
+════════════════════════════════════════════════════ -->
+<div class="mai-panel" id="mai-panel-entretien">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-spray"></i> <span data-aura-edit="maison.title.2" data-aura-edit-label="Titre : Tâches récurrentes">Tâches récurrentes</span></span>
+        <button class="btn-pill pu" onclick="Maison.openTaskModal()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter</button>
+      </div>
+      <div id="task-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-calendar-stats"></i> <span data-aura-edit="maison.title.3" data-aura-edit-label="Titre : Rythmes conseillés">Rythmes conseillés</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.625rem">
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem"><div style="font-size:11.5px;font-weight:700;color:var(--text)">🧹 Quotidien</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px">Vaisselle, lits, surfaces cuisine</div></div>
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem"><div style="font-size:11.5px;font-weight:700;color:var(--text)">🧽 Hebdomadaire</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px">Sols, sanitaires, poussière, linge</div></div>
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem"><div style="font-size:11.5px;font-weight:700;color:var(--text)">🪣 Mensuel</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px">Vitres, frigo, four, filtres</div></div>
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem"><div style="font-size:11.5px;font-weight:700;color:var(--text)">🏠 Saisonnier</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px">Chaudière, désencombrement, rangements</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : RANGEMENT
+════════════════════════════════════════════════════ -->
+<div class="mai-panel" id="mai-panel-rangement">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-archive"></i> <span data-aura-edit="maison.title.4" data-aura-edit-label="Titre : Désencombrement par zone">Désencombrement par zone</span></span>
+      <button class="btn-ghost" onclick="Maison.suggestDeclutterAI()">✨ Conseils IA</button>
+    </div>
+    <div id="declutter-rooms"></div>
+    <div id="declutter-ia-resp" style="display:none;margin-top:1rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:var(--text);line-height:1.7"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : PROJETS & TRAVAUX
+════════════════════════════════════════════════════ -->
+<div class="mai-panel" id="mai-panel-projets">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-hammer"></i> <span data-aura-edit="maison.title.5" data-aura-edit-label="Titre : Mes projets">Mes projets</span></span>
+        <button class="btn-pill pu" onclick="Maison.openProjectModal()"><i class="ti ti-plus" style="font-size:12px"></i> Nouveau projet</button>
+      </div>
+      <div id="project-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-bulb"></i> <span data-aura-edit="maison.title.6" data-aura-edit-label="Titre : Idées d'amélioration">Idées d'amélioration</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.625rem">
+        <div style="background:var(--bl-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--bl-b)"><div style="font-size:11.5px;font-weight:700;color:#1E40AF">💡 Éclairage d'ambiance</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px;line-height:1.4">Guirlandes ou lampes chaudes transforment instantanément une pièce.</div></div>
+        <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--gr-b)"><div style="font-size:11.5px;font-weight:700;color:#166534">🪴 Plantes vertes</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px;line-height:1.4">Purifient l'air et apaisent l'espace — un minimum d'entretien suffit.</div></div>
+        <div style="background:var(--am-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--am-b)"><div style="font-size:11.5px;font-weight:700;color:#92400E">📦 Rangements verticaux</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px;line-height:1.4">Exploiter la hauteur libère de l'espace au sol, surtout en petit logement.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : INVENTAIRE
+════════════════════════════════════════════════════ -->
+<div class="mai-panel" id="mai-panel-inventaire">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-clipboard-list"></i> <span data-aura-edit="maison.title.7" data-aura-edit-label="Titre : Inventaire & équipements">Inventaire & équipements</span></span>
+      <button class="btn-ghost" onclick="Maison.openInventoryModal()">+ Ajouter un équipement</button>
+    </div>
+    <div id="inventory-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL TÂCHE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="task-modal-overlay" style="display:none" onclick="if(event.target===this)Maison.closeTaskModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plus"></i> Nouvelle tâche récurrente</div>
+    <div class="modal-field"><label class="modal-lbl">Nom de la tâche</label><input class="modal-input" id="tm-name" placeholder="Ex: Passer l'aspirateur"></div>
+    <div class="modal-field"><label class="modal-lbl">Pièce concernée</label>
+      <select class="modal-input" id="tm-room">
+        <option>Salon</option><option>Cuisine</option><option>Chambre</option><option>Salle de bain</option><option>Bureau</option><option>Toute la maison</option>
+      </select>
+    </div>
+    <div class="modal-field"><label class="modal-lbl">Fréquence</label>
+      <select class="modal-input" id="tm-freq">
+        <option value="Quotidien">Quotidien</option><option value="Hebdomadaire" selected>Hebdomadaire</option><option value="Mensuel">Mensuel</option><option value="Saisonnier">Saisonnier</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Maison.saveTask()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Maison.closeTaskModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL PROJET
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="project-modal-overlay" style="display:none" onclick="if(event.target===this)Maison.closeProjectModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-hammer"></i> Nouveau projet</div>
+    <div class="modal-field"><label class="modal-lbl">Nom du projet</label><input class="modal-input" id="pm-name" placeholder="Ex: Repeindre le salon"></div>
+    <div class="modal-field"><label class="modal-lbl">Budget estimé (€)</label><input class="modal-input" id="pm-budget" type="number" placeholder="0"></div>
+    <div class="modal-field"><label class="modal-lbl">Statut</label>
+      <select class="modal-input" id="pm-status">
+        <option value="todo">À faire</option><option value="progress">En cours</option><option value="done">Terminé</option>
+      </select>
+    </div>
+    <div class="modal-field"><label class="modal-lbl">Avancement (%)</label><input class="modal-input" id="pm-progress" type="number" min="0" max="100" value="0"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Maison.saveProject()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Maison.closeProjectModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL INVENTAIRE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="inv-modal-overlay" style="display:none" onclick="if(event.target===this)Maison.closeInventoryModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plus"></i> Nouvel équipement</div>
+    <div class="modal-field"><label class="modal-lbl">Nom</label><input class="modal-input" id="im-name" placeholder="Ex: Lave-linge"></div>
+    <div class="modal-field"><label class="modal-lbl">Date d'achat</label><input class="modal-input" id="im-date" type="date"></div>
+    <div class="modal-field"><label class="modal-lbl">Garantie jusqu'au</label><input class="modal-input" id="im-warranty" type="date"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Maison.saveInventory()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Maison.closeInventoryModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+window.initModule = function(name) {
+  if (name !== 'maison') return;
+  Maison.init();
+};
+
+/* ══════════════════════════════════════════════════
+   STORE
+══════════════════════════════════════════════════ */
+const MaiStore = {
+  _key: 'aura_maison_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try {
+      const r = localStorage.getItem(this._key);
+      if (r) { this._data = JSON.parse(r); return this._data; }
+    } catch(_) {}
+    this._data = {
+      score: 0,
+      rooms: [
+        { id:'salon',  name:'Salon',        icon:'🛋️', color:'#1E40AF', bg:'#EFF6FF', border:'#BFDBFE', progress:0 },
+        { id:'cuisine',name:'Cuisine',       icon:'🍳', color:'#C2410C', bg:'#FFF7ED', border:'#FED7AA', progress:0 },
+        { id:'chambre',name:'Chambre',       icon:'🛏️', color:'#9D174D', bg:'#FDF2F8', border:'#F9A8D4', progress:0 },
+        { id:'sdb',    name:'Salle de bain', icon:'🛁', color:'#0F766E', bg:'#F0FDFA', border:'#99F6E4', progress:0 },
+        { id:'bureau', name:'Bureau',        icon:'💻', color:'#5B21B6', bg:'#F5F3FF', border:'#DDD6FE', progress:0 },
+        { id:'entree', name:'Entrée',        icon:'🚪', color:'#166534', bg:'#F0FDF4', border:'#BBF7D0', progress:0 },
+      ],
+      tasks: [
+        { id:1, name:'Passer l\'aspirateur',     room:'Salon',        freq:'Hebdomadaire', done:false },
+        { id:2, name:'Nettoyer la cuisine',      room:'Cuisine',       freq:'Quotidien',    done:false },
+        { id:3, name:'Changer les draps',        room:'Chambre',       freq:'Hebdomadaire', done:false },
+        { id:4, name:'Nettoyer la salle de bain',room:'Salle de bain', freq:'Hebdomadaire', done:false },
+        { id:5, name:'Vider les poubelles',      room:'Toute la maison',freq:'Quotidien',   done:false },
+        { id:6, name:'Nettoyer les vitres',      room:'Toute la maison',freq:'Mensuel',      done:false },
+        { id:7, name:'Détartrer la cafetière',   room:'Cuisine',       freq:'Mensuel',       done:false },
+      ],
+      declutter: {
+        salon:  ['Trier la bibliothèque','Ranger les câbles apparents','Désencombrer la table basse'],
+        cuisine:['Vider les placards à épices','Jeter les Tupperware dépareillés','Nettoyer le frigo en profondeur'],
+        chambre:['Trier l\'armoire (méthode 1 an)','Ranger sous le lit','Désencombrer la table de chevet'],
+        sdb:    ['Jeter les produits expirés','Ranger les serviettes','Trier les cosmétiques'],
+        bureau: ['Trier les papiers administratifs','Ranger les câbles','Désencombrer le bureau'],
+        entree: ['Trier les chaussures','Ranger les manteaux de saison','Vider les poches/sacs oubliés'],
+      },
+      projects: [],
+      inventory: [],
+      budget: 0,
+    };
+    this.save();
+    return this._data;
+  },
+
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  toggleTask(id) { const d=this.get(); const t=d.tasks.find(x=>x.id===id); if(t){t.done=!t.done; this.save();} },
+  addTask(t) { const d=this.get(); t.id=d.tasks.length?Math.max(...d.tasks.map(x=>x.id))+1:1; d.tasks.push(t); this.save(); return t; },
+  deleteTask(id) { const d=this.get(); d.tasks=d.tasks.filter(x=>x.id!==id); this.save(); },
+
+  addProject(p) { const d=this.get(); p.id=d.projects.length?Math.max(...d.projects.map(x=>x.id))+1:1; d.projects.push(p); this.save(); return p; },
+
+  addInventory(i) { const d=this.get(); i.id=d.inventory.length?Math.max(...d.inventory.map(x=>x.id))+1:1; d.inventory.push(i); this.save(); return i; },
+  deleteInventory(id) { const d=this.get(); d.inventory=d.inventory.filter(x=>x.id!==id); this.save(); },
+};
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const Maison = {
+  currentRoom: null,
+
+  init() {
+    this.renderHero();
+    this.renderRooms();
+    this.renderTasks();
+    this.renderDeclutter();
+    this.renderProjects();
+    this.renderInventory();
+  },
+
+  showTab(tab) {
+    document.querySelectorAll('.mai-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.mai-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['apercu','entretien','rangement','projets','inventaire'];
+    const idx  = tabs.indexOf(tab);
+    if (idx>=0) document.querySelectorAll('.mai-tab')[idx].classList.add('active');
+    document.getElementById('mai-panel-'+tab)?.classList.add('on');
+  },
+
+  renderHero() {
+    const d = MaiStore.get();
+    _set('mai-score', d.score+'/100');
+    _css('mai-score-bar','width',d.score+'%');
+    const doneT = d.tasks.filter(t=>t.done).length;
+    _set('mai-stat-tasks', `${doneT}/${d.tasks.length}`);
+    document.getElementById('mai-stat-tasks').innerHTML = `${doneT}<span style="font-size:12px;color:var(--t2)">/${d.tasks.length}</span>`;
+    _set('mai-stat-projects', d.projects.filter(p=>p.status!=='done').length);
+    _set('mai-stat-budget', d.budget+'€');
+  },
+
+  renderRooms() {
+    const d  = MaiStore.get();
+    const el = document.getElementById('room-grid');
+    el.innerHTML = d.rooms.map(r => `
+      <div class="room-card" style="background:${r.bg};border-color:${r.border};color:${r.color}" onclick="Maison.openRoomDetail('${r.id}')">
+        <div class="room-icon">${r.icon}</div>
+        <div class="room-name">${r.name}</div>
+        <div class="room-progress">Organisation : ${r.progress}%</div>
+        <div class="room-bar"><div class="room-fill" style="width:${r.progress}%"></div></div>
+      </div>`).join('');
+  },
+
+  openRoomDetail(roomId) {
+    this.showTab('rangement');
+    setTimeout(()=>{
+      document.getElementById(`declutter-section-${roomId}`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    }, 80);
+  },
+
+  /* ── Tâches ── */
+  renderTasks() {
+    const d  = MaiStore.get();
+    const el = document.getElementById('task-list');
+    const roomColors = { 'Salon':'#1E40AF','Cuisine':'#C2410C','Chambre':'#9D174D','Salle de bain':'#0F766E','Bureau':'#5B21B6','Toute la maison':'#64748B' };
+    el.innerHTML = d.tasks.map(t => `
+      <div class="task-row ${t.done?'done':''}">
+        <div class="task-cb ${t.done?'on':''}" onclick="Maison.toggleTask(${t.id})"><i class="ti ti-check"></i></div>
+        <div class="task-info">
+          <div class="task-name ${t.done?'done':''}">${t.name}</div>
+          <div class="task-freq">${t.freq}</div>
+        </div>
+        <span class="task-room-tag" style="background:${(roomColors[t.room]||'#64748B')}15;color:${roomColors[t.room]||'#64748B'}">${t.room}</span>
+        <button class="task-del" onclick="Maison.deleteTask(${t.id})"><i class="ti ti-trash"></i></button>
+      </div>`).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucune tâche — ajoute ta première !</div>';
+  },
+
+  toggleTask(id) {
+    MaiStore.toggleTask(id);
+    this.renderTasks();
+    this.renderHero();
+    const t = MaiStore.get().tasks.find(x=>x.id===id);
+    if (t?.done) earnXP(8, `${t.name} fait`, '🧹');
+  },
+
+  deleteTask(id) { MaiStore.deleteTask(id); this.renderTasks(); this.renderHero(); },
+
+  openTaskModal() { document.getElementById('task-modal-overlay').style.display='flex'; },
+  closeTaskModal() { document.getElementById('task-modal-overlay').style.display='none'; },
+
+  saveTask() {
+    const name = document.getElementById('tm-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    MaiStore.addTask({ name, room:document.getElementById('tm-room')?.value, freq:document.getElementById('tm-freq')?.value, done:false });
+    this.closeTaskModal();
+    this.renderTasks();
+    this.renderHero();
+    earnXP(5,'Tâche ajoutée','✓');
+    AuraUI.showToast('✓ Tâche ajoutée');
+  },
+
+  /* ── Rangement ── */
+  renderDeclutter() {
+    const d  = MaiStore.get();
+    const el = document.getElementById('declutter-rooms');
+    el.innerHTML = d.rooms.map(r => {
+      const items = d.declutter[r.id] || [];
+      return `<div id="declutter-section-${r.id}" style="margin-bottom:1.25rem">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:.625rem">
+          <span style="font-size:18px">${r.icon}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text)">${r.name}</span>
+        </div>
+        ${items.map((item,idx) => `
+        <div class="declutter-item">
+          <div class="task-cb" id="dcb-${r.id}-${idx}" onclick="Maison.toggleDeclutterItem('${r.id}',${idx})"><i class="ti ti-check"></i></div>
+          <span style="font-size:12.5px;color:var(--text)">${item}</span>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+  },
+
+  toggleDeclutterItem(roomId, idx) {
+    const cb = document.getElementById(`dcb-${roomId}-${idx}`);
+    cb.classList.toggle('on');
+    if (cb.classList.contains('on')) earnXP(5,'Zone désencombrée','✨');
+  },
+
+  async suggestDeclutterAI() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('declutter-ia-resp'); document.getElementById('declutter-ia-resp').style.display='block'; return; }
+    const resp = document.getElementById('declutter-ia-resp');
+    resp.style.display = 'block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Génération de conseils personnalisés...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un expert en désencombrement et organisation de maison (méthode KonMari, minimalisme).',
+        prompt: 'Donne-moi 4 conseils concrets et motivants de désencombrement pour bien démarrer un grand rangement de maison, sans être écrasant. Sois chaleureux et actionnable.',
+        maxTokens: 350,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(15,'Conseils rangement IA','✨');
+    } catch(e) {
+      resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>';
+    }
+  },
+
+  /* ── Projets ── */
+  renderProjects() {
+    const d  = MaiStore.get();
+    const el = document.getElementById('project-list');
+    const statusLabels = { todo:'À faire', progress:'En cours', done:'Terminé' };
+    el.innerHTML = d.projects.map(p => `
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-name">${p.name}</span>
+          <span class="project-status ${p.status}">${statusLabels[p.status]}</span>
+        </div>
+        <div class="project-bar"><div class="project-fill" style="width:${p.progress}%"></div></div>
+        <div class="project-meta">
+          <span>Avancement : ${p.progress}%</span>
+          <span>Budget : ${p.budget}€</span>
+        </div>
+      </div>`).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucun projet en cours</div>';
+  },
+
+  openProjectModal() { document.getElementById('project-modal-overlay').style.display='flex'; },
+  closeProjectModal() { document.getElementById('project-modal-overlay').style.display='none'; },
+
+  saveProject() {
+    const name = document.getElementById('pm-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    MaiStore.addProject({
+      name,
+      budget:   parseFloat(document.getElementById('pm-budget')?.value)||0,
+      status:   document.getElementById('pm-status')?.value||'todo',
+      progress: parseInt(document.getElementById('pm-progress')?.value)||0,
+    });
+    this.closeProjectModal();
+    this.renderProjects();
+    this.renderHero();
+    earnXP(10,'Projet créé','🔨');
+    AuraUI.showToast('✓ Projet ajouté');
+  },
+
+  /* ── Inventaire ── */
+  renderInventory() {
+    const d  = MaiStore.get();
+    const el = document.getElementById('inventory-list');
+    el.innerHTML = d.inventory.map(i => {
+      const warrantyDate = new Date(i.warranty);
+      const isExpired = warrantyDate < new Date();
+      return `<div class="inv-row">
+        <div class="inv-ic" style="background:var(--bl-l)"><i class="ti ti-tool" style="color:var(--bl);font-size:13px"></i></div>
+        <div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${i.name}</div>
+          <div style="font-size:10px;color:var(--t3)">Acheté le ${fmtD(i.date)}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${isExpired?'var(--re)':'var(--gr)'}">${isExpired?'Garantie expirée':'Garantie jusqu\'au '+fmtD(i.warranty)}</span>
+        <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="Maison.deleteInventoryItem(${i.id})"><i class="ti ti-trash"></i></button>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucun équipement enregistré</div>';
+  },
+
+  deleteInventoryItem(id) { MaiStore.deleteInventory(id); this.renderInventory(); },
+
+  openInventoryModal() { document.getElementById('inv-modal-overlay').style.display='flex'; },
+  closeInventoryModal() { document.getElementById('inv-modal-overlay').style.display='none'; },
+
+  saveInventory() {
+    const name = document.getElementById('im-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    MaiStore.addInventory({
+      name,
+      date:     document.getElementById('im-date')?.value || new Date().toISOString().slice(0,10),
+      warranty: document.getElementById('im-warranty')?.value || '',
+    });
+    this.closeInventoryModal();
+    this.renderInventory();
+    earnXP(5,'Équipement ajouté','📋');
+    AuraUI.showToast('✓ Équipement enregistré');
+  },
+};
+
+/* ── Helpers ── */
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function _css(id,p,v){ const e=document.getElementById(id); if(e) e.style[p]=v; }
+function fmtD(s){ if(!s) return '—'; try{ return new Date(s).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); }catch(_){ return s; } }
+
+if (document.readyState !== 'loading') Maison.init();
+</script>

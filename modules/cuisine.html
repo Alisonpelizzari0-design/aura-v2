@@ -1,0 +1,1153 @@
+<!-- ============================================================
+     AURA — cuisine.html v2 (fragment SPA)
+     Rubrique "Cuisine" repensée — carnet de cuisine vivant :
+     - Hero : défi du jour + streak cuisine (ludique, quotidien)
+     - Cartes recettes modernes (catégorie, badges, hiérarchie visuelle)
+     - Double filtre à facettes : Sucré/Salé × Rapide/Moyen/Long
+     - 18 recettes de départ couvrant les 2 catégories × 3 durées
+     - Planning repas semaine (midi/soir)
+     - Liste de courses par catégorie, cochable, suggestions auto
+     - Budget alimentaire (lien avec le module Finance)
+     - IA Gemini : suggestions personnalisées + génération recette complète
+     - Sync Supabase (table: recettes, déjà existante)
+     ============================================================ -->
+
+<style>
+/* ══════════════════════════════════════════════════
+   HERO — Défi du jour + Streak (ludique)
+══════════════════════════════════════════════════ */
+.cui-hero {
+  background:linear-gradient(135deg,#FFF1E6 0%,#FEF3E2 50%,#FFFBEB 100%);
+  border:1px solid var(--or-b); border-radius:var(--r-xl); padding:1.5rem;
+  position:relative; overflow:hidden;
+}
+.cui-hero-top { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; margin-bottom:1.125rem; }
+.cui-hero-icon {
+  width:54px; height:54px; border-radius:16px; background:linear-gradient(135deg,#FB923C,#EA580C);
+  display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;
+  box-shadow:0 8px 20px rgba(234,88,12,.3);
+}
+.cui-hero-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#C2410C; }
+.cui-hero-score-row { display:flex; align-items:baseline; gap:6px; margin-top:2px; }
+.cui-hero-score { font-size:28px; font-weight:800; color:#9A3412; line-height:1; }
+.cui-hero-score-max { font-size:14px; color:#C2410C; font-weight:600; }
+.cui-streak-badge {
+  margin-left:auto; display:flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.7); border-radius:14px; padding:.5rem .875rem;
+  font-size:13px; font-weight:800; color:#C2410C; flex-shrink:0;
+}
+.cui-streak-badge i { font-size:16px; }
+
+/* Défi du jour */
+.cui-challenge {
+  background:rgba(255,255,255,.65); border:1px solid rgba(234,88,12,.18); border-radius:var(--r-lg);
+  padding:.875rem 1.125rem; display:flex; align-items:center; gap:12px;
+}
+.cui-challenge-icon { font-size:24px; flex-shrink:0; }
+.cui-challenge-text { flex:1; min-width:0; }
+.cui-challenge-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#C2410C; }
+.cui-challenge-title { font-size:13px; font-weight:700; color:#7C2D12; margin-top:1px; }
+.cui-challenge-btn {
+  font-size:11px; font-weight:700; padding:7px 14px; border-radius:20px; border:none;
+  background:#EA580C; color:#fff; cursor:pointer; flex-shrink:0; transition:opacity .12s;
+}
+.cui-challenge-btn:hover { opacity:.88; }
+.cui-challenge-btn.done { background:#16A34A; }
+
+/* ══════════════════════════════════════════════════
+   STATS MINI ROW
+══════════════════════════════════════════════════ */
+.cui-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; }
+.cui-stat-mini { background:var(--white); border:1px solid var(--bd); border-radius:var(--r-md); padding:.75rem; text-align:center; }
+.cui-stat-mini-val { font-size:18px; font-weight:800; color:var(--text); }
+.cui-stat-mini-lbl { font-size:9.5px; color:var(--t2); margin-top:2px; text-transform:uppercase; letter-spacing:.3px; font-weight:600; }
+
+/* ══════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════ */
+.cui-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.cui-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; display:flex; align-items:center; gap:5px; }
+.cui-tab:hover  { background:var(--bg); }
+.cui-tab.active { border-color:var(--or); color:#C2410C; background:var(--or-l); }
+.cui-panel { display:none; flex-direction:column; gap:1.25rem; }
+.cui-panel.on { display:flex; }
+
+/* ══════════════════════════════════════════════════
+   FILTRES À FACETTES — Sucré/Salé × Temps
+══════════════════════════════════════════════════ */
+.facet-bar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; background:var(--bg); border-radius:var(--r-md); padding:.75rem .875rem; }
+.facet-group { display:flex; align-items:center; gap:6px; }
+.facet-group-lbl { font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.4px; margin-right:2px; }
+.facet-pill {
+  font-size:11px; font-weight:700; padding:5px 12px; border-radius:20px; border:1.5px solid var(--bd2);
+  background:var(--white); color:var(--t2); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:5px;
+}
+.facet-pill:hover { border-color:var(--bd2); transform:translateY(-1px); }
+.facet-pill.sale.active   { background:#FEF3E2; border-color:#FB923C; color:#C2410C; }
+.facet-pill.sucre.active  { background:#FCE7F3; border-color:#F472B6; color:#BE185D; }
+.facet-pill.time.active   { background:var(--pu-l); border-color:var(--pu-b); color:var(--pu-d); }
+.facet-divider { width:1px; height:22px; background:var(--bd2); }
+.facet-clear { font-size:10.5px; color:var(--t3); background:none; border:none; cursor:pointer; text-decoration:underline; margin-left:auto; }
+.facet-count { font-size:11px; color:var(--t3); white-space:nowrap; }
+
+/* ══════════════════════════════════════════════════
+   CARTES RECETTES — design "carnet vivant"
+══════════════════════════════════════════════════ */
+.recipe-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.recipe-card {
+  background:var(--white); border:1px solid var(--bd); border-radius:18px;
+  overflow:hidden; cursor:pointer; transition:all .18s; position:relative;
+  display:flex; flex-direction:column;
+}
+.recipe-card:hover { transform:translateY(-3px); box-shadow:0 14px 32px rgba(0,0,0,.1); border-color:transparent; }
+.recipe-card-visual {
+  height:108px; position:relative; display:flex; align-items:center; justify-content:center;
+  font-size:42px; flex-shrink:0; overflow:hidden;
+}
+.recipe-card-visual::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, transparent 40%, rgba(0,0,0,.12) 100%);
+}
+.recipe-cat-badge {
+  position:absolute; top:9px; left:9px; z-index:2;
+  font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+  padding:3px 9px; border-radius:8px; backdrop-filter:blur(4px);
+}
+.recipe-cat-badge.sale  { background:rgba(234,88,12,.92); color:#fff; }
+.recipe-cat-badge.sucre { background:rgba(219,39,119,.92); color:#fff; }
+.recipe-fav-corner {
+  position:absolute; top:7px; right:7px; z-index:2; width:28px; height:28px; border-radius:50%;
+  background:rgba(255,255,255,.85); backdrop-filter:blur(4px); border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:var(--t3); font-size:14px; transition:all .12s;
+}
+.recipe-fav-corner.on { color:#EF4444; }
+.recipe-fav-corner:hover { transform:scale(1.1); }
+.recipe-card-body { padding:.875rem .9rem 1rem; display:flex; flex-direction:column; flex:1; gap:.5rem; }
+.recipe-card-name { font-size:13px; font-weight:800; color:var(--text); line-height:1.3; }
+.recipe-card-meta { display:flex; align-items:center; gap:8px; margin-top:auto; }
+.recipe-time-badge {
+  display:flex; align-items:center; gap:3px; font-size:10.5px; font-weight:700; color:var(--t2);
+  background:var(--bg); padding:3px 8px; border-radius:8px;
+}
+.recipe-time-badge.rapide { color:#166534; background:var(--gr-l); }
+.recipe-time-badge.moyen  { color:#92400E; background:var(--go-l); }
+.recipe-time-badge.long   { color:#9D174D; background:var(--pk-l); }
+.recipe-diff-dots { display:flex; gap:2px; margin-left:auto; }
+.recipe-diff-dot { width:5px; height:5px; border-radius:50%; background:var(--bd2); }
+.recipe-diff-dot.on { background:var(--or); }
+
+.empty-recipes { text-align:center; padding:3rem 1rem; color:var(--t3); grid-column:1/-1; }
+.empty-recipes-icon { font-size:36px; margin-bottom:.75rem; opacity:.6; }
+.empty-recipes-text { font-size:13px; }
+
+/* ══════════════════════════════════════════════════
+   MODAL RECETTE DÉTAIL
+══════════════════════════════════════════════════ */
+.recipe-modal-hero {
+  height:120px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+  font-size:48px; margin-bottom:1rem; position:relative;
+}
+.recipe-modal-body { display:flex; flex-direction:column; gap:1rem; }
+.recipe-modal-tags { display:flex; gap:6px; flex-wrap:wrap; }
+.recipe-ingredients-list { display:flex; flex-direction:column; gap:.375rem; }
+.recipe-ing-item { display:flex; align-items:center; gap:8px; padding:.375rem 0; border-bottom:1px solid var(--bd); font-size:12.5px; }
+.recipe-steps { display:flex; flex-direction:column; gap:.625rem; }
+.recipe-step { display:flex; gap:10px; }
+.recipe-step-num { width:22px; height:22px; border-radius:50%; background:var(--or-l); color:#C2410C; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.recipe-step-text { font-size:12.5px; color:var(--text); line-height:1.5; padding-top:1px; }
+
+/* ══════════════════════════════════════════════════
+   PLANNING REPAS
+══════════════════════════════════════════════════ */
+.meal-grid { display:grid; grid-template-columns:60px 1fr 1fr; gap:6px; }
+.meal-hdr { font-size:10px; color:var(--t3); text-transform:uppercase; letter-spacing:.5px; font-weight:700; text-align:center; padding-bottom:4px; }
+.meal-day { font-size:11px; font-weight:700; color:var(--t2); display:flex; align-items:center; }
+.meal-day.today { color:#C2410C; }
+.meal-slot {
+  border-radius:var(--r-md); padding:.5rem .625rem; font-size:11px; cursor:pointer;
+  border:1px solid var(--bd); min-height:42px; display:flex; align-items:center;
+  transition:all .12s; font-weight:600;
+}
+.meal-slot:hover { opacity:.8; }
+.meal-slot.empty { color:var(--t3); font-style:italic; background:none; border-style:dashed; font-weight:400; justify-content:center; }
+.meal-slot.filled { background:var(--or-l); color:#C2410C; border-color:var(--or-b); }
+
+/* ══════════════════════════════════════════════════
+   LISTE COURSES
+══════════════════════════════════════════════════ */
+.shop-cat-section { margin-bottom:1rem; }
+.shop-cat-section:last-child { margin-bottom:0; }
+.shop-cat-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--t3); padding-bottom:.375rem; display:flex; align-items:center; justify-content:space-between; }
+.shop-item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--bd); }
+.shop-item:last-child { border-bottom:none; }
+.shop-cb { width:19px; height:19px; border-radius:5px; border:1.5px solid var(--bd2); display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; transition:all .12s; }
+.shop-cb.on { background:#22C55E; border-color:#22C55E; }
+.shop-cb.on i { color:#fff; font-size:11px; display:block; }
+.shop-cb i { display:none; }
+.shop-name { font-size:12.5px; color:var(--text); flex:1; }
+.shop-name.done { color:var(--t3); text-decoration:line-through; }
+.shop-qty { font-size:11px; color:var(--t3); }
+.shop-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:13px; opacity:0; transition:opacity .12s; }
+.shop-item:hover .shop-del { opacity:1; }
+.shop-del:hover { color:var(--re); }
+.shop-add-row { display:flex; gap:6px; margin-top:.875rem; }
+.shop-add-row input { flex:1; font-size:12.5px; padding:8px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
+.shop-add-row input:focus { border-color:var(--or); }
+.shop-add-row select { font-size:11px; padding:8px 8px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--t2); }
+.shop-add-row button { font-size:12px; padding:8px 14px; border-radius:var(--r-md); border:1px solid var(--or); background:var(--or-l); color:#C2410C; cursor:pointer; font-weight:700; }
+
+/* ══════════════════════════════════════════════════
+   BUDGET ALIMENTAIRE
+══════════════════════════════════════════════════ */
+.food-budget-bar { height:9px; background:var(--bg); border-radius:5px; overflow:hidden; margin-top:6px; }
+.food-budget-fill { height:100%; border-radius:5px; transition:width .5s; }
+
+/* ══════════════════════════════════════════════════
+   IA SUGGESTIONS
+══════════════════════════════════════════════════ */
+.ia-suggest-box { background:var(--pu-l); border:1px solid var(--pu-b); border-radius:var(--r-lg); padding:1.25rem; }
+.ia-mode-tabs { display:flex; gap:6px; margin-bottom:1rem; }
+.ia-mode-tab { font-size:11px; font-weight:700; padding:6px 13px; border-radius:20px; border:1px solid var(--pu-b); background:var(--white); color:var(--pu-d); cursor:pointer; transition:all .12s; }
+.ia-mode-tab.sel { background:var(--pu); color:#fff; border-color:var(--pu); }
+
+@media(max-width:768px) {
+  .recipe-grid { grid-template-columns:1fr 1fr; }
+  .meal-grid { grid-template-columns:42px 1fr 1fr; }
+  .cui-stats-row { grid-template-columns:1fr 1fr; }
+  .facet-bar { flex-direction:column; align-items:flex-start; }
+  .facet-clear { margin-left:0; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO — Défi du jour + Streak
+════════════════════════════════════════════════════ -->
+<div class="cui-hero">
+  <div class="cui-hero-top">
+    <div class="cui-hero-icon">🍽️</div>
+    <div>
+      <div class="cui-hero-label">Score Cuisine & Alimentation</div>
+      <div class="cui-hero-score-row">
+        <span class="cui-hero-score" id="cui-score">74</span>
+        <span class="cui-hero-score-max">/100</span>
+      </div>
+    </div>
+    <div class="cui-streak-badge"><i class="ti ti-flame"></i> <span id="cui-streak">0</span> jours de suite</div>
+  </div>
+  <div class="cui-challenge" id="cui-challenge-box">
+    <div class="cui-challenge-icon" id="cui-challenge-icon">🎲</div>
+    <div class="cui-challenge-text">
+      <div class="cui-challenge-label">Défi cuisine du jour</div>
+      <div class="cui-challenge-title" id="cui-challenge-title">Chargement...</div>
+    </div>
+    <button class="cui-challenge-btn" id="cui-challenge-btn" onclick="Cuisine.completeChallenge()">Relever le défi</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     STATS RAPIDES
+════════════════════════════════════════════════════ -->
+<div class="cui-stats-row">
+  <div class="cui-stat-mini"><div class="cui-stat-mini-val" id="cui-stat-recipes">0</div><div class="cui-stat-mini-lbl">Recettes</div></div>
+  <div class="cui-stat-mini"><div class="cui-stat-mini-val" id="cui-stat-fav">0</div><div class="cui-stat-mini-lbl">Favorites</div></div>
+  <div class="cui-stat-mini"><div class="cui-stat-mini-val" id="cui-stat-planned">0</div><div class="cui-stat-mini-lbl">Repas planifiés</div></div>
+  <div class="cui-stat-mini"><div class="cui-stat-mini-val" id="cui-stat-budget">0 €</div><div class="cui-stat-mini-lbl">Budget mois</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TABS
+════════════════════════════════════════════════════ -->
+<div class="cui-tabs">
+  <button class="cui-tab active" onclick="Cuisine.showTab('recettes')"><i class="ti ti-book" style="font-size:13px"></i> Mes recettes</button>
+  <button class="cui-tab" onclick="Cuisine.showTab('planning')"><i class="ti ti-calendar-week" style="font-size:13px"></i> Planning repas</button>
+  <button class="cui-tab" onclick="Cuisine.showTab('courses')"><i class="ti ti-shopping-cart" style="font-size:13px"></i> Liste de courses</button>
+  <button class="cui-tab" onclick="Cuisine.showTab('budget')"><i class="ti ti-receipt-2" style="font-size:13px"></i> Budget alimentaire</button>
+  <button class="cui-tab" onclick="Cuisine.showTab('idees')"><i class="ti ti-sparkles" style="font-size:13px"></i> Idées IA</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : MES RECETTES
+════════════════════════════════════════════════════ -->
+<div class="cui-panel on" id="cui-panel-recettes">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-book"></i> Mon livre de cuisine</span>
+      <button class="btn-pill pu" onclick="Cuisine.openRecipeModal()"><i class="ti ti-plus" style="font-size:12px"></i> Nouvelle recette</button>
+    </div>
+
+    <!-- Filtres à facettes : Sucré/Salé × Temps -->
+    <div class="facet-bar" style="margin-bottom:1.125rem">
+      <div class="facet-group">
+        <span class="facet-group-lbl">Type</span>
+        <button class="facet-pill sale"  data-facet="cat" data-val="sale"  onclick="Cuisine.toggleFacet('cat','sale')">🧂 Salé</button>
+        <button class="facet-pill sucre" data-facet="cat" data-val="sucre" onclick="Cuisine.toggleFacet('cat','sucre')">🍰 Sucré</button>
+      </div>
+      <div class="facet-divider"></div>
+      <div class="facet-group">
+        <span class="facet-group-lbl">Temps</span>
+        <button class="facet-pill time" data-facet="time" data-val="rapide" onclick="Cuisine.toggleFacet('time','rapide')">⚡ Rapide</button>
+        <button class="facet-pill time" data-facet="time" data-val="moyen"  onclick="Cuisine.toggleFacet('time','moyen')">⏱️ Moyen</button>
+        <button class="facet-pill time" data-facet="time" data-val="long"   onclick="Cuisine.toggleFacet('time','long')">🍲 Long</button>
+      </div>
+      <div class="facet-divider"></div>
+      <button class="facet-pill" data-facet="fav" data-val="1" onclick="Cuisine.toggleFacet('fav','1')">❤️ Favoris</button>
+      <button class="facet-clear" onclick="Cuisine.clearFacets()" id="facet-clear-btn" style="display:none">Réinitialiser</button>
+      <span class="facet-count" id="facet-count"></span>
+    </div>
+
+    <div class="recipe-grid" id="recipe-grid"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : PLANNING REPAS
+════════════════════════════════════════════════════ -->
+<div class="cui-panel" id="cui-panel-planning">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-calendar-week"></i> Cette semaine</span>
+        <button class="btn-ghost" onclick="Cuisine.generatePlanningAI()">✨ Suggérer la semaine</button>
+      </div>
+      <div class="meal-grid" id="meal-grid"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list-check"></i> À cuisiner bientôt</span>
+      </div>
+      <div id="planning-upcoming"></div>
+      <div style="margin-top:1rem;padding:.875rem;background:var(--bg);border-radius:var(--r-md);font-size:11px;color:var(--t2);line-height:1.6">
+        💡 Planifier ses repas à l'avance réduit le gaspillage alimentaire de 30% et le stress du "qu'est-ce qu'on mange ce soir".
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : LISTE DE COURSES
+════════════════════════════════════════════════════ -->
+<div class="cui-panel" id="cui-panel-courses">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-shopping-cart"></i> Liste de courses</span>
+        <button class="btn-ghost" onclick="Cuisine.clearDoneCourses()">Effacer cochés</button>
+      </div>
+      <div id="shop-list"></div>
+      <div class="shop-add-row">
+        <input type="text" id="shop-new-item" placeholder="Ajouter un article..." onkeydown="if(event.key==='Enter')Cuisine.addShopItem()">
+        <select id="shop-new-cat">
+          <option value="Fruits & Légumes">🥦 Fruits & Légumes</option>
+          <option value="Viandes & Poissons">🥩 Viandes & Poissons</option>
+          <option value="Épicerie">🧂 Épicerie</option>
+          <option value="Frais & Laitiers">🧀 Frais & Laitiers</option>
+          <option value="Surgelés">🧊 Surgelés</option>
+          <option value="Boissons">🥤 Boissons</option>
+          <option value="Hygiène & Maison">🧴 Hygiène & Maison</option>
+        </select>
+        <button onclick="Cuisine.addShopItem()">Ajouter</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-bulb"></i> Suggestions auto</span>
+      </div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:.875rem;line-height:1.5">Basé sur ton planning de la semaine, voici ce qu'il te manque probablement :</div>
+      <div id="shop-suggestions"></div>
+      <button class="btn-pill pu" style="margin-top:.875rem;width:100%;justify-content:center" onclick="Cuisine.addAllSuggestions()">
+        <i class="ti ti-playlist-add"></i> Tout ajouter à la liste
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : BUDGET ALIMENTAIRE
+════════════════════════════════════════════════════ -->
+<div class="cui-panel" id="cui-panel-budget">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-receipt-2"></i> Budget alimentaire — ce mois</span>
+        <button class="btn-ghost" onclick="navigate('budget')">Voir Finance →</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem">
+        <span style="font-size:24px;font-weight:800;color:var(--text)" id="food-spent">0 €</span>
+        <span style="font-size:12px;color:var(--t2)">sur <strong id="food-budget-total">0 €</strong></span>
+      </div>
+      <div class="food-budget-bar"><div class="food-budget-fill" id="food-budget-fill" style="width:0%;background:var(--am)"></div></div>
+      <div style="font-size:11px;color:var(--t2);margin-top:.5rem" id="food-budget-hint"></div>
+
+      <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--bd)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin-bottom:.625rem">Répartition par type</div>
+        <div id="food-breakdown"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-trending-down"></i> Astuces économies</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.625rem">
+        <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--gr-b)">
+          <div style="font-size:11.5px;font-weight:700;color:#166534;margin-bottom:3px">🛒 Liste = -23% de dépenses</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Faire une liste avant de partir réduit les achats impulsifs de près d'un quart.</div>
+        </div>
+        <div style="background:var(--bl-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--bl-b)">
+          <div style="font-size:11.5px;font-weight:700;color:#1E40AF;margin-bottom:3px">🥦 Légumes de saison</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">30 à 50% moins chers que les légumes hors-saison, et souvent plus savoureux.</div>
+        </div>
+        <div style="background:var(--or-l);border-radius:var(--r-md);padding:.75rem;border:1px solid var(--or-b)">
+          <div style="font-size:11.5px;font-weight:700;color:#C2410C;margin-bottom:3px">🍳 Batch cooking le dimanche</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Cuisiner en grande quantité réduit le gaspillage et les commandes à emporter de dépannage.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : IDÉES IA
+════════════════════════════════════════════════════ -->
+<div class="cui-panel" id="cui-panel-idees">
+  <div class="ia-suggest-box">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+      <div style="width:40px;height:40px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-sparkles" style="color:#fff;font-size:18px"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--pu-d)">Assistant culinaire — Gemini IA</div>
+        <div style="font-size:12px;color:#7C3AED">Suggestions personnalisées · +20 XP</div>
+      </div>
+    </div>
+
+    <div class="ia-mode-tabs">
+      <button class="ia-mode-tab sel" id="ia-mode-suggest" onclick="Cuisine.setIaMode('suggest')">💡 Suggérer 3 idées</button>
+      <button class="ia-mode-tab" id="ia-mode-generate" onclick="Cuisine.setIaMode('generate')">📝 Générer une recette complète</button>
+    </div>
+
+    <div id="ia-mode-suggest-fields">
+      <div class="g2" style="margin-bottom:.875rem">
+        <div>
+          <label class="field-lbl">Ingrédients disponibles</label>
+          <input class="field-input" id="ia-ingredients" placeholder="Ex: poulet, courgettes, riz...">
+        </div>
+        <div>
+          <label class="field-lbl">Contraintes</label>
+          <select class="field-select" id="ia-contraintes" style="width:100%">
+            <option value="rapide">⏱️ Rapide (moins de 20 min)</option>
+            <option value="air-fryer">🔥 Spécial Air Fryer</option>
+            <option value="vege">🌱 Végétarien</option>
+            <option value="economique">💰 Économique</option>
+            <option value="sain">🥗 Healthy / Léger</option>
+            <option value="sucre">🍰 Sucré / Dessert</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="ia-mode-generate-fields" style="display:none;margin-bottom:.875rem">
+      <label class="field-lbl">Décris la recette que tu imagines</label>
+      <textarea class="field-ta" id="ia-recipe-desc" rows="2" placeholder="Ex: Un gâteau au chocolat fondant facile et rapide" style="margin-bottom:0"></textarea>
+    </div>
+
+    <button class="btn-primary" onclick="Cuisine.runIA()">
+      <i class="ti ti-sparkles"></i> <span id="ia-run-label">Générer 3 idées de recettes</span>
+    </button>
+    <div class="coach-resp" id="ia-recipe-resp"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-link"></i> Liens utiles</span></div>
+    <div class="rec" onclick="window.open('https://www.marmiton.org/recettes/recherche.aspx?aqt=air+fryer','_blank')">
+      <div class="rec-ic" style="background:var(--re-l)"><i class="ti ti-external-link" style="color:var(--re)"></i></div>
+      <div class="rec-info"><div class="rec-name">Marmiton — Recherche recettes</div></div>
+      <i class="ti ti-arrow-right" style="color:var(--pu)"></i>
+    </div>
+    <div class="rec" onclick="window.open('https://www.youtube.com/results?search_query=recette+air+fryer+facile','_blank')" style="margin-bottom:0">
+      <div class="rec-ic" style="background:var(--re-l)"><i class="ti ti-brand-youtube" style="color:var(--re)"></i></div>
+      <div class="rec-info"><div class="rec-name">YouTube — Tutos cuisine</div></div>
+      <i class="ti ti-arrow-right" style="color:var(--pu)"></i>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL RECETTE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="recipe-modal-overlay" style="display:none" onclick="if(event.target===this)Cuisine.closeRecipeModal()">
+  <div class="modal-box" style="max-width:540px" onclick="event.stopPropagation()">
+    <div class="modal-title" id="recipe-modal-title"><i class="ti ti-plus"></i> Nouvelle recette</div>
+    <div class="recipe-modal-body" id="recipe-modal-body"></div>
+    <div class="modal-actions" id="recipe-modal-actions">
+      <button class="modal-btn primary" onclick="Cuisine.saveRecipe()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+window.initModule = function(name) {
+  if (name !== 'cuisine') return;
+  Cuisine.init();
+};
+
+/* ══════════════════════════════════════════════════
+   COULEURS PAR CATÉGORIE (visuel cartes)
+══════════════════════════════════════════════════ */
+const CUI_CAT_COLORS = {
+  sale:  ['#FFEDD5','#FFF7ED'],
+  sucre: ['#FCE7F3','#FDF2F8'],
+};
+
+/* ══════════════════════════════════════════════════
+   STORE
+══════════════════════════════════════════════════ */
+const CuiStore = {
+  _key: 'aura_cuisine_v2',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try {
+      const r = localStorage.getItem(this._key);
+      if (r) { this._data = JSON.parse(r); return this._data; }
+      // Migration douce depuis l'ancienne version si elle existe
+      const old = localStorage.getItem('aura_cuisine_v1');
+      if (old) {
+        const oldData = JSON.parse(old);
+        this._data = this._withDefaults(oldData);
+        this.save();
+        return this._data;
+      }
+    } catch(_) {}
+    this._data = this._withDefaults({});
+    this.save();
+    return this._data;
+  },
+
+  _withDefaults(partial) {
+    return {
+      score: partial.score || 74,
+      streak: partial.streak || 3,
+      lastChallengeDate: partial.lastChallengeDate || '',
+      challengeDoneToday: partial.challengeDoneToday || false,
+      recipes: partial.recipes && partial.recipes.length ? partial.recipes : DEFAULT_RECIPES,
+      planning: partial.planning || {},
+      courses: partial.courses && partial.courses.length ? partial.courses : [
+        { id:1, name:'Champignons',  cat:'Fruits & Légumes',     qty:'500g', done:true  },
+        { id:2, name:'Avocat',       cat:'Fruits & Légumes',     qty:'×2',   done:false },
+        { id:3, name:'Saumon',       cat:'Viandes & Poissons',   qty:'×2',   done:true  },
+        { id:4, name:'Farine',       cat:'Épicerie',             qty:'500g', done:false },
+      ],
+      budget: partial.budget || { total:350, spent:312, breakdown:{ 'Courses alimentaires':210, 'Restaurants':62, 'Livraisons':40 } },
+    };
+  },
+
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  addRecipe(r) { const d=this.get(); r.id=d.recipes.length?Math.max(...d.recipes.map(x=>x.id))+1:1; d.recipes.unshift(r); this.save(); return r; },
+  toggleFav(id) { const d=this.get(); const r=d.recipes.find(x=>x.id===id); if(r){r.fav=!r.fav; this.save();} },
+  deleteRecipe(id) { const d=this.get(); d.recipes=d.recipes.filter(x=>x.id!==id); this.save(); },
+
+  addCourse(item) { const d=this.get(); item.id=d.courses.length?Math.max(...d.courses.map(x=>x.id))+1:1; d.courses.push(item); this.save(); return item; },
+  toggleCourse(id) { const d=this.get(); const c=d.courses.find(x=>x.id===id); if(c){c.done=!c.done; this.save();} },
+  deleteCourse(id) { const d=this.get(); d.courses=d.courses.filter(x=>x.id!==id); this.save(); },
+  clearDone() { const d=this.get(); d.courses=d.courses.filter(x=>!x.done); this.save(); },
+
+  setPlanning(dateKey, recipeNameOrId) { const d=this.get(); d.planning[dateKey]=recipeNameOrId; this.save(); },
+};
+
+/* ══════════════════════════════════════════════════
+   18 RECETTES DE DÉPART
+   cat: 'sale' | 'sucre'  ·  time: 'rapide' (≤20min) | 'moyen' (20-45min) | 'long' (45min+)
+══════════════════════════════════════════════════ */
+const DEFAULT_RECIPES = [
+  // ── SALÉ × RAPIDE ──
+  { id:1, name:'Ailes de poulet croustillantes', emoji:'🍗', cat:'sale', time:'rapide', minutes:25, difficulty:2, tags:['Air fryer','Facile'], fav:true,
+    ingredients:['500g ailes de poulet','2 c.à.s paprika fumé','1 c.à.s ail en poudre','Sel, poivre','1 c.à.s huile d\'olive'],
+    steps:['Mélanger les épices avec l\'huile','Enrober les ailes de poulet','Cuire à l\'air fryer 200°C pendant 20-25 min en retournant à mi-cuisson','Vérifier la cuisson et servir chaud'] },
+  { id:2, name:'Buddha bowl coloré', emoji:'🥗', cat:'sale', time:'rapide', minutes:15, difficulty:1, tags:['Végé','Sain'], fav:false,
+    ingredients:['Quinoa cuit','Avocat','Pois chiches rôtis','Carottes râpées','Sauce tahini'],
+    steps:['Cuire le quinoa selon les instructions','Disposer tous les ingrédients dans un bol','Napper de sauce tahini citronnée','Assaisonner et servir frais ou tiède'] },
+  { id:3, name:'Œufs brouillés à la truffe', emoji:'🍳', cat:'sale', time:'rapide', minutes:10, difficulty:1, tags:['Petit-déj','Rapide'], fav:false,
+    ingredients:['4 œufs','1 c.à.s crème fraîche','Huile de truffe','Ciboulette','Sel, poivre'],
+    steps:['Battre les œufs avec la crème','Cuire à feu doux en remuant constamment','Retirer du feu quand encore baveux','Arroser d\'huile de truffe et ciboulette'] },
+
+  // ── SALÉ × MOYEN ──
+  { id:4, name:'Saumon miso glacé', emoji:'🐟', cat:'sale', time:'moyen', minutes:30, difficulty:2, tags:['Air fryer','Healthy'], fav:true,
+    ingredients:['2 pavés de saumon','2 c.à.s pâte miso','1 c.à.s miel','1 c.à.s sauce soja'],
+    steps:['Mélanger miso, miel et sauce soja','Badigeonner le saumon du mélange','Laisser mariner 10 min si possible','Cuire à l\'air fryer 180°C pendant 10-12 min'] },
+  { id:5, name:'Curry de légumes au lait de coco', emoji:'🍛', cat:'sale', time:'moyen', minutes:35, difficulty:2, tags:['Végé','Asiatique'], fav:false,
+    ingredients:['Lait de coco','Pâte de curry','Patate douce','Brocoli','Pois chiches','Riz basmati'],
+    steps:['Faire revenir la pâte de curry 1 min','Ajouter le lait de coco et porter à ébullition','Ajouter les légumes et cuire 20 min','Servir avec le riz basmati'] },
+  { id:6, name:'Poulet rôti aux herbes', emoji:'🍗', cat:'sale', time:'moyen', minutes:40, difficulty:2, tags:['Four','Familial'], fav:false,
+    ingredients:['4 cuisses de poulet','Thym, romarin','2 gousses d\'ail','Huile d\'olive','Citron'],
+    steps:['Préchauffer le four à 200°C','Frotter le poulet avec herbes, ail et huile','Enfourner 35-40 min en arrosant à mi-cuisson','Arroser de jus de citron avant de servir'] },
+
+  // ── SALÉ × LONG ──
+  { id:7, name:'Risotto aux champignons', emoji:'🍚', cat:'sale', time:'long', minutes:50, difficulty:3, tags:['Mijotée','Végé'], fav:false,
+    ingredients:['300g riz arborio','400g champignons','1L bouillon de légumes','1 oignon','Parmesan','Vin blanc (optionnel)'],
+    steps:['Faire revenir l\'oignon puis les champignons','Ajouter le riz et nacrer 2 min','Verser le bouillon louche par louche en remuant','Cuire 18-20 min jusqu\'à absorption, ajouter le parmesan'] },
+  { id:8, name:'Bourguignon traditionnel', emoji:'🍲', cat:'sale', time:'long', minutes:180, difficulty:3, tags:['Mijotée','Familial'], fav:false,
+    ingredients:['1kg bœuf à braiser','Carottes','Oignons','Vin rouge','Bouquet garni','Lardons'],
+    steps:['Faire revenir la viande et les lardons','Ajouter oignons et carottes, faire revenir','Mouiller avec le vin rouge, ajouter le bouquet garni','Laisser mijoter 2h30 à 3h à feu doux'] },
+  { id:9, name:'Lasagnes maison', emoji:'🍝', cat:'sale', time:'long', minutes:75, difficulty:3, tags:['Four','Familial'], fav:true,
+    ingredients:['Plaques de lasagnes','Sauce bolognaise maison','Béchamel','Mozzarella','Parmesan'],
+    steps:['Préparer la bolognaise et la béchamel','Monter les couches : pâtes, bolognaise, béchamel','Répéter sur 3-4 couches','Cuire au four 45 min à 180°C, gratiner 10 min'] },
+
+  // ── SUCRÉ × RAPIDE ──
+  { id:10, name:'Mug cake chocolat', emoji:'🍫', cat:'sucre', time:'rapide', minutes:8, difficulty:1, tags:['Express','Chocolat'], fav:true,
+    ingredients:['4 c.à.s farine','3 c.à.s sucre','2 c.à.s cacao','1 œuf','3 c.à.s lait','2 c.à.s huile'],
+    steps:['Mélanger tous les ingrédients secs dans une tasse','Ajouter œuf, lait et huile, bien mélanger','Cuire au micro-ondes 1min30 à 2min','Démouler délicatement et déguster tiède'] },
+  { id:11, name:'Smoothie bowl fruits rouges', emoji:'🍓', cat:'sucre', time:'rapide', minutes:10, difficulty:1, tags:['Sain','Petit-déj'], fav:false,
+    ingredients:['Fruits rouges surgelés','1 banane','Lait d\'amande','Granola','Graines de chia'],
+    steps:['Mixer fruits rouges, banane et lait','Verser dans un bol','Garnir de granola et fruits frais','Saupoudrer de graines de chia'] },
+  { id:12, name:'Crêpes rapides', emoji:'🥞', cat:'sucre', time:'rapide', minutes:20, difficulty:1, tags:['Classique','Goûter'], fav:false,
+    ingredients:['250g farine','3 œufs','500ml lait','1 pincée de sel','Beurre fondu'],
+    steps:['Mélanger farine et œufs','Incorporer le lait progressivement','Laisser reposer 15 min si possible','Cuire à la poêle bien chaude beurrée'] },
+
+  // ── SUCRÉ × MOYEN ──
+  { id:13, name:'Cookies moelleux', emoji:'🍪', cat:'sucre', time:'moyen', minutes:25, difficulty:2, tags:['Four','Goûter'], fav:true,
+    ingredients:['200g farine','100g beurre','100g sucre cassonade','1 œuf','Pépites de chocolat'],
+    steps:['Mélanger beurre mou et sucre','Ajouter l\'œuf puis la farine','Incorporer les pépites de chocolat','Cuire 10-12 min à 180°C en boules espacées'] },
+  { id:14, name:'Tarte aux pommes', emoji:'🥧', cat:'sucre', time:'moyen', minutes:45, difficulty:2, tags:['Four','Classique'], fav:false,
+    ingredients:['1 pâte brisée','4-5 pommes','2 c.à.s sucre','Cannelle','1 c.à.s beurre'],
+    steps:['Étaler la pâte dans un moule','Disposer les pommes émincées en rosace','Saupoudrer de sucre et cannelle','Cuire 35-40 min à 180°C'] },
+  { id:15, name:'Cheesecake sans cuisson', emoji:'🍰', cat:'sucre', time:'moyen', minutes:30, difficulty:2, tags:['Frais','Sans cuisson'], fav:false,
+    ingredients:['Biscuits spéculoos','Beurre fondu','Fromage frais','Crème liquide','Sucre','Coulis de fruits'],
+    steps:['Mixer biscuits et beurre, tasser dans un moule','Fouetter fromage frais, crème et sucre','Verser sur la base biscuitée','Réfrigérer minimum 4h avant de servir'] },
+
+  // ── SUCRÉ × LONG ──
+  { id:16, name:'Gâteau au chocolat fondant', emoji:'🎂', cat:'sucre', time:'long', minutes:50, difficulty:3, tags:['Four','Chocolat'], fav:true,
+    ingredients:['200g chocolat noir','150g beurre','150g sucre','4 œufs','80g farine'],
+    steps:['Faire fondre chocolat et beurre au bain-marie','Blanchir les œufs avec le sucre','Mélanger le tout puis ajouter la farine','Cuire 25-30 min à 180°C, cœur encore fondant'] },
+  { id:17, name:'Brioche maison tressée', emoji:'🥐', cat:'sucre', time:'long', minutes:180, difficulty:3, tags:['Levée','Boulange'], fav:false,
+    ingredients:['500g farine','2 œufs','80g sucre','250ml lait','1 sachet levure boulangère','100g beurre'],
+    steps:['Mélanger tous les ingrédients sauf le beurre','Pétrir 10 min puis incorporer le beurre','Laisser lever 1h30 à 2h','Façonner, laisser lever encore 45 min puis cuire 25 min à 180°C'] },
+  { id:18, name:'Macarons à la framboise', emoji:'🧁', cat:'sucre', time:'long', minutes:90, difficulty:3, tags:['Pâtisserie','Précis'], fav:false,
+    ingredients:['125g poudre d\'amande','125g sucre glace','90g blancs d\'œufs','125g sucre semoule','Confiture de framboise'],
+    steps:['Préparer la pâte d\'amande avec poudre et sucre glace','Monter les blancs en neige avec le sucre','Macaronner délicatement le mélange','Pocher, laisser croûter 30 min puis cuire 13-14 min à 150°C'] },
+];
+
+/* ══════════════════════════════════════════════════
+   DÉFIS DU JOUR — gamification quotidienne
+══════════════════════════════════════════════════ */
+const CUI_CHALLENGES = [
+  { icon:'🥦', title:'Cuisine un plat 100% légumes aujourd\'hui' },
+  { icon:'⏱️', title:'Prépare un repas en moins de 15 minutes' },
+  { icon:'🆕', title:'Teste une recette que tu n\'as jamais faite' },
+  { icon:'🍰', title:'Fais un dessert maison ce soir' },
+  { icon:'🌿', title:'Ajoute au moins 3 légumes différents à ton repas' },
+  { icon:'📝', title:'Planifie tous tes repas de la semaine' },
+  { icon:'♻️', title:'Cuisine avec un reste du frigo pour éviter le gaspillage' },
+  { icon:'🌍', title:'Essaie une recette d\'une cuisine du monde' },
+  { icon:'👨‍🍳', title:'Cuisine sans recette, à l\'instinct' },
+  { icon:'🥗', title:'Prépare ta liste de courses pour la semaine' },
+];
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const Cuisine = {
+  facets: { cat: new Set(), time: new Set(), fav: false },
+  editingRecipeId: null,
+  iaMode: 'suggest',
+
+  init() {
+    this.renderHero();
+    this.renderChallenge();
+    this.renderRecipes();
+    this.renderPlanning();
+    this.renderCourses();
+    this.renderBudget();
+    this.syncFromDB();
+  },
+
+  showTab(tab) {
+    document.querySelectorAll('.cui-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.cui-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['recettes','planning','courses','budget','idees'];
+    const idx  = tabs.indexOf(tab);
+    if (idx>=0) document.querySelectorAll('.cui-tab')[idx].classList.add('active');
+    document.getElementById('cui-panel-'+tab)?.classList.add('on');
+  },
+
+  /* ── Hero & stats ── */
+  renderHero() {
+    const d = CuiStore.get();
+    _set('cui-score', d.score);
+    _set('cui-streak', d.streak);
+    _set('cui-stat-recipes', d.recipes.length);
+    _set('cui-stat-fav', d.recipes.filter(r=>r.fav).length);
+    _set('cui-stat-planned', Object.keys(d.planning).length);
+    _set('cui-stat-budget', d.budget.spent+'€');
+  },
+
+  /* ── Défi du jour ── */
+  renderChallenge() {
+    const d = CuiStore.get();
+    const today = new Date().toISOString().slice(0,10);
+    if (d.lastChallengeDate !== today) {
+      d.lastChallengeDate = today;
+      d.challengeDoneToday = false;
+      CuiStore.save();
+    }
+    const seed = new Date().getDate() % CUI_CHALLENGES.length;
+    const challenge = CUI_CHALLENGES[seed];
+    _set('cui-challenge-icon', challenge.icon);
+    _set('cui-challenge-title', challenge.title);
+    const btn = document.getElementById('cui-challenge-btn');
+    if (d.challengeDoneToday) {
+      btn.textContent = '✓ Fait aujourd\'hui';
+      btn.classList.add('done');
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Relever le défi';
+      btn.classList.remove('done');
+      btn.disabled = false;
+    }
+  },
+
+  completeChallenge() {
+    const d = CuiStore.get();
+    if (d.challengeDoneToday) return;
+    d.challengeDoneToday = true;
+    d.streak = (d.streak||0) + 1;
+    d.score = Math.min(100, d.score + 2);
+    CuiStore.save();
+    this.renderChallenge();
+    this.renderHero();
+    earnXP(20, 'Défi cuisine relevé', '🎲');
+    AuraUI.showToast('✦ Défi relevé ! Ton streak cuisine grandit 🔥');
+  },
+
+  /* ── Facettes (filtres) ── */
+  toggleFacet(group, val) {
+    if (group === 'fav') {
+      this.facets.fav = !this.facets.fav;
+    } else {
+      const set = this.facets[group];
+      if (set.has(val)) set.delete(val); else set.add(val);
+    }
+    this.syncFacetButtons();
+    this.renderRecipes();
+  },
+
+  syncFacetButtons() {
+    document.querySelectorAll('.facet-pill').forEach(btn => {
+      const group = btn.dataset.facet;
+      const val   = btn.dataset.val;
+      if (group === 'fav') btn.classList.toggle('active', this.facets.fav);
+      else btn.classList.toggle('active', this.facets[group].has(val));
+    });
+    const anyActive = this.facets.cat.size || this.facets.time.size || this.facets.fav;
+    document.getElementById('facet-clear-btn').style.display = anyActive ? 'inline' : 'none';
+  },
+
+  clearFacets() {
+    this.facets = { cat: new Set(), time: new Set(), fav: false };
+    this.syncFacetButtons();
+    this.renderRecipes();
+  },
+
+  /* ── Recettes ── */
+  renderRecipes() {
+    const d = CuiStore.get();
+    let list = d.recipes;
+
+    if (this.facets.cat.size)  list = list.filter(r => this.facets.cat.has(r.cat));
+    if (this.facets.time.size) list = list.filter(r => this.facets.time.has(r.time));
+    if (this.facets.fav)       list = list.filter(r => r.fav);
+
+    const count = document.getElementById('facet-count');
+    const totalActive = this.facets.cat.size + this.facets.time.size + (this.facets.fav?1:0);
+    count.textContent = totalActive ? `${list.length} recette${list.length!==1?'s':''}` : '';
+
+    const el = document.getElementById('recipe-grid');
+    if (!list.length) {
+      el.innerHTML = `<div class="empty-recipes">
+        <div class="empty-recipes-icon">🔍</div>
+        <div class="empty-recipes-text">Aucune recette ne correspond à ces filtres</div>
+      </div>`;
+      return;
+    }
+
+    const TIME_LABEL = { rapide:'⚡ Rapide', moyen:'⏱️ Moyen', long:'🍲 Long' };
+
+    el.innerHTML = list.map(r => {
+      const bg = CUI_CAT_COLORS[r.cat] || CUI_CAT_COLORS.sale;
+      const catLabel = r.cat === 'sale' ? 'Salé' : 'Sucré';
+      const diffDots = [1,2,3].map(n => `<span class="recipe-diff-dot ${n<=r.difficulty?'on':''}"></span>`).join('');
+      return `<div class="recipe-card" onclick="Cuisine.openRecipeDetail(${r.id})">
+        <div class="recipe-card-visual" style="background:linear-gradient(135deg,${bg[0]},${bg[1]})">
+          <span class="recipe-cat-badge ${r.cat}">${catLabel}</span>
+          <button class="recipe-fav-corner ${r.fav?'on':''}" onclick="event.stopPropagation();Cuisine.toggleFav(${r.id})"><i class="ti ti-heart${r.fav?'-filled':''}"></i></button>
+          <span>${r.emoji}</span>
+        </div>
+        <div class="recipe-card-body">
+          <div class="recipe-card-name">${r.name}</div>
+          <div class="recipe-card-meta">
+            <span class="recipe-time-badge ${r.time}">${TIME_LABEL[r.time]} · ${r.minutes}min</span>
+            <div class="recipe-diff-dots">${diffDots}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  toggleFav(id) { CuiStore.toggleFav(id); this.renderRecipes(); this.renderHero(); earnXP(3,'Recette favorite','❤️'); },
+
+  openRecipeDetail(id) {
+    const r = CuiStore.get().recipes.find(x=>x.id===id);
+    if (!r) return;
+    const bg = CUI_CAT_COLORS[r.cat] || CUI_CAT_COLORS.sale;
+    document.getElementById('recipe-modal-title').innerHTML = `${r.emoji} ${r.name}`;
+    document.getElementById('recipe-modal-body').innerHTML = `
+      <div class="recipe-modal-hero" style="background:linear-gradient(135deg,${bg[0]},${bg[1]})">${r.emoji}</div>
+      <div class="recipe-modal-tags">
+        <span class="tag ${r.cat==='sale'?'or':'pk'}">${r.cat==='sale'?'Salé':'Sucré'}</span>
+        <span class="tag pu">${r.time==='rapide'?'⚡ Rapide':r.time==='moyen'?'⏱️ Moyen':'🍲 Long'} · ${r.minutes} min</span>
+        ${(r.tags||[]).map(t=>`<span class="tag bl">${t}</span>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin-bottom:.5rem">Ingrédients</div>
+        <div class="recipe-ingredients-list">${(r.ingredients||[]).map(i=>`<div class="recipe-ing-item"><i class="ti ti-point" style="color:var(--or);font-size:8px"></i> ${i}</div>`).join('')}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin-bottom:.625rem">Étapes</div>
+        <div class="recipe-steps">${(r.steps||[]).map((s,i)=>`<div class="recipe-step"><span class="recipe-step-num">${i+1}</span><span class="recipe-step-text">${s}</span></div>`).join('')}</div>
+      </div>`;
+    document.getElementById('recipe-modal-actions').innerHTML = `
+      <button class="modal-btn primary" onclick="Cuisine.addToShoppingFromRecipe(${r.id})"><i class="ti ti-shopping-cart"></i> Ajouter aux courses</button>
+      <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Fermer</button>`;
+    document.getElementById('recipe-modal-overlay').style.display = 'flex';
+  },
+
+  addToShoppingFromRecipe(id) {
+    const r = CuiStore.get().recipes.find(x=>x.id===id);
+    if (!r) return;
+    (r.ingredients||[]).forEach(ing => CuiStore.addCourse({ name:ing, cat:'Épicerie', qty:'', done:false }));
+    this.renderCourses();
+    this.closeRecipeModal();
+    AuraUI.showToast('✓ Ingrédients ajoutés à la liste de courses');
+  },
+
+  openRecipeModal() {
+    this.editingRecipeId = null;
+    document.getElementById('recipe-modal-title').innerHTML = '<i class="ti ti-plus"></i> Nouvelle recette';
+    document.getElementById('recipe-modal-body').innerHTML = `
+      <div class="modal-field"><label class="modal-lbl">Nom de la recette</label><input class="modal-input" id="rm-name" placeholder="Ex: Tarte aux pommes"></div>
+      <div class="modal-field"><label class="modal-lbl">Emoji</label><input class="modal-input" id="rm-emoji" placeholder="🍰" maxlength="4" style="font-size:20px"></div>
+      <div class="g2" style="gap:.75rem">
+        <div class="modal-field"><label class="modal-lbl">Type</label>
+          <select class="modal-input" id="rm-cat"><option value="sale">🧂 Salé</option><option value="sucre">🍰 Sucré</option></select>
+        </div>
+        <div class="modal-field"><label class="modal-lbl">Temps</label>
+          <select class="modal-input" id="rm-time"><option value="rapide">⚡ Rapide (≤20min)</option><option value="moyen">⏱️ Moyen (20-45min)</option><option value="long">🍲 Long (45min+)</option></select>
+        </div>
+      </div>
+      <div class="modal-field"><label class="modal-lbl">Durée précise (minutes)</label><input class="modal-input" id="rm-minutes" type="number" placeholder="30"></div>
+      <div class="modal-field"><label class="modal-lbl">Tags (séparés par virgule)</label><input class="modal-input" id="rm-tags" placeholder="Facile, Familial..."></div>
+      <div class="modal-field"><label class="modal-lbl">Ingrédients (un par ligne)</label><textarea class="modal-input" id="rm-ingredients" rows="3" style="resize:none" placeholder="200g farine&#10;3 oeufs&#10;..."></textarea></div>
+      <div class="modal-field"><label class="modal-lbl">Étapes (une par ligne)</label><textarea class="modal-input" id="rm-steps" rows="3" style="resize:none" placeholder="Préchauffer le four...&#10;Mélanger..."></textarea></div>`;
+    document.getElementById('recipe-modal-actions').innerHTML = `
+      <button class="modal-btn primary" onclick="Cuisine.saveRecipe()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Annuler</button>`;
+    document.getElementById('recipe-modal-overlay').style.display = 'flex';
+  },
+
+  saveRecipe() {
+    const name = document.getElementById('rm-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    const r = {
+      name,
+      emoji: document.getElementById('rm-emoji')?.value?.trim() || '🍽️',
+      cat:   document.getElementById('rm-cat')?.value || 'sale',
+      time:  document.getElementById('rm-time')?.value || 'moyen',
+      minutes: parseInt(document.getElementById('rm-minutes')?.value)||20,
+      difficulty: 2,
+      tags:  (document.getElementById('rm-tags')?.value||'').split(',').map(s=>s.trim()).filter(Boolean),
+      ingredients: (document.getElementById('rm-ingredients')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
+      steps: (document.getElementById('rm-steps')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
+      fav: false,
+    };
+    CuiStore.addRecipe(r);
+    this.closeRecipeModal();
+    this.renderRecipes();
+    this.renderHero();
+    earnXP(15,'Recette ajoutée au livre','📖');
+    AuraUI.showToast('✓ Recette ajoutée à ton livre de cuisine');
+    this.syncRecipeToDB(r);
+  },
+
+  closeRecipeModal() { document.getElementById('recipe-modal-overlay').style.display='none'; },
+
+  /* ── Planning ── */
+  renderPlanning() {
+    const d = CuiStore.get();
+    const today = new Date();
+    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay()+6)%7));
+    const days = Array.from({length:7},(_,i)=>{ const x=new Date(monday); x.setDate(x.getDate()+i); return x; });
+    const DOWS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const todayStr = today.toISOString().slice(0,10);
+
+    let html = `<div class="meal-hdr"></div><div class="meal-hdr">Midi</div><div class="meal-hdr">Soir</div>`;
+    days.forEach((day,i) => {
+      const ds = day.toISOString().slice(0,10);
+      const isToday = ds===todayStr;
+      ['midi','soir'].forEach(moment => {
+        const key = `${ds}_${moment}`;
+        const val = d.planning[key];
+        const slotHtml = val
+          ? `<div class="meal-slot filled" onclick="Cuisine.editPlanningSlot('${key}')">${val}</div>`
+          : `<div class="meal-slot empty" onclick="Cuisine.editPlanningSlot('${key}')">+ ajouter</div>`;
+        if (moment==='midi') html += `<div class="meal-day${isToday?' today':''}">${DOWS[i]}${isToday?' •':''}</div>${slotHtml}`;
+        else html += slotHtml;
+      });
+    });
+    document.getElementById('meal-grid').innerHTML = html;
+
+    const upcoming = Object.entries(d.planning).filter(([k])=>k.split('_')[0]>=todayStr).sort().slice(0,5);
+    const upEl = document.getElementById('planning-upcoming');
+    upEl.innerHTML = upcoming.length ? upcoming.map(([k,v])=>{
+      const [ds,moment] = k.split('_');
+      const dateLabel = new Date(ds).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+      return `<div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:1px solid var(--bd)">
+        <span style="font-size:16px">${moment==='midi'?'☀️':'🌙'}</span>
+        <div><div style="font-size:11px;color:var(--t3)">${dateLabel} · ${moment}</div><div style="font-size:12.5px;font-weight:600;color:var(--text)">${v}</div></div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px;font-style:italic">Rien de planifié</div>';
+  },
+
+  editPlanningSlot(key) {
+    const d = CuiStore.get();
+    const recipeNames = d.recipes.map(r=>r.name);
+    const choice = prompt(`Repas pour ce créneau :\n(${recipeNames.slice(0,8).join(', ')}...)\nOu écris un texte libre :`, d.planning[key]||'');
+    if (choice===null) return;
+    if (choice.trim()==='') { delete d.planning[key]; }
+    else { d.planning[key] = choice.trim(); }
+    CuiStore.save();
+    this.renderPlanning();
+    this.renderHero();
+    earnXP(5,'Planning repas mis à jour','📅');
+  },
+
+  async generatePlanningAI() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showToast('Configure ta clé Gemini dans Paramètres'); return; }
+    AuraUI.showToast('✨ Génération du planning de la semaine...');
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const d = CuiStore.get();
+      const recipeNames = d.recipes.map(r=>r.name).join(', ');
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un assistant culinaire. Réponds UNIQUEMENT en JSON, sans markdown.',
+        prompt: `Voici mes recettes disponibles : ${recipeNames}. Propose un planning pour 7 jours (midi + soir), varié et équilibré, en réutilisant ces recettes si possible et en complétant avec des idées simples sinon. JSON: {"lundi_midi":"...","lundi_soir":"...","mardi_midi":"...","mardi_soir":"...","mercredi_midi":"...","mercredi_soir":"...","jeudi_midi":"...","jeudi_soir":"...","vendredi_midi":"...","vendredi_soir":"...","samedi_midi":"...","samedi_soir":"...","dimanche_midi":"...","dimanche_soir":"..."}`,
+        maxTokens: 500,
+      });
+      const plan = AURA_GEMINI.parseJSON(text);
+      const today = new Date();
+      const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay()+6)%7));
+      const dowKeys = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+      dowKeys.forEach((dow,i) => {
+        const date = new Date(monday); date.setDate(date.getDate()+i);
+        const ds = date.toISOString().slice(0,10);
+        if (plan[dow+'_midi']) d.planning[ds+'_midi'] = plan[dow+'_midi'];
+        if (plan[dow+'_soir']) d.planning[ds+'_soir'] = plan[dow+'_soir'];
+      });
+      CuiStore.save();
+      this.renderPlanning();
+      this.renderHero();
+      earnXP(25,'Planning IA généré','✨');
+      AuraUI.showToast('✓ Planning de la semaine généré !');
+    } catch(e) {
+      AuraUI.showToast('Erreur génération — vérifie ta clé Gemini');
+    }
+  },
+
+  /* ── Courses ── */
+  renderCourses() {
+    const d = CuiStore.get();
+    const el = document.getElementById('shop-list');
+    const cats = [...new Set(d.courses.map(c=>c.cat))];
+    el.innerHTML = cats.map(cat => {
+      const items = d.courses.filter(c=>c.cat===cat);
+      return `<div class="shop-cat-section">
+        <div class="shop-cat-title">${cat} <span style="color:var(--t3);font-weight:500">${items.filter(i=>!i.done).length} restants</span></div>
+        ${items.map(item => `
+        <div class="shop-item">
+          <div class="shop-cb ${item.done?'on':''}" onclick="Cuisine.toggleCourse(${item.id})"><i class="ti ti-check"></i></div>
+          <span class="shop-name ${item.done?'done':''}">${item.name}</span>
+          <span class="shop-qty">${item.qty||''}</span>
+          <button class="shop-del" onclick="Cuisine.deleteCourse(${item.id})"><i class="ti ti-trash"></i></button>
+        </div>`).join('')}
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Liste vide</div>';
+
+    const planValues = Object.values(d.planning);
+    const suggestEl = document.getElementById('shop-suggestions');
+    const allRecipeIngs = d.recipes.filter(r=>planValues.includes(r.name)).flatMap(r=>r.ingredients||[]);
+    const existing = new Set(d.courses.map(c=>c.name.toLowerCase()));
+    const missing = [...new Set(allRecipeIngs)].filter(i=>!existing.has(i.toLowerCase())).slice(0,6);
+    suggestEl.innerHTML = missing.length ? missing.map(i=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:.4rem 0;font-size:12px;color:var(--text)">
+        <i class="ti ti-circle-plus" style="color:var(--pu);font-size:14px"></i> ${i}
+      </div>`).join('') : '<div style="font-size:12px;color:var(--t3);font-style:italic">Aucune suggestion — planifie des repas pour en avoir</div>';
+    this._lastSuggestions = missing;
+  },
+
+  toggleCourse(id) { CuiStore.toggleCourse(id); this.renderCourses(); if(CuiStore.get().courses.find(c=>c.id===id)?.done) ; },
+  deleteCourse(id) { CuiStore.deleteCourse(id); this.renderCourses(); },
+  clearDoneCourses() { CuiStore.clearDone(); this.renderCourses(); AuraUI.showToast('Articles cochés effacés ✓'); },
+
+  addShopItem() {
+    const input = document.getElementById('shop-new-item');
+    const cat   = document.getElementById('shop-new-cat')?.value;
+    const name  = input?.value?.trim();
+    if (!name) return;
+    CuiStore.addCourse({ name, cat, qty:'×1', done:false });
+    input.value = '';
+    this.renderCourses();
+    earnXP(2,'Article ajouté','🛒');
+  },
+
+  addAllSuggestions() {
+    (this._lastSuggestions||[]).forEach(name => CuiStore.addCourse({ name, cat:'Épicerie', qty:'', done:false }));
+    this.renderCourses();
+    AuraUI.showToast('✓ Suggestions ajoutées à la liste');
+    earnXP(5,'Suggestions ajoutées','🛒');
+  },
+
+  /* ── Budget ── */
+  renderBudget() {
+    const d = CuiStore.get();
+    const pct = Math.round((d.budget.spent/d.budget.total)*100);
+    _set('food-spent', d.budget.spent+' €');
+    _set('food-budget-total', d.budget.total+' €');
+    const fill = document.getElementById('food-budget-fill');
+    fill.style.width = Math.min(100,pct)+'%';
+    fill.style.background = pct>=100?'var(--re)':pct>=85?'var(--am)':'var(--gr)';
+    _set('food-budget-hint', `${pct}% du budget utilisé`);
+
+    const bd = document.getElementById('food-breakdown');
+    bd.innerHTML = Object.entries(d.budget.breakdown).map(([label,amt]) => {
+      const p = Math.round((amt/d.budget.spent)*100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="font-size:11.5px;color:var(--t2);width:130px;flex-shrink:0">${label}</div>
+        <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="height:100%;width:${p}%;background:var(--or);border-radius:3px"></div></div>
+        <div style="font-size:11.5px;font-weight:700;color:var(--text);min-width:48px;text-align:right">${amt}€</div>
+      </div>`;
+    }).join('');
+  },
+
+  /* ── IA : 2 modes (suggestion rapide / génération complète) ── */
+  setIaMode(mode) {
+    this.iaMode = mode;
+    document.getElementById('ia-mode-suggest').classList.toggle('sel', mode==='suggest');
+    document.getElementById('ia-mode-generate').classList.toggle('sel', mode==='generate');
+    document.getElementById('ia-mode-suggest-fields').style.display = mode==='suggest' ? 'block' : 'none';
+    document.getElementById('ia-mode-generate-fields').style.display = mode==='generate' ? 'block' : 'none';
+    document.getElementById('ia-run-label').textContent = mode==='suggest' ? 'Générer 3 idées de recettes' : 'Générer la recette complète';
+  },
+
+  async runIA() {
+    if (this.iaMode === 'suggest') return this.suggestIA();
+    return this.generateFullRecipeIA();
+  },
+
+  async suggestIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('ia-recipe-resp'); document.getElementById('ia-recipe-resp').style.display='block'; return; }
+    const ingredients  = document.getElementById('ia-ingredients')?.value?.trim() || 'des ingrédients de base';
+    const contraintes  = document.getElementById('ia-contraintes')?.value;
+    const resp = document.getElementById('ia-recipe-resp');
+    resp.style.display = 'block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Recherche de recettes en cours...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un chef cuisinier créatif et accessible.',
+        prompt: `Propose 3 idées de recettes avec ces ingrédients : ${ingredients}. Contrainte : ${contraintes}. Pour chaque recette donne un nom accrocheur, le temps de préparation, et 2-3 phrases d'explication. Sois concret et appétissant.`,
+        maxTokens: 500,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(20,'Idées recettes IA','✨');
+    } catch(e) {
+      resp.innerHTML = '<span style="color:var(--re)">Suggestion indisponible — vérifie ta clé Gemini.</span>';
+    }
+  },
+
+  async generateFullRecipeIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('ia-recipe-resp'); document.getElementById('ia-recipe-resp').style.display='block'; return; }
+    const desc = document.getElementById('ia-recipe-desc')?.value?.trim();
+    if (!desc) { AuraUI.showToast('⚠ Décris la recette que tu imagines'); return; }
+    const resp = document.getElementById('ia-recipe-resp');
+    resp.style.display = 'block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Création de ta recette...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un chef cuisinier. Réponds UNIQUEMENT en JSON valide sans markdown.',
+        prompt: `Génère une recette complète pour : "${desc}". JSON exact : {"name":"...","emoji":"🍽️","cat":"sale ou sucre","time":"rapide ou moyen ou long","minutes":30,"ingredients":["...","..."],"steps":["...","..."]}`,
+        maxTokens: 600,
+      });
+      const recipe = AURA_GEMINI.parseJSON(text);
+      recipe.difficulty = 2;
+      recipe.tags = ['Généré par IA'];
+      recipe.fav = false;
+      CuiStore.addRecipe(recipe);
+      this.renderRecipes();
+      this.renderHero();
+      resp.innerHTML = `✓ Recette <strong>"${recipe.name}"</strong> créée et ajoutée à ton livre de cuisine ! ${recipe.emoji}<br><br><span style="font-size:11px;color:var(--t2)">Retrouve-la dans l'onglet "Mes recettes".</span>`;
+      earnXP(20,'Recette générée par IA','✨');
+      this.syncRecipeToDB(recipe);
+    } catch(e) {
+      resp.innerHTML = '<span style="color:var(--re)">Génération indisponible — vérifie ta clé Gemini.</span>';
+    }
+  },
+
+  /* ── Sync Supabase ── */
+  async syncFromDB() {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await SupaClient.select('recettes', `user_id=eq.${SupaClient.userId()}`);
+      if (rows?.length) {
+        const d = CuiStore.get();
+        const dbRecipes = rows.map(r => ({
+          id:r.id, db_id:r.id, name:r.nom, emoji:r.icone,
+          cat: r.cat || 'sale', time: r.time_cat || 'moyen', minutes: r.duree_min || 20,
+          difficulty: r.difficulte || 2, tags: r.tags || [], fav: r.favori,
+          ingredients: r.ingredients_json || [],
+          steps: r.steps_json || [],
+        }));
+        if (dbRecipes.length) { d.recipes = dbRecipes; CuiStore.save(); this.renderRecipes(); this.renderHero(); }
+      }
+    } catch(e) { console.warn('[Cuisine sync]', e.message); }
+  },
+
+  /* ── Push d'une nouvelle recette vers Supabase ── */
+  async syncRecipeToDB(r) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const res = await SupaClient.insert('recettes', {
+        user_id: SupaClient.userId(), nom: r.name, icone: r.emoji,
+        cat: r.cat, time_cat: r.time, duree_min: r.minutes, difficulte: r.difficulty,
+        tags: r.tags || [], favori: r.fav || false,
+        ingredients_json: r.ingredients || [], steps_json: r.steps || [],
+      });
+      if (res?.id) { r.db_id = res.id; CuiStore.save(); }
+    } catch(e) { console.warn('[Cuisine push]', e.message); }
+  },
+};
+
+/* ── Helpers ── */
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function _css(id,p,v){ const e=document.getElementById(id); if(e) e.style[p]=v; }
+
+if (document.readyState !== 'loading') Cuisine.init();
+</script>

@@ -1,0 +1,437 @@
+<!-- ============================================================
+     AURA — patrimoine.html  (fragment SPA)
+     Bilan patrimonial complet :
+     - Actifs / Passifs détaillés avec ajout manuel
+     - Patrimoine net + évolution
+     - 3 simulateurs (projection long terme, immo, retraite)
+     - Éducation patrimoniale (PEA, SCPI, AV...)
+     - Conseils IA personnalisés
+     - Sync Supabase (nouvelle table: patrimoine_items)
+     ============================================================ -->
+
+<style>
+.pat-hero {
+  background:linear-gradient(135deg,var(--gr-l) 0%,var(--pu-l) 100%);
+  border:1px solid var(--gr-b); border-radius:var(--r-xl); padding:1.5rem;
+}
+.pat-hero-net { font-size:34px; font-weight:800; color:var(--text); line-height:1; }
+.pat-hero-evol { font-size:12px; margin-top:4px; }
+
+.pat-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.pat-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; }
+.pat-tab.active { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
+.pat-panel { display:none; flex-direction:column; gap:1.25rem; }
+.pat-panel.on { display:flex; }
+
+.pat-item-row { display:grid; grid-template-columns:30px 1fr auto auto; gap:10px; align-items:center; padding:.625rem 0; border-bottom:1px solid var(--bd); }
+.pat-item-row:last-child { border-bottom:none; }
+.pat-item-ic { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; }
+.pat-item-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:13px; }
+.pat-item-del:hover { color:var(--re); }
+
+.alloc-bar { display:flex; height:28px; border-radius:8px; overflow:hidden; margin:1rem 0; }
+.alloc-seg { transition:width .4s; }
+.alloc-legend { display:flex; flex-wrap:wrap; gap:.75rem; }
+.alloc-legend-item { display:flex; align-items:center; gap:6px; font-size:11.5px; }
+.alloc-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+.edu-card { background:var(--bg); border-radius:var(--r-md); padding:.875rem; border:1px solid var(--bd); cursor:pointer; margin-bottom:.625rem; transition:background .1s; }
+.edu-card:last-child { margin-bottom:0; }
+.edu-card:hover { background:var(--white); border-color:var(--gr-b); }
+.edu-card-title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.edu-card-text  { font-size:11.5px; color:var(--t2); line-height:1.5; }
+
+@media(max-width:768px) {
+  .pat-hero-net { font-size:26px; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="pat-hero">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--gr)">Patrimoine net</div>
+      <div class="pat-hero-net" id="pat-net">47 340 €</div>
+      <div class="pat-hero-evol" style="color:var(--gr)" id="pat-evol">+2 100 € ce trimestre · +4,6% ↑</div>
+    </div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+        <div style="font-size:16px;font-weight:800;color:var(--gr)" id="pat-actifs-total">52 340 €</div>
+        <div style="font-size:10px;color:var(--t2)">Actifs</div>
+      </div>
+      <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+        <div style="font-size:16px;font-weight:800;color:var(--re)" id="pat-passifs-total">5 000 €</div>
+        <div style="font-size:10px;color:var(--t2)">Passifs</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pat-tabs">
+  <button class="pat-tab active" onclick="Patrimoine.showTab('bilan')"><i class="ti ti-scale" style="font-size:13px"></i> Bilan détaillé</button>
+  <button class="pat-tab" onclick="Patrimoine.showTab('allocation')"><i class="ti ti-chart-pie" style="font-size:13px"></i> Allocation</button>
+  <button class="pat-tab" onclick="Patrimoine.showTab('simulateurs')"><i class="ti ti-calculator" style="font-size:13px"></i> Simulateurs</button>
+  <button class="pat-tab" onclick="Patrimoine.showTab('education')"><i class="ti ti-school" style="font-size:13px"></i> Éducation</button>
+  <button class="pat-tab" onclick="Patrimoine.showTab('conseils')"><i class="ti ti-sparkles" style="font-size:13px"></i> Conseils IA</button>
+</div>
+
+<!-- ════════ BILAN DÉTAILLÉ ════════ -->
+<div class="pat-panel on" id="pat-panel-bilan">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--gr)"><i class="ti ti-trending-up"></i> <span data-aura-edit="patrimoine.title.6" data-aura-edit-label="Titre : Actifs">Actifs</span></span>
+        <button class="btn-ghost" onclick="Patrimoine.openModal('actif')">+ Ajouter</button>
+      </div>
+      <div id="actifs-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--re)"><i class="ti ti-trending-down"></i> <span data-aura-edit="patrimoine.title.7" data-aura-edit-label="Titre : Passifs">Passifs</span></span>
+        <button class="btn-ghost" onclick="Patrimoine.openModal('passif')">+ Ajouter</button>
+      </div>
+      <div id="passifs-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ALLOCATION ════════ -->
+<div class="pat-panel" id="pat-panel-allocation">
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-chart-pie"></i> <span data-aura-edit="patrimoine.title.1" data-aura-edit-label="Titre : Répartition de tes actifs">Répartition de tes actifs</span></span></div>
+    <div class="alloc-bar" id="alloc-bar"></div>
+    <div class="alloc-legend" id="alloc-legend"></div>
+    <div id="alloc-conseil" style="margin-top:1rem;padding:.875rem;background:var(--go-l);border:1px solid var(--go-b);border-radius:var(--r-md);font-size:12px;color:#78350F;line-height:1.6"></div>
+  </div>
+</div>
+
+<!-- ════════ SIMULATEURS ════════ -->
+<div class="pat-panel" id="pat-panel-simulateurs">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-calculator"></i> <span data-aura-edit="patrimoine.title.2" data-aura-edit-label="Titre : Projection patrimoine">Projection patrimoine</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="50" max="2000" value="500" step="50" id="ps1" oninput="Patrimoine.calcProjection()"><span class="sim-out" id="ps1v">500 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Horizon (ans)</span><input type="range" min="5" max="40" value="20" step="5" id="ps2" oninput="Patrimoine.calcProjection()"><span class="sim-out" id="ps2v">20 ans</span></div>
+      <div class="sim-field"><span class="sim-lbl">Rendement annuel</span><input type="range" min="1" max="10" value="5" step="1" id="ps3" oninput="Patrimoine.calcProjection()"><span class="sim-out" id="ps3v">5%</span></div>
+      <div class="sim-result"><div><div class="sim-result-lbl">Patrimoine projeté</div><div class="sim-result-sub" id="ps-base">Base actuelle : 47 340 €</div></div><div class="sim-result-val" id="ps-val">−</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-home-2"></i> <span data-aura-edit="patrimoine.title.3" data-aura-edit-label="Titre : Apport immobilier">Apport immobilier</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Objectif apport</span><input type="range" min="5000" max="100000" value="30000" step="1000" id="im1" oninput="Patrimoine.calcImmo()"><span class="sim-out" id="im1v">30 000 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="100" max="2000" value="500" step="50" id="im2" oninput="Patrimoine.calcImmo()"><span class="sim-out" id="im2v">500 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Déjà épargné</span><input type="range" min="0" max="50000" value="4000" step="500" id="im3" oninput="Patrimoine.calcImmo()"><span class="sim-out" id="im3v">4 000 €</span></div>
+      <div class="sim-result"><div><div class="sim-result-lbl">Objectif atteint dans</div><div class="sim-result-sub" id="im-detail">−</div></div><div class="sim-result-val" id="im-val">−</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-beach"></i> <span data-aura-edit="patrimoine.title.4" data-aura-edit-label="Titre : Capital retraite">Capital retraite</span></span></div>
+    <div class="g2">
+      <div>
+        <div class="sim-field"><span class="sim-lbl">Âge actuel</span><input type="range" min="18" max="65" value="30" step="1" id="re1" oninput="Patrimoine.calcRetraite()"><span class="sim-out" id="re1v">30 ans</span></div>
+        <div class="sim-field"><span class="sim-lbl">Âge retraite visé</span><input type="range" min="55" max="70" value="65" step="1" id="re2" oninput="Patrimoine.calcRetraite()"><span class="sim-out" id="re2v">65 ans</span></div>
+      </div>
+      <div>
+        <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="50" max="1500" value="300" step="50" id="re3" oninput="Patrimoine.calcRetraite()"><span class="sim-out" id="re3v">300 €</span></div>
+        <div class="sim-field"><span class="sim-lbl">Rendement</span><input type="range" min="1" max="9" value="5" step="1" id="re4" oninput="Patrimoine.calcRetraite()"><span class="sim-out" id="re4v">5%</span></div>
+      </div>
+    </div>
+    <div class="sim-result"><div><div class="sim-result-lbl">Capital à la retraite</div><div class="sim-result-sub" id="re-detail">Sur 35 ans</div></div><div class="sim-result-val" id="re-val">−</div></div>
+  </div>
+</div>
+
+<!-- ════════ ÉDUCATION ════════ -->
+<div class="pat-panel" id="pat-panel-education">
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-school"></i> <span data-aura-edit="patrimoine.title.5" data-aura-edit-label="Titre : Éducation patrimoniale">Éducation patrimoniale</span></span></div>
+    <div class="edu-card" onclick="earnXP(15,'PEA — article lu','📖')">
+      <div class="edu-card-title">🏦 Comprendre le PEA</div>
+      <div class="edu-card-text">Plafond 150 000 €, exonération d'impôt sur les plus-values après 5 ans, idéal pour investir en actions européennes. Rendement historique ~7%/an sur le long terme.</div>
+    </div>
+    <div class="edu-card" onclick="earnXP(15,'SCPI — article lu','📖')">
+      <div class="edu-card-title">🏢 Les SCPI expliquées</div>
+      <div class="edu-card-text">Investir dans l'immobilier dès 200-1000 €, rendement 4-6%/an, sans gestion locative à assurer. Bon outil de diversification, fiscalité à anticiper.</div>
+    </div>
+    <div class="edu-card" onclick="earnXP(15,'Assurance-vie — article lu','📖')">
+      <div class="edu-card-title">📊 L'assurance-vie optimisée</div>
+      <div class="edu-card-text">Fiscalité réduite après 8 ans, transmission facilitée hors succession classique, supports multiples (fonds euros sécurisés ou unités de compte dynamiques).</div>
+    </div>
+    <div class="edu-card" onclick="earnXP(15,'Règle des 6 mois — article lu','📖')">
+      <div class="edu-card-title">💎 La règle des 6 mois</div>
+      <div class="edu-card-text">Avant tout investissement risqué, constitue une épargne de précaution équivalente à 3-6 mois de dépenses. C'est la fondation de toute stratégie patrimoniale saine.</div>
+    </div>
+    <div class="edu-card" onclick="earnXP(15,'Intérêts composés — article lu','📖')">
+      <div class="edu-card-title">📈 La magie des intérêts composés</div>
+      <div class="edu-card-text">100 € investis à 7%/an pendant 30 ans deviennent 761 €, sans rien ajouter. Le temps est le meilleur allié de l'investisseur patient.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ CONSEILS IA ════════ -->
+<div class="pat-panel" id="pat-panel-conseils">
+  <div class="ia-suggest-box" style="background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-lg);padding:1.25rem">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+      <div style="width:40px;height:40px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-sparkles" style="color:#fff;font-size:18px"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--pu-d)">Stratégie patrimoniale — Gemini IA</div>
+        <div style="font-size:12px;color:#7C3AED">Analyse de ton allocation actuelle · +30 XP</div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="Patrimoine.askIA()">
+      <i class="ti ti-sparkles"></i> Analyser ma stratégie patrimoniale
+    </button>
+    <div class="coach-resp" id="pat-ia-resp"></div>
+  </div>
+</div>
+
+<!-- ════════ MODAL AJOUT ════════ -->
+<div class="modal-overlay" id="pat-modal-overlay" style="display:none" onclick="if(event.target===this)Patrimoine.closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title" id="pat-modal-title"><i class="ti ti-plus"></i> Ajouter</div>
+    <div class="modal-field"><label class="modal-lbl">Nom</label><input class="modal-input" id="pm-name" placeholder="Ex: Livret A, Crédit auto..."></div>
+    <div class="modal-field"><label class="modal-lbl">Montant (€)</label><input class="modal-input" id="pm-amount" type="number" min="0" placeholder="0"></div>
+    <div class="modal-field" id="pm-type-field">
+      <label class="modal-lbl">Type</label>
+      <select class="modal-input" id="pm-type">
+        <option value="liquidite">Liquidités (Livret, CC)</option>
+        <option value="placement">Placements (PEA, AV)</option>
+        <option value="immobilier">Immobilier (SCPI, bien)</option>
+        <option value="bien">Biens (voiture, mobilier)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Patrimoine.saveItem()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Patrimoine.closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'patrimoine') return;
+  Patrimoine.init();
+};
+
+const PatStore = {
+  _key: 'aura_patrimoine_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    this._data = {
+      actifs: [],
+      passifs: [],
+      history: { lastQuarterNet: 0 },
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+  addActif(a) { const d=this.get(); a.id=d.actifs.length?Math.max(...d.actifs.map(x=>x.id))+1:1; d.actifs.push(a); this.save(); return a; },
+  addPassif(p) { const d=this.get(); p.id=d.passifs.length?Math.max(...d.passifs.map(x=>x.id))+1:1; d.passifs.push(p); this.save(); return p; },
+  deleteActif(id) { const d=this.get(); d.actifs=d.actifs.filter(x=>x.id!==id); this.save(); },
+  deletePassif(id) { const d=this.get(); d.passifs=d.passifs.filter(x=>x.id!==id); this.save(); },
+};
+
+const TYPE_META = {
+  liquidite:  { label:'Liquidités',  color:'#16A34A', ic:'ti-cash' },
+  placement:  { label:'Placements',  color:'#7C3AED', ic:'ti-chart-line' },
+  immobilier: { label:'Immobilier',  color:'#0D9488', ic:'ti-building' },
+  bien:       { label:'Biens',       color:'#EA580C', ic:'ti-car' },
+};
+
+const Patrimoine = {
+  modalType: null,
+
+  init() {
+    this.render();
+    this.calcProjection();
+    this.calcImmo();
+    this.calcRetraite();
+    this.syncFromDB();
+  },
+
+  showTab(tab) {
+    document.querySelectorAll('.pat-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.pat-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['bilan','allocation','simulateurs','education','conseils'];
+    document.querySelectorAll('.pat-tab')[tabs.indexOf(tab)]?.classList.add('active');
+    document.getElementById('pat-panel-'+tab)?.classList.add('on');
+  },
+
+  render() {
+    const d = PatStore.get();
+    const totalActifs  = d.actifs.reduce((s,x)=>s+x.montant,0);
+    const totalPassifs = d.passifs.reduce((s,x)=>s+x.montant,0);
+    const net = totalActifs - totalPassifs;
+    const evol = net - (d.history.lastQuarterNet||net);
+    const evolPct = d.history.lastQuarterNet ? ((evol/d.history.lastQuarterNet)*100).toFixed(1) : 0;
+
+    _set('pat-net', fmtE(net));
+    _set('pat-actifs-total', fmtE(totalActifs));
+    _set('pat-passifs-total', fmtE(totalPassifs));
+    const evolEl = document.getElementById('pat-evol');
+    evolEl.textContent = `${evol>=0?'+':''}${fmtE(evol)} ce trimestre · ${evol>=0?'+':''}${evolPct}% ${evol>=0?'↑':'↓'}`;
+    evolEl.style.color = evol>=0 ? 'var(--gr)' : 'var(--re)';
+
+    document.getElementById('actifs-list').innerHTML = d.actifs.map(a => {
+      const m = TYPE_META[a.type]||TYPE_META.bien;
+      return `<div class="pat-item-row">
+        <div class="pat-item-ic" style="background:${m.color}15"><i class="ti ${m.ic}" style="color:${m.color};font-size:13px"></i></div>
+        <span style="font-size:12.5px;color:var(--text)">${a.name}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--gr)">${fmtE(a.montant)}</span>
+        <button class="pat-item-del" onclick="Patrimoine.deleteActif(${a.id})"><i class="ti ti-trash"></i></button>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun actif</div>';
+
+    document.getElementById('passifs-list').innerHTML = d.passifs.map(p => `
+      <div class="pat-item-row">
+        <div class="pat-item-ic" style="background:var(--re-l)"><i class="ti ti-credit-card" style="color:var(--re);font-size:13px"></i></div>
+        <span style="font-size:12.5px;color:var(--text)">${p.name}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--re)">−${fmtE(p.montant)}</span>
+        <button class="pat-item-del" onclick="Patrimoine.deletePassif(${p.id})"><i class="ti ti-trash"></i></button>
+      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun passif — bravo !</div>';
+
+    this.renderAllocation(d, totalActifs);
+  },
+
+  renderAllocation(d, total) {
+    const byType = {};
+    d.actifs.forEach(a => { byType[a.type] = (byType[a.type]||0) + a.montant; });
+    const bar = document.getElementById('alloc-bar');
+    const leg = document.getElementById('alloc-legend');
+    bar.innerHTML = Object.entries(byType).map(([type,amt]) => {
+      const m = TYPE_META[type]||TYPE_META.bien;
+      const pct = total>0 ? (amt/total)*100 : 0;
+      return `<div class="alloc-seg" style="width:${pct}%;background:${m.color}" title="${m.label}: ${fmtE(amt)}"></div>`;
+    }).join('');
+    leg.innerHTML = Object.entries(byType).map(([type,amt]) => {
+      const m = TYPE_META[type]||TYPE_META.bien;
+      const pct = total>0 ? Math.round((amt/total)*100) : 0;
+      return `<div class="alloc-legend-item"><div class="alloc-dot" style="background:${m.color}"></div><span>${m.label} — ${pct}% (${fmtE(amt)})</span></div>`;
+    }).join('');
+
+    const placementPct = total>0 ? Math.round(((byType.placement||0)/total)*100) : 0;
+    const liquidPct    = total>0 ? Math.round(((byType.liquidite||0)/total)*100) : 0;
+    let conseil = '';
+    if (liquidPct > 50) conseil = `💡 ${liquidPct}% de tes actifs sont en liquidités — au-delà de ton épargne de sécurité (3-6 mois de dépenses), le surplus pourrait être investi pour mieux fructifier.`;
+    else if (placementPct > 60) conseil = `💡 ${placementPct}% en placements — bonne dynamique de croissance. Vérifie que ton épargne de sécurité reste suffisante en cas d'imprévu.`;
+    else conseil = `💡 Ton allocation semble équilibrée entre sécurité et croissance. Continue à réviser régulièrement selon tes objectifs de vie.`;
+    document.getElementById('alloc-conseil').textContent = conseil;
+  },
+
+  deleteActif(id) { PatStore.deleteActif(id); this.render(); AuraUI.showToast('Actif supprimé'); },
+  deletePassif(id) { PatStore.deletePassif(id); this.render(); AuraUI.showToast('Passif supprimé'); },
+
+  openModal(type) {
+    this.modalType = type;
+    document.getElementById('pat-modal-title').innerHTML = type==='actif' ? '<i class="ti ti-trending-up"></i> Nouvel actif' : '<i class="ti ti-trending-down"></i> Nouveau passif';
+    document.getElementById('pm-type-field').style.display = type==='actif' ? 'block' : 'none';
+    document.getElementById('pm-name').value = '';
+    document.getElementById('pm-amount').value = '';
+    document.getElementById('pat-modal-overlay').style.display = 'flex';
+  },
+  closeModal() { document.getElementById('pat-modal-overlay').style.display = 'none'; },
+
+  saveItem() {
+    const name = document.getElementById('pm-name')?.value?.trim();
+    const amount = parseFloat(document.getElementById('pm-amount')?.value);
+    if (!name || isNaN(amount) || amount<=0) { AuraUI.showToast('⚠ Remplis tous les champs'); return; }
+    if (this.modalType === 'actif') {
+      const item = PatStore.addActif({ name, montant:amount, type:document.getElementById('pm-type')?.value||'bien' });
+      this.syncItemToDB('actif', item);
+    } else {
+      const item = PatStore.addPassif({ name, montant:amount });
+      this.syncItemToDB('passif', item);
+    }
+    this.closeModal();
+    this.render();
+    earnXP(10, `${name} ajouté au patrimoine`, '🏦');
+    AuraUI.showToast('✓ Ajouté');
+  },
+
+  /* ── Simulateurs ── */
+  calcProjection() {
+    const m=+document.getElementById('ps1').value, y=+document.getElementById('ps2').value, r=+document.getElementById('ps3').value;
+    _set('ps1v', fmtE(m)); _set('ps2v', y+' ans'); _set('ps3v', r+'%');
+    const d = PatStore.get();
+    const base = d.actifs.reduce((s,x)=>s+x.montant,0) - d.passifs.reduce((s,x)=>s+x.montant,0);
+    const mo=y*12, mr=(r/100)/12;
+    const baseGrow = base*Math.pow(1+r/100,y);
+    const newSav = mr===0?m*mo:m*((Math.pow(1+mr,mo)-1)/mr);
+    _set('ps-val', fmtE(Math.round(baseGrow+newSav)));
+  },
+
+  calcImmo() {
+    const target=+document.getElementById('im1').value, monthly=+document.getElementById('im2').value, already=+document.getElementById('im3').value;
+    _set('im1v', fmtE(target)); _set('im2v', fmtE(monthly)); _set('im3v', fmtE(already));
+    const reste = Math.max(0,target-already);
+    const mois = monthly>0 ? reste/monthly : Infinity;
+    _set('im-val', isFinite(mois) ? (mois/12).toFixed(1)+' ans' : '∞');
+    _set('im-detail', `Reste ${fmtE(Math.round(reste))} à épargner`);
+  },
+
+  calcRetraite() {
+    const age=+document.getElementById('re1').value, target=+document.getElementById('re2').value, m=+document.getElementById('re3').value, r=+document.getElementById('re4').value;
+    _set('re1v', age+' ans'); _set('re2v', target+' ans'); _set('re3v', fmtE(m)); _set('re4v', r+'%');
+    const y=Math.max(0,target-age), mo=y*12, mr=(r/100)/12;
+    const total = mr===0?m*mo:m*((Math.pow(1+mr,mo)-1)/mr);
+    _set('re-val', fmtE(Math.round(total)));
+    _set('re-detail', `Sur ${y} ans d'épargne`);
+  },
+
+  /* ── IA ── */
+  async askIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('pat-ia-resp'); document.getElementById('pat-ia-resp').style.display='block'; return; }
+    const d = PatStore.get();
+    const resp = document.getElementById('pat-ia-resp');
+    resp.style.display='block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de ta stratégie patrimoniale...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const actifsDesc = d.actifs.map(a=>`${a.name} (${a.type}): ${a.montant}€`).join(', ');
+      const passifsDesc = d.passifs.map(p=>`${p.name}: ${p.montant}€`).join(', ');
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un conseiller en gestion de patrimoine pédagogue et bienveillant, sans jargon excessif.',
+        prompt: `Mes actifs : ${actifsDesc}. Mes passifs : ${passifsDesc}. Donne-moi une analyse de mon allocation actuelle et 3 recommandations concrètes pour optimiser ma stratégie patrimoniale à moyen terme.`,
+        maxTokens: 500,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(30,'Analyse patrimoine IA','✨');
+    } catch(e) { resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>'; }
+  },
+
+  /* ── Sync Supabase ── */
+  async syncFromDB() {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await SupaClient.select('patrimoine_items', `user_id=eq.${SupaClient.userId()}`);
+      if (rows?.length) {
+        const d = PatStore.get();
+        d.actifs  = rows.filter(r=>r.kind==='actif').map(r=>({ id:r.id, db_id:r.id, name:r.name, montant:parseFloat(r.montant), type:r.type }));
+        d.passifs = rows.filter(r=>r.kind==='passif').map(r=>({ id:r.id, db_id:r.id, name:r.name, montant:parseFloat(r.montant) }));
+        PatStore.save();
+        this.render();
+      }
+    } catch(e) { console.warn('[Patrimoine sync]', e.message); }
+  },
+
+  async syncItemToDB(kind, item) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const res = await SupaClient.insert('patrimoine_items', { user_id:SupaClient.userId(), kind, name:item.name, montant:item.montant, type:item.type||null });
+      if (res?.id) { item.db_id = res.id; PatStore.save(); }
+    } catch(e) { console.warn('[Patrimoine item sync]', e.message); }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €'; }
+
+if (document.readyState !== 'loading') Patrimoine.init();
+</script>

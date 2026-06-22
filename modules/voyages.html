@@ -1,0 +1,345 @@
+<!-- ============================================================
+     AURA — voyages.html  (fragment SPA)
+     Rubrique pratique "Voyages" :
+     - Trips planifiés avec compte à rebours
+     - Budget par voyage (lien cagnotte possible)
+     - Checklist de valise personnalisable
+     - Idées destinations IA
+     ============================================================ -->
+
+<style>
+.voy-hero {
+  background:linear-gradient(135deg,var(--te-l) 0%,var(--bl-l) 100%);
+  border:1px solid var(--te-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+
+.trip-card { background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg); padding:1.25rem; margin-bottom:1rem; transition:all .12s; }
+.trip-card:last-child { margin-bottom:0; }
+.trip-card:hover { border-color:var(--te-b); }
+.trip-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:.875rem; }
+.trip-dest { font-size:16px; font-weight:800; color:var(--text); }
+.trip-dates { font-size:11.5px; color:var(--t2); margin-top:2px; }
+.trip-countdown-badge { font-size:13px; font-weight:800; padding:5px 12px; border-radius:10px; flex-shrink:0; }
+.trip-countdown-badge.soon { background:var(--am-l); color:var(--am); }
+.trip-countdown-badge.now { background:var(--gr-l); color:var(--gr); }
+.trip-countdown-badge.far { background:var(--bg); color:var(--t2); }
+
+.trip-budget-bar { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin:.5rem 0; }
+.trip-budget-fill { height:100%; border-radius:4px; transition:width .5s; }
+
+.checklist-item { display:flex; align-items:center; gap:8px; padding:5px 0; }
+.checklist-cb { width:18px; height:18px; border-radius:5px; border:1.5px solid var(--bd2); display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; }
+.checklist-cb.on { background:var(--te); border-color:var(--te); }
+.checklist-cb.on i { color:#fff; font-size:11px; display:block; }
+.checklist-cb i { display:none; }
+.checklist-name { font-size:12px; color:var(--text); flex:1; }
+.checklist-name.done { color:var(--t3); text-decoration:line-through; }
+
+.add-trip-card { border:1.5px dashed var(--bd2); border-radius:var(--r-lg); padding:1.5rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:all .15s; }
+.add-trip-card:hover { border-color:var(--te); background:var(--te-l); border-style:solid; }
+
+.dest-idea-card { background:var(--bg); border-radius:var(--r-md); padding:.875rem; border:1px solid var(--bd); cursor:pointer; margin-bottom:.625rem; transition:background .1s; }
+.dest-idea-card:last-child { margin-bottom:0; }
+.dest-idea-card:hover { background:var(--white); border-color:var(--te-b); }
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="voy-hero">
+  <div style="font-size:42px">✈️</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#0F766E">Tes voyages</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="voy-summary">0 voyage planifié</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--te)" id="voy-stat-budget">0 €</div>
+      <div style="font-size:10px;color:var(--t2)">Budget total prévu</div>
+    </div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- ════════ COLONNE GAUCHE : Trips ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-plane"></i> <span data-aura-edit="voyages.title.1" data-aura-edit-label="Titre : Mes voyages planifiés">Mes voyages planifiés</span></span>
+        <button class="btn-pill pu" onclick="Voyages.openAddTrip()"><i class="ti ti-plus" style="font-size:12px"></i> Nouveau voyage</button>
+      </div>
+      <div id="trips-list"></div>
+    </div>
+  </div>
+
+  <!-- ════════ COLONNE DROITE : Idées + Checklist générale ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-sparkles"></i> <span data-aura-edit="voyages.title.2" data-aura-edit-label="Titre : Idées destinations">Idées destinations</span></span></div>
+      <div class="g2" style="margin-bottom:.75rem;gap:.625rem">
+        <input class="field-input" id="dest-budget" type="number" placeholder="Budget max €">
+        <select class="field-select" id="dest-style">
+          <option value="plage">🏖️ Plage & détente</option>
+          <option value="culture">🏛️ Culture & ville</option>
+          <option value="nature">🏔️ Nature & rando</option>
+          <option value="aventure">🎒 Aventure</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="Voyages.suggestDestinationsIA()"><i class="ti ti-sparkles"></i> Suggérer 3 destinations</button>
+      <div id="dest-ia-resp" style="display:none;margin-top:.875rem"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL NOUVEAU VOYAGE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="trip-modal-overlay" style="display:none" onclick="if(event.target===this)Voyages.closeAddTrip()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plane"></i> Nouveau voyage</div>
+    <div class="modal-field"><label class="modal-lbl">Destination</label><input class="modal-input" id="tm-dest" placeholder="Ex: Tokyo, Japon"></div>
+    <div class="ev-row2" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="modal-field"><label class="modal-lbl">Date de départ</label><input class="modal-input" id="tm-start" type="date"></div>
+      <div class="modal-field"><label class="modal-lbl">Date de retour</label><input class="modal-input" id="tm-end" type="date"></div>
+    </div>
+    <div class="modal-field"><label class="modal-lbl">Budget prévu (€)</label><input class="modal-input" id="tm-budget" type="number" placeholder="0"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Voyages.saveTrip()">Créer le voyage</button>
+      <button class="modal-btn cancel" onclick="Voyages.closeAddTrip()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL DÉTAIL / CHECKLIST VOYAGE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="trip-detail-overlay" style="display:none" onclick="if(event.target===this)Voyages.closeDetail()">
+  <div class="modal-box" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-title" id="trip-detail-title"><i class="ti ti-plane"></i> Détail</div>
+    <div id="trip-detail-body"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="Voyages.closeDetail()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'voyages') return;
+  Voyages.init();
+};
+
+const VoyStore = {
+  _key: 'aura_voyages_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    const today = new Date();
+    const inDays = n => { const x=new Date(today); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+    this._data = {
+      trips: [],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  addTrip(t) {
+    const d = this.get();
+    t.id = d.trips.length ? Math.max(...d.trips.map(x=>x.id))+1 : 1;
+    t.spent = 0;
+    t.checklist = [
+      { name:'Passeport / CNI', done:false }, { name:'Billets de transport', done:false },
+      { name:'Réservation logement', done:false }, { name:'Adaptateur électrique', done:false },
+      { name:'Assurance voyage', done:false }, { name:'Trousse de toilette', done:false },
+      { name:'Chargeurs & batteries', done:false },
+    ];
+    d.trips.push(t);
+    this.save();
+    return t;
+  },
+  deleteTrip(id) { const d=this.get(); d.trips=d.trips.filter(x=>x.id!==id); this.save(); },
+};
+
+const Voyages = {
+
+  init() {
+    this.renderHero();
+    this.renderTrips();
+  },
+
+  renderHero() {
+    const d = VoyStore.get();
+    _set('voy-summary', `${d.trips.length} voyage${d.trips.length!==1?'s':''} planifié${d.trips.length!==1?'s':''}`);
+    _set('voy-stat-budget', fmtE(d.trips.reduce((s,t)=>s+(t.budget||0),0)));
+  },
+
+  daysUntil(dateStr) {
+    const target = new Date(dateStr); target.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    return Math.ceil((target - today) / 86400000);
+  },
+
+  renderTrips() {
+    const d = VoyStore.get();
+    const sorted = [...d.trips].sort((a,b) => new Date(a.start) - new Date(b.start));
+    const el = document.getElementById('trips-list');
+
+    el.innerHTML = sorted.map(t => {
+      const daysToStart = this.daysUntil(t.start);
+      const isOngoing = daysToStart <= 0 && this.daysUntil(t.end) >= 0;
+      const badgeCls = isOngoing ? 'now' : daysToStart <= 14 ? 'soon' : 'far';
+      const badgeLabel = isOngoing ? '✈️ En cours' : daysToStart === 0 ? 'Aujourd\'hui !' : `J-${daysToStart}`;
+      const pct = t.budget > 0 ? Math.min(100, Math.round((t.spent/t.budget)*100)) : 0;
+      const checkDone = (t.checklist||[]).filter(c=>c.done).length;
+      const checkTotal = (t.checklist||[]).length;
+
+      return `<div class="trip-card">
+        <div class="trip-top">
+          <div>
+            <div class="trip-dest">${t.destination}</div>
+            <div class="trip-dates">${fmtDate(t.start)} → ${fmtDate(t.end)}</div>
+          </div>
+          <span class="trip-countdown-badge ${badgeCls}">${badgeLabel}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:.25rem">
+          <span>Budget : ${fmtE(t.spent)} / ${fmtE(t.budget)}</span>
+          <span>${checkDone}/${checkTotal} préparé</span>
+        </div>
+        <div class="trip-budget-bar"><div class="trip-budget-fill" style="width:${pct}%;background:${pct>=90?'var(--re)':'var(--te)'}"></div></div>
+        <div style="display:flex;gap:6px;margin-top:.75rem">
+          <button style="flex:1;font-size:11px;font-weight:700;padding:7px;border-radius:var(--r-sm);border:1px solid var(--te);background:var(--te-l);color:#0F766E;cursor:pointer" onclick="Voyages.openDetail(${t.id})">📋 Checklist & détail</button>
+          <button style="font-size:11px;padding:7px 10px;border-radius:var(--r-sm);border:1px solid var(--bd2);background:var(--bg);color:var(--t2);cursor:pointer" onclick="Voyages.deleteTrip(${t.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('') || '';
+
+    el.innerHTML += `<div class="add-trip-card" onclick="Voyages.openAddTrip()"><i class="ti ti-plus" style="font-size:22px;color:var(--t3)"></i><span style="font-size:12.5px;color:var(--t3);font-weight:700">Planifier un nouveau voyage ✦</span></div>`;
+  },
+
+  openAddTrip() {
+    ['tm-dest','tm-start','tm-end','tm-budget'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+    document.getElementById('trip-modal-overlay').style.display = 'flex';
+  },
+  closeAddTrip() { document.getElementById('trip-modal-overlay').style.display = 'none'; },
+
+  saveTrip() {
+    const destination = document.getElementById('tm-dest')?.value?.trim();
+    const start = document.getElementById('tm-start')?.value;
+    const end = document.getElementById('tm-end')?.value;
+    const budget = parseFloat(document.getElementById('tm-budget')?.value)||0;
+    if (!destination || !start || !end) { AuraUI.showToast('⚠ Remplis destination et dates'); return; }
+    VoyStore.addTrip({ destination, start, end, budget });
+    this.closeAddTrip();
+    this.renderTrips();
+    this.renderHero();
+    earnXP(15, `Voyage "${destination}" planifié`, '✈️');
+    AuraUI.showToast('✓ Voyage créé');
+  },
+
+  deleteTrip(id) {
+    if (!confirm('Supprimer ce voyage ?')) return;
+    VoyStore.deleteTrip(id);
+    this.renderTrips();
+    this.renderHero();
+  },
+
+  openDetail(id) {
+    const t = VoyStore.get().trips.find(x=>x.id===id);
+    if (!t) return;
+    this._currentTripId = id;
+    document.getElementById('trip-detail-title').innerHTML = `<i class="ti ti-plane"></i> ${t.destination}`;
+    document.getElementById('trip-detail-body').innerHTML = `
+      <div style="font-size:12px;color:var(--t2);margin-bottom:1rem">${fmtDate(t.start)} → ${fmtDate(t.end)} · Budget ${fmtE(t.budget)}</div>
+      <div style="margin-bottom:.625rem">
+        <label class="modal-lbl">Ajouter une dépense (€)</label>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input class="modal-input" type="number" id="trip-spend-amount" placeholder="0">
+          <button style="font-size:12px;padding:0 16px;border-radius:var(--r-md);border:1px solid var(--te);background:var(--te-l);color:#0F766E;cursor:pointer;font-weight:700" onclick="Voyages.addSpend(${id})">+</button>
+        </div>
+      </div>
+      <label class="modal-lbl">Checklist valise</label>
+      <div id="trip-checklist" style="margin-top:.5rem">
+        ${(t.checklist||[]).map((c,i) => `
+          <div class="checklist-item">
+            <div class="checklist-cb ${c.done?'on':''}" onclick="Voyages.toggleCheck(${id},${i})"><i class="ti ti-check"></i></div>
+            <span class="checklist-name ${c.done?'done':''}">${c.name}</span>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:.625rem">
+        <input class="modal-input" id="trip-new-item" placeholder="Ajouter un élément..." onkeydown="if(event.key==='Enter')Voyages.addChecklistItem(${id})">
+        <button style="font-size:12px;padding:0 16px;border-radius:var(--r-md);border:1px solid var(--te);background:var(--te-l);color:#0F766E;cursor:pointer;font-weight:700" onclick="Voyages.addChecklistItem(${id})">+</button>
+      </div>`;
+    document.getElementById('trip-detail-overlay').style.display = 'flex';
+  },
+
+  closeDetail() {
+    document.getElementById('trip-detail-overlay').style.display = 'none';
+    this.renderTrips();
+    this.renderHero();
+  },
+
+  toggleCheck(tripId, idx) {
+    const t = VoyStore.get().trips.find(x=>x.id===tripId);
+    if (!t) return;
+    t.checklist[idx].done = !t.checklist[idx].done;
+    VoyStore.save();
+    if (t.checklist[idx].done) earnXP(3, 'Élément valise préparé', '🧳');
+    this.openDetail(tripId);
+  },
+
+  addChecklistItem(tripId) {
+    const input = document.getElementById('trip-new-item');
+    const name = input?.value?.trim();
+    if (!name) return;
+    const t = VoyStore.get().trips.find(x=>x.id===tripId);
+    t.checklist.push({ name, done:false });
+    VoyStore.save();
+    this.openDetail(tripId);
+  },
+
+  addSpend(tripId) {
+    const amount = parseFloat(document.getElementById('trip-spend-amount')?.value);
+    if (!amount || amount<=0) return;
+    const t = VoyStore.get().trips.find(x=>x.id===tripId);
+    t.spent = (t.spent||0) + amount;
+    VoyStore.save();
+    this.openDetail(tripId);
+    AuraUI.showToast(`+${fmtE(amount)} ajouté au budget voyage`);
+  },
+
+  /* ── IA suggestions destinations ── */
+  async suggestDestinationsIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('dest-ia-resp'); document.getElementById('dest-ia-resp').style.display='block'; return; }
+    const budget = document.getElementById('dest-budget')?.value || 'raisonnable';
+    const style = document.getElementById('dest-style')?.value;
+    const styleLabels = { plage:'plage et détente', culture:'culture et visites urbaines', nature:'nature et randonnée', aventure:'aventure et sensations' };
+    const resp = document.getElementById('dest-ia-resp');
+    resp.style.display = 'block';
+    resp.innerHTML = '<div style="background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:#7C3AED">✦ Recherche de destinations...</div>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un conseiller voyage créatif et concret.',
+        prompt: `Propose 3 destinations pour un voyage de type "${styleLabels[style]}", avec un budget d'environ ${budget}€. Pour chaque destination : nom, 2 phrases d'explication, et une estimation budget réaliste.`,
+        maxTokens: 450,
+      });
+      resp.innerHTML = `<div style="background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:var(--text);line-height:1.7">${text.replace(/\n/g,'<br>')}</div>`;
+      earnXP(15,'Idées destinations IA','✈️');
+    } catch(e) { resp.innerHTML = '<div style="color:var(--re);font-size:12px">Indisponible — vérifie ta clé Gemini.</div>'; }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €'; }
+function fmtDate(s){ return new Date(s).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); }
+
+if (document.readyState !== 'loading') Voyages.init();
+</script>

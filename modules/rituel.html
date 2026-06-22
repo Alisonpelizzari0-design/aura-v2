@@ -1,0 +1,388 @@
+<!-- ============================================================
+     AURA — rituel.html  (fragment SPA)
+     Rituel du matin complet :
+     - Check-in humeur + énergie
+     - Gratitudes du jour (3 champs)
+     - Intention du jour
+     - Affirmation personnalisée (IA ou manuelle)
+     - Historique des rituels passés avec streak
+     - Sync Supabase (table: rituels, déjà existante)
+     ============================================================ -->
+
+<style>
+.rit-hero {
+  background:linear-gradient(135deg,var(--go-l) 0%,var(--pu-l) 100%);
+  border:1px solid var(--go-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+.rit-hero-icon { font-size:42px; flex-shrink:0; }
+.rit-streak-badge { font-size:24px; font-weight:800; color:#92400E; }
+
+.mood-energy-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+.energy-row { display:flex; gap:8px; margin-top:.5rem; }
+.energy-bar { flex:1; height:32px; border-radius:8px; border:1.5px solid var(--bd2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .12s; }
+.energy-bar:hover { border-color:var(--go); }
+.energy-bar.sel { border-color:var(--go); background:var(--go-l); transform:scale(1.05); }
+
+.gratitude-input { display:flex; align-items:center; gap:10px; margin-bottom:.625rem; }
+.gratitude-num { width:26px; height:26px; border-radius:50%; background:var(--pu-l); color:var(--pu-d); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gratitude-input input { flex:1; font-size:13px; padding:9px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; transition:border-color .12s; }
+.gratitude-input input:focus { border-color:var(--pu); background:var(--white); }
+
+.rit-history-day { display:flex; align-items:center; gap:10px; padding:.625rem; border-radius:var(--r-md); margin-bottom:.5rem; cursor:pointer; transition:background .1s; }
+.rit-history-day:last-child { margin-bottom:0; }
+.rit-history-day:hover { background:var(--bg); }
+.rit-history-mood { font-size:20px; flex-shrink:0; }
+.rit-history-date { font-size:11px; font-weight:700; color:var(--t2); min-width:70px; flex-shrink:0; }
+.rit-history-preview { font-size:12px; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.streak-calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.streak-day { aspect-ratio:1; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
+.streak-day.done  { background:var(--go); color:#fff; }
+.streak-day.miss  { background:var(--bg); color:var(--t3); border:1px solid var(--bd); }
+.streak-day.future{ background:none; color:var(--t3); opacity:.4; }
+
+@media(max-width:768px) {
+  .mood-energy-grid { grid-template-columns:1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="rit-hero">
+  <div class="rit-hero-icon">🌅</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#92400E">Rituel du matin</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="rit-status-text">Pas encore fait aujourd'hui</div>
+  </div>
+  <div style="text-align:center">
+    <div class="rit-streak-badge"><span id="rit-streak">0</span> 🔥</div>
+    <div style="font-size:10px;color:var(--t2)">jours de suite</div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- ════════ COLONNE GAUCHE : Le rituel ════════ -->
+  <div class="card hi">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-sunrise"></i> <span data-aura-edit="rituel.title.1" data-aura-edit-label="Titre : Ton rituel d'aujourd'hui">Ton rituel d'aujourd'hui</span></span>
+      <span style="font-size:11px;color:var(--go);font-weight:700">+25 XP à l'ancrage</span>
+    </div>
+
+    <!-- Mood + Énergie -->
+    <div class="mood-energy-grid">
+      <div>
+        <label class="field-lbl">Humeur</label>
+        <div class="mood-row" id="rit-mood-row">
+          <div class="mood" data-mood="😴" onclick="Rituel.selectMood(this)">😴</div>
+          <div class="mood" data-mood="😕" onclick="Rituel.selectMood(this)">😕</div>
+          <div class="mood" data-mood="😐" onclick="Rituel.selectMood(this)">😐</div>
+          <div class="mood sel" data-mood="🙂" onclick="Rituel.selectMood(this)">🙂</div>
+          <div class="mood" data-mood="✨" onclick="Rituel.selectMood(this)">✨</div>
+        </div>
+      </div>
+      <div>
+        <label class="field-lbl">Niveau d'énergie</label>
+        <div class="energy-row" id="rit-energy-row">
+          <div class="energy-bar" data-level="1" onclick="Rituel.selectEnergy(this)">🪫</div>
+          <div class="energy-bar" data-level="2" onclick="Rituel.selectEnergy(this)">🔋</div>
+          <div class="energy-bar sel" data-level="3" onclick="Rituel.selectEnergy(this)">⚡</div>
+          <div class="energy-bar" data-level="4" onclick="Rituel.selectEnergy(this)">🔥</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gratitudes -->
+    <div style="margin-top:1.25rem">
+      <label class="field-lbl">3 gratitudes du matin</label>
+      <div class="gratitude-input"><div class="gratitude-num">1</div><input type="text" id="rit-grat-1" placeholder="Je suis reconnaissante pour..."></div>
+      <div class="gratitude-input"><div class="gratitude-num">2</div><input type="text" id="rit-grat-2" placeholder="Je suis reconnaissante pour..."></div>
+      <div class="gratitude-input"><div class="gratitude-num">3</div><input type="text" id="rit-grat-3" placeholder="Je suis reconnaissante pour..."></div>
+    </div>
+
+    <!-- Intention -->
+    <div style="margin-top:1rem">
+      <label class="field-lbl">Mon intention du jour</label>
+      <textarea class="field-ta" id="rit-intention" rows="2" placeholder="Ce qui doit absolument se passer aujourd'hui..."></textarea>
+    </div>
+
+    <!-- Affirmation -->
+    <div>
+      <label class="field-lbl">Affirmation & visualisation</label>
+      <textarea class="field-ta" id="rit-affirmation" rows="2" placeholder="Je suis, je crée, je manifeste..." style="margin-bottom:.75rem"></textarea>
+      <button class="btn-pill pu" onclick="Rituel.generateAffirmationAI()" style="margin-bottom:.875rem"><i class="ti ti-sparkles" style="font-size:12px"></i> Générer avec l'IA</button>
+    </div>
+
+    <button class="btn-primary" onclick="Rituel.ancrer()" id="rit-ancrer-btn">
+      <i class="ti ti-star"></i> Ancrer ce rituel — +25 XP
+    </button>
+    <div class="success-msg" id="rit-success">✦ Rituel ancré avec amour. +25 XP gagnés. Belle journée. ✦</div>
+  </div>
+
+  <!-- ════════ COLONNE DROITE : Streak + Historique + Pratiques ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-flame"></i> <span data-aura-edit="rituel.title.2" data-aura-edit-label="Titre : Tes 7 derniers jours">Tes 7 derniers jours</span></span></div>
+      <div class="streak-calendar" id="streak-calendar"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-history"></i> <span data-aura-edit="rituel.title.3" data-aura-edit-label="Titre : Historique">Historique</span></span>
+      </div>
+      <div id="rit-history-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-book-2"></i> <span data-aura-edit="rituel.title.4" data-aura-edit-label="Titre : Pratiques du coach">Pratiques du coach</span></span></div>
+      <div style="display:flex;flex-direction:column;gap:.75rem">
+        <div style="background:var(--pu-l);border-radius:var(--r-md);padding:.875rem;border:1px solid var(--pu-b)">
+          <div style="font-size:11px;font-weight:700;color:var(--pu-d);margin-bottom:4px">🧘 Cohérence cardiaque</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">5 min · 5s inspiration / 5s expiration. Réduit le cortisol de 23%. Idéal avant ce rituel.</div>
+        </div>
+        <div style="background:var(--go-l);border-radius:var(--r-md);padding:.875rem;border:1px solid var(--go-b)">
+          <div style="font-size:11px;font-weight:700;color:#92400E;margin-bottom:4px">✍️ La règle des 3 intentions</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Pas plus de 3 priorités par jour. Au-delà, la qualité chute de 40%.</div>
+        </div>
+        <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.875rem;border:1px solid #BBF7D0">
+          <div style="font-size:11px;font-weight:700;color:#065F46;margin-bottom:4px">🌅 La fenêtre matinale</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Les 90 premières minutes après le réveil sont les plus précieuses pour la neuroplasticité.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'rituel') return;
+  Rituel.init();
+};
+
+const RitStore = {
+  _key: 'aura_rituels_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    const today = new Date();
+    const d = n => { const x=new Date(today); x.setDate(x.getDate()-n); return x.toISOString().slice(0,10); };
+    this._data = {
+      entries: [],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  todayEntry() {
+    const today = new Date().toISOString().slice(0,10);
+    return this.get().entries.find(e => e.date === today);
+  },
+
+  addOrUpdateToday(entry) {
+    const d = this.get();
+    const today = new Date().toISOString().slice(0,10);
+    const idx = d.entries.findIndex(e => e.date === today);
+    entry.date = today;
+    if (idx >= 0) d.entries[idx] = entry;
+    else d.entries.unshift(entry);
+    this.save();
+  },
+
+  computeStreak() {
+    const d = this.get();
+    const dates = new Set(d.entries.map(e => e.date));
+    let streak = 0;
+    let cursor = new Date();
+    // Si pas fait aujourd'hui, on commence le compte à hier
+    if (!dates.has(cursor.toISOString().slice(0,10))) cursor.setDate(cursor.getDate()-1);
+    while (dates.has(cursor.toISOString().slice(0,10))) {
+      streak++;
+      cursor.setDate(cursor.getDate()-1);
+    }
+    return streak;
+  },
+};
+
+const Rituel = {
+  selectedMood: '🙂',
+  selectedEnergy: 3,
+
+  init() {
+    this.loadTodayIfExists();
+    this.renderStatus();
+    this.renderStreak();
+    this.renderCalendar();
+    this.renderHistory();
+    this.syncFromDB();
+  },
+
+  loadTodayIfExists() {
+    const entry = RitStore.todayEntry();
+    if (!entry) return;
+    this.selectedMood = entry.mood;
+    this.selectedEnergy = entry.energy;
+    document.querySelectorAll('#rit-mood-row .mood').forEach(m => m.classList.toggle('sel', m.dataset.mood===entry.mood));
+    document.querySelectorAll('#rit-energy-row .energy-bar').forEach(e => e.classList.toggle('sel', parseInt(e.dataset.level)===entry.energy));
+    _val('rit-grat-1', entry.gratitudes?.[0]||'');
+    _val('rit-grat-2', entry.gratitudes?.[1]||'');
+    _val('rit-grat-3', entry.gratitudes?.[2]||'');
+    _val('rit-intention', entry.intention||'');
+    _val('rit-affirmation', entry.affirmation||'');
+  },
+
+  selectMood(el) {
+    document.querySelectorAll('#rit-mood-row .mood').forEach(m => m.classList.remove('sel'));
+    el.classList.add('sel');
+    this.selectedMood = el.dataset.mood;
+  },
+
+  selectEnergy(el) {
+    document.querySelectorAll('#rit-energy-row .energy-bar').forEach(e => e.classList.remove('sel'));
+    el.classList.add('sel');
+    this.selectedEnergy = parseInt(el.dataset.level);
+  },
+
+  renderStatus() {
+    const done = !!RitStore.todayEntry();
+    _set('rit-status-text', done ? '✓ Rituel déjà ancré aujourd\'hui' : 'Pas encore fait aujourd\'hui');
+    const btn = document.getElementById('rit-ancrer-btn');
+    if (btn) btn.innerHTML = done ? '<i class="ti ti-refresh"></i> Mettre à jour le rituel' : '<i class="ti ti-star"></i> Ancrer ce rituel — +25 XP';
+  },
+
+  renderStreak() {
+    _set('rit-streak', RitStore.computeStreak());
+  },
+
+  renderCalendar() {
+    const d = RitStore.get();
+    const dates = new Set(d.entries.map(e => e.date));
+    const el = document.getElementById('streak-calendar');
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date(); dt.setDate(dt.getDate() - i);
+      const ds = dt.toISOString().slice(0,10);
+      days.push({ ds, label: dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,1).toUpperCase(), done: dates.has(ds) });
+    }
+    el.innerHTML = days.map(day => `<div class="streak-day ${day.done?'done':'miss'}">${day.label}</div>`).join('');
+  },
+
+  renderHistory() {
+    const d = RitStore.get();
+    const el = document.getElementById('rit-history-list');
+    const sorted = [...d.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+    el.innerHTML = sorted.length ? sorted.map(e => `
+      <div class="rit-history-day" onclick="Rituel.viewEntry('${e.date}')">
+        <span class="rit-history-mood">${e.mood}</span>
+        <span class="rit-history-date">${new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span>
+        <span class="rit-history-preview">${e.intention || (e.gratitudes?.[0]||'')}</span>
+      </div>`).join('') : '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px;font-style:italic">Aucune entrée encore</div>';
+  },
+
+  viewEntry(date) {
+    const entry = RitStore.get().entries.find(e => e.date === date);
+    if (!entry) return;
+    alert(`${date}\n\nHumeur : ${entry.mood}\nGratitudes :\n- ${entry.gratitudes?.join('\n- ')}\n\nIntention : ${entry.intention}\n\nAffirmation : ${entry.affirmation}`);
+  },
+
+  async generateAffirmationAI() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showToast('Configure ta clé Gemini dans Paramètres'); return; }
+    const intention = document.getElementById('rit-intention')?.value || '';
+    AuraUI.showToast('✨ Génération de ton affirmation...');
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un coach de vie inspirant. Réponds avec UNIQUEMENT une affirmation positive courte (1 phrase), sans guillemets ni markdown.',
+        prompt: `Génère une affirmation puissante pour quelqu'un dont l'intention du jour est : "${intention || 'avancer avec sérénité'}". Humeur actuelle : ${this.selectedMood}.`,
+        maxTokens: 80,
+      });
+      _val('rit-affirmation', text.trim());
+      earnXP(5, 'Affirmation générée par IA', '✨');
+    } catch(e) { AuraUI.showToast('Erreur génération — vérifie ta clé Gemini'); }
+  },
+
+  ancrer() {
+    const gratitudes = [
+      document.getElementById('rit-grat-1')?.value?.trim(),
+      document.getElementById('rit-grat-2')?.value?.trim(),
+      document.getElementById('rit-grat-3')?.value?.trim(),
+    ].filter(Boolean);
+    const intention = document.getElementById('rit-intention')?.value?.trim() || '';
+    const affirmation = document.getElementById('rit-affirmation')?.value?.trim() || '';
+
+    const wasAlreadyDone = !!RitStore.todayEntry();
+    const entry = { mood: this.selectedMood, energy: this.selectedEnergy, gratitudes, intention, affirmation };
+    RitStore.addOrUpdateToday(entry);
+
+    const btn = document.getElementById('rit-ancrer-btn');
+    const success = document.getElementById('rit-success');
+    btn.style.display = 'none';
+    success.style.display = 'block';
+
+    if (!wasAlreadyDone) {
+      earnXP(25, 'Rituel du matin ancré', '☀️');
+      const d = AuraStore.get();
+      d.stats = d.stats || {};
+      d.stats.rituels = (d.stats.rituels||0) + 1;
+      AuraStore.save();
+    } else {
+      AuraUI.showToast('✓ Rituel mis à jour');
+    }
+
+    this.syncToDB(entry);
+    this.renderStatus();
+    this.renderStreak();
+    this.renderCalendar();
+    this.renderHistory();
+
+    setTimeout(() => { btn.style.display = ''; success.style.display = 'none'; }, 3000);
+  },
+
+  /* ── Sync Supabase ── */
+  async syncToDB(entry) {
+    if (!window.AuraSync || !window.SupaClient?.isLoggedIn()) return;
+    try {
+      await AuraSync.saveRituel({
+        date: new Date().toISOString().slice(0,10),
+        humeur: this.moodToNum(entry.mood),
+        gratitudes: entry.gratitudes.join(' | '),
+        intention: entry.intention,
+        affirmation: entry.affirmation,
+        xp: 25,
+      });
+    } catch(e) { console.warn('[Rituel sync]', e.message); }
+  },
+
+  async syncFromDB() {
+    if (!window.AuraSync || !window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await AuraSync.loadRituels(30);
+      if (rows?.length) {
+        const d = RitStore.get();
+        d.entries = rows.map(r => ({
+          date: r.date_rituel, mood: this.numToMood(r.humeur), energy: 3,
+          gratitudes: (r.gratitudes||'').split(' | ').filter(Boolean),
+          intention: r.intention, affirmation: r.affirmation,
+        }));
+        RitStore.save();
+        this.renderStreak(); this.renderCalendar(); this.renderHistory(); this.renderStatus();
+      }
+    } catch(e) { console.warn('[Rituel pull]', e.message); }
+  },
+
+  moodToNum(mood) { return { '😴':1,'😕':2,'😐':3,'🙂':4,'✨':5 }[mood] || 3; },
+  numToMood(num) { return { 1:'😴',2:'😕',3:'😐',4:'🙂',5:'✨' }[num] || '🙂'; },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function _val(id,val){ const e=document.getElementById(id); if(e) e.value=val; }
+
+if (document.readyState !== 'loading') Rituel.init();
+</script>

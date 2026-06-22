@@ -1,0 +1,381 @@
+<!-- ============================================================
+     AURA — journal.html  (fragment SPA)
+     Journal intime — espace d'écriture libre, garanti sans IA.
+
+     Principe :
+     - Une entrée par jour, texte libre, modifiable à volonté
+     - Lien automatique : affiche le contexte du jour (événements de
+       l'agenda, scores de sphères) à titre d'INSPIRATION pour écrire,
+       sans jamais l'imposer ni l'analyser.
+     - AUCUN appel Gemini ici, sur aucun bouton, à aucun moment —
+       c'est l'unique module de l'app avec cette garantie explicite.
+     - Sync Supabase prévue via une table dédiée (journal_entries),
+       à ajouter au schéma si l'utilisatrice connecte son compte.
+     ============================================================ -->
+
+<style>
+.journal-privacy-banner {
+  display:flex; align-items:center; gap:10px; padding:.875rem 1.125rem; border-radius:var(--r-lg);
+  background:linear-gradient(135deg,#F0FDF4,#fff); border:1px solid var(--gr-b); margin-bottom:1.25rem;
+}
+.journal-privacy-icon { width:38px; height:38px; border-radius:50%; background:var(--gr); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.journal-privacy-text { font-size:12px; color:#166534; line-height:1.5; }
+.journal-privacy-text strong { color:#14532D; }
+
+.journal-layout { display:grid; grid-template-columns:1fr 280px; gap:1.25rem; }
+.journal-editor-card { display:flex; flex-direction:column; }
+.journal-date-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.journal-date-label { font-size:15px; font-weight:800; color:var(--text); }
+.journal-date-sub { font-size:11px; color:var(--t3); margin-top:1px; }
+.journal-nav-btn { width:32px; height:32px; border-radius:50%; border:1px solid var(--bd2); background:var(--white); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--t2); }
+.journal-nav-btn:hover { background:var(--bg); }
+.journal-nav-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+.journal-mood-row { display:flex; gap:8px; margin-bottom:1rem; }
+.journal-mood-btn { font-size:22px; width:42px; height:42px; border-radius:50%; border:1.5px solid var(--bd2); background:var(--white); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .12s; }
+.journal-mood-btn:hover { transform:scale(1.08); }
+.journal-mood-btn.sel { border-color:var(--pu); background:var(--pu-l); box-shadow:0 0 0 2px var(--pu-b); }
+
+.journal-textarea {
+  width:100%; min-height:320px; font-size:14px; line-height:1.7; padding:1rem 1.125rem;
+  border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text);
+  resize:vertical; font-family:var(--font); outline:none; transition:border-color .12s, background-color .12s;
+}
+.journal-textarea:focus { border-color:var(--pu); background:var(--white); }
+.journal-textarea::placeholder { color:var(--t3); font-style:italic; }
+
+.journal-save-row { display:flex; align-items:center; justify-content:space-between; margin-top:.75rem; }
+.journal-save-status { font-size:11px; color:var(--t3); display:flex; align-items:center; gap:5px; }
+.journal-tags-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:.875rem; }
+.journal-tag { font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:14px; border:1px solid var(--pu-b); background:var(--pu-l); color:var(--pu-d); display:flex; align-items:center; gap:5px; }
+.journal-tag button { background:none; border:none; color:var(--pu-d); cursor:pointer; font-size:11px; padding:0; }
+.journal-tag-add { font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:14px; border:1.5px dashed var(--bd2); background:none; color:var(--t3); cursor:pointer; }
+.journal-tag-add:hover { border-color:var(--pu); color:var(--pu); }
+
+/* ── Contexte du jour (sidebar) ── */
+.journal-context-card { display:flex; flex-direction:column; gap:1rem; }
+.journal-context-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--t3); display:flex; align-items:center; gap:6px; margin-bottom:.625rem; }
+.journal-context-event { display:flex; align-items:center; gap:8px; padding:.5rem 0; border-bottom:1px solid var(--bd); font-size:11.5px; }
+.journal-context-event:last-child { border-bottom:none; }
+.journal-context-event-time { font-size:10px; font-weight:700; color:var(--pu-d); flex-shrink:0; min-width:36px; }
+.journal-context-sphere-row { display:flex; align-items:center; gap:8px; padding:.4rem 0; cursor:pointer; }
+.journal-context-sphere-row:hover { opacity:.75; }
+.journal-context-sphere-score { font-size:11px; font-weight:800; margin-left:auto; }
+.journal-empty-hint { font-size:11px; color:var(--t3); font-style:italic; text-align:center; padding:.875rem 0; }
+
+/* ── Historique des entrées passées ── */
+.journal-history-item {
+  display:flex; align-items:flex-start; gap:10px; padding:.625rem; border-radius:var(--r-md);
+  cursor:pointer; transition:background .12s; margin-bottom:.375rem;
+}
+.journal-history-item:hover { background:var(--bg); }
+.journal-history-item.active { background:var(--pu-l); }
+.journal-history-mood { font-size:16px; flex-shrink:0; }
+.journal-history-date { font-size:10.5px; font-weight:700; color:var(--text); }
+.journal-history-preview { font-size:10.5px; color:var(--t3); margin-top:1px; display:-webkit-box; -webkit-line-clamp:1; line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+
+@media(max-width:900px) {
+  .journal-layout { grid-template-columns:1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     BANNIÈRE DE CONFIDENTIALITÉ — garantie explicite, pas en silence
+════════════════════════════════════════════════════ -->
+<div class="journal-privacy-banner">
+  <div class="journal-privacy-icon"><i class="ti ti-lock" style="color:#fff;font-size:18px"></i></div>
+  <div class="journal-privacy-text">
+    <strong>Espace strictement privé.</strong> Aucune IA n'a accès à ce que tu écris ici — ni Gemini, ni le Coach, ni aucune analyse automatique. C'est uniquement pour toi.
+  </div>
+</div>
+
+<div class="journal-layout">
+
+  <!-- ════════ ÉDITEUR PRINCIPAL ════════ -->
+  <div class="card journal-editor-card">
+    <div class="journal-date-nav">
+      <button class="journal-nav-btn" onclick="Journal.changeDay(-1)"><i class="ti ti-chevron-left"></i></button>
+      <div style="text-align:center">
+        <div class="journal-date-label" id="journal-date-label">Aujourd'hui</div>
+        <div class="journal-date-sub" id="journal-date-sub">--</div>
+      </div>
+      <button class="journal-nav-btn" id="journal-next-btn" onclick="Journal.changeDay(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+
+    <div class="journal-mood-row" id="journal-mood-row"></div>
+
+    <textarea class="journal-textarea" id="journal-textarea" placeholder="Écris librement ce que tu as sur le cœur aujourd'hui — sans filtre, sans jugement, juste pour toi..."></textarea>
+
+    <div class="journal-save-row">
+      <div class="journal-save-status" id="journal-save-status"><i class="ti ti-circle-check" style="color:var(--gr)"></i> Enregistré</div>
+      <button class="btn-pill" id="journal-tag-trigger" onclick="Journal.openTagPicker()" style="font-size:11px;padding:6px 12px"><i class="ti ti-tag" style="font-size:13px"></i> Ajouter un tag</button>
+    </div>
+    <div class="journal-tags-row" id="journal-tags-row"></div>
+  </div>
+
+  <!-- ════════ SIDEBAR : contexte du jour + historique ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card journal-context-card">
+      <div>
+        <div class="journal-context-section-title"><i class="ti ti-calendar" style="font-size:13px"></i> Ton agenda ce jour-là</div>
+        <div id="journal-context-events"></div>
+      </div>
+      <div>
+        <div class="journal-context-section-title"><i class="ti ti-circles" style="font-size:13px"></i> Tes sphères en ce moment</div>
+        <div id="journal-context-spheres"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-history"></i> Entrées récentes</span>
+      </div>
+      <div id="journal-history-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'journal') return;
+  Journal.init();
+};
+
+/* ══════════════════════════════════════════════════
+   STORE — entrées de journal, une par date
+══════════════════════════════════════════════════ */
+const JournalStore = {
+  _key: 'aura_journal_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    this._data = { entries: {} }; // clé = date 'YYYY-MM-DD'
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  getEntry(dateStr) {
+    return this.get().entries[dateStr] || { text:'', mood:null, tags:[] };
+  },
+  setEntry(dateStr, entry) {
+    const d = this.get();
+    d.entries[dateStr] = entry;
+    this.save();
+  },
+  allDatesSorted() {
+    return Object.keys(this.get().entries).sort((a,b) => b.localeCompare(a));
+  },
+};
+
+const JOURNAL_MOODS = ['😢','😕','😐','🙂','😄','✨'];
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const Journal = {
+  currentDate: null, // 'YYYY-MM-DD'
+  _saveTimer: null,
+
+  init() {
+    this.currentDate = new Date().toISOString().slice(0,10);
+    this.renderMoodPicker();
+    this.loadEntry();
+    this.renderContext();
+    this.renderHistory();
+
+    const ta = document.getElementById('journal-textarea');
+    if (ta) {
+      ta.removeEventListener('input', this._onInput);
+      ta.addEventListener('input', this._onInput.bind(this));
+    }
+  },
+
+  /* ── Navigation jour par jour ── */
+  changeDay(delta) {
+    const d = new Date(this.currentDate);
+    d.setDate(d.getDate() + delta);
+    const newDate = d.toISOString().slice(0,10);
+    const today = new Date().toISOString().slice(0,10);
+    if (newDate > today) return; // pas d'écriture dans le futur
+    this.currentDate = newDate;
+    this.loadEntry();
+    this.renderContext();
+  },
+
+  /* ── Charge l'entrée du jour sélectionné dans l'éditeur ── */
+  loadEntry() {
+    const entry = JournalStore.getEntry(this.currentDate);
+    const ta = document.getElementById('journal-textarea');
+    if (ta) ta.value = entry.text || '';
+
+    this.renderMoodPicker(entry.mood);
+    this.renderTags(entry.tags || []);
+    this.updateDateLabel();
+    this.renderHistory();
+
+    const nextBtn = document.getElementById('journal-next-btn');
+    const today = new Date().toISOString().slice(0,10);
+    if (nextBtn) nextBtn.disabled = this.currentDate >= today;
+
+    _set('journal-save-status', '');
+    document.getElementById('journal-save-status').innerHTML = '<i class="ti ti-circle-check" style="color:var(--gr)"></i> Enregistré';
+  },
+
+  updateDateLabel() {
+    const today = new Date().toISOString().slice(0,10);
+    const d = new Date(this.currentDate);
+    const label = this.currentDate === today ? 'Aujourd\'hui' : d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    const sub = this.currentDate === today ? d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : d.getFullYear();
+    _set('journal-date-label', label);
+    _set('journal-date-sub', sub);
+  },
+
+  /* ── Sauvegarde avec léger délai pour ne pas écrire à chaque frappe ── */
+  _onInput() {
+    document.getElementById('journal-save-status').innerHTML = '<i class="ti ti-loader-2" style="color:var(--t3)"></i> Enregistrement...';
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => this.saveCurrentEntry(), 600);
+  },
+
+  saveCurrentEntry() {
+    const ta = document.getElementById('journal-textarea');
+    const existing = JournalStore.getEntry(this.currentDate);
+    JournalStore.setEntry(this.currentDate, { ...existing, text: ta?.value || '' });
+    document.getElementById('journal-save-status').innerHTML = '<i class="ti ti-circle-check" style="color:var(--gr)"></i> Enregistré';
+    this.renderHistory();
+  },
+
+  /* ── Humeur du jour ── */
+  renderMoodPicker(selected) {
+    const el = document.getElementById('journal-mood-row');
+    if (!el) return;
+    el.innerHTML = JOURNAL_MOODS.map(m => `
+      <button class="journal-mood-btn ${m===selected?'sel':''}" onclick="Journal.pickMood('${m}')">${m}</button>`).join('');
+  },
+  pickMood(mood) {
+    const existing = JournalStore.getEntry(this.currentDate);
+    JournalStore.setEntry(this.currentDate, { ...existing, mood });
+    this.renderMoodPicker(mood);
+    this.renderHistory();
+  },
+
+  /* ── Tags libres ── */
+  renderTags(tags) {
+    const el = document.getElementById('journal-tags-row');
+    if (!el) return;
+    el.innerHTML = tags.map((t,i) => `
+      <span class="journal-tag">${t} <button onclick="Journal.removeTag(${i})"><i class="ti ti-x"></i></button></span>`).join('')
+      + `<button class="journal-tag-add" onclick="Journal.openTagPicker()">+ tag</button>`;
+  },
+  openTagPicker() {
+    const tag = prompt('Ajouter un tag (ex: travail, famille, doute, victoire...) :');
+    if (!tag?.trim()) return;
+    const existing = JournalStore.getEntry(this.currentDate);
+    const tags = [...(existing.tags || []), tag.trim()];
+    JournalStore.setEntry(this.currentDate, { ...existing, tags });
+    this.renderTags(tags);
+  },
+  removeTag(idx) {
+    const existing = JournalStore.getEntry(this.currentDate);
+    const tags = (existing.tags || []).filter((_,i) => i !== idx);
+    JournalStore.setEntry(this.currentDate, { ...existing, tags });
+    this.renderTags(tags);
+  },
+
+  /* ── Contexte du jour : événements agenda + scores sphères ──
+     Affiché à titre d'INSPIRATION uniquement — jamais analysé, jamais
+     envoyé où que ce soit, juste un rappel visuel de ce qui s'est passé. */
+  renderContext() {
+    this.renderContextEvents();
+    this.renderContextSpheres();
+  },
+
+  renderContextEvents() {
+    const el = document.getElementById('journal-context-events');
+    if (!el) return;
+    let events = [];
+    try {
+      const ag = JSON.parse(localStorage.getItem('aura_events_v1') || '{}');
+      events = (ag.events || []).filter(e => e.date === this.currentDate);
+    } catch(_) {}
+
+    if (!events.length) { el.innerHTML = '<div class="journal-empty-hint">Aucun événement ce jour-là</div>'; return; }
+    el.innerHTML = events.map(e => `
+      <div class="journal-context-event">
+        <span class="journal-context-event-time">${e.hstart || ''}</span>
+        <span>${e.title}</span>
+      </div>`).join('');
+  },
+
+  renderContextSpheres() {
+    const el = document.getElementById('journal-context-spheres');
+    if (!el) return;
+    let scores = null;
+    try {
+      const sph = JSON.parse(localStorage.getItem('aura_spheres_v1') || '{}');
+      scores = sph.scores;
+    } catch(_) {}
+
+    const SPHERES_MINI = {
+      famille:{icon:'👨‍👩‍👧',color:'#9D174D'}, maison:{icon:'🏡',color:'#1E40AF'}, travail:{icon:'💼',color:'#5B21B6'},
+      finance:{icon:'💰',color:'#166534'}, sante:{icon:'🌿',color:'#C2410C'}, creation:{icon:'🚀',color:'#92400E'},
+      dev:{icon:'🌱',color:'#0F766E'}, vision:{icon:'✨',color:'#6D28D9'},
+    };
+
+    if (!scores) { el.innerHTML = '<div class="journal-empty-hint">Renseigne tes sphères pour les voir ici</div>'; return; }
+    el.innerHTML = Object.entries(scores).map(([key,score]) => {
+      const def = SPHERES_MINI[key];
+      if (!def) return '';
+      return `<div class="journal-context-sphere-row" onclick="navigate('spheres')">
+        <span>${def.icon}</span><span style="font-size:11.5px;color:var(--text);text-transform:capitalize">${key}</span>
+        <span class="journal-context-sphere-score" style="color:${def.color}">${score}</span>
+      </div>`;
+    }).join('');
+  },
+
+  /* ── Historique des entrées passées ── */
+  renderHistory() {
+    const el = document.getElementById('journal-history-list');
+    if (!el) return;
+    const dates = JournalStore.allDatesSorted();
+    const withContent = dates.filter(ds => {
+      const e = JournalStore.getEntry(ds);
+      return (e.text && e.text.trim()) || e.mood;
+    });
+
+    if (!withContent.length) { el.innerHTML = '<div class="journal-empty-hint">Tes entrées passées apparaîtront ici</div>'; return; }
+
+    el.innerHTML = withContent.slice(0,15).map(ds => {
+      const e = JournalStore.getEntry(ds);
+      const d = new Date(ds);
+      const isActive = ds === this.currentDate;
+      const preview = (e.text || '').slice(0,60).replace(/\n/g,' ') || '(humeur seulement)';
+      return `<div class="journal-history-item ${isActive?'active':''}" onclick="Journal.jumpTo('${ds}')">
+        <span class="journal-history-mood">${e.mood || '📝'}</span>
+        <div style="flex:1;min-width:0">
+          <div class="journal-history-date">${d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</div>
+          <div class="journal-history-preview">${preview}</div>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  jumpTo(dateStr) {
+    this.currentDate = dateStr;
+    this.loadEntry();
+    this.renderContext();
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+
+window.JournalStore = JournalStore;
+window.Journal = Journal;
+
+if (document.readyState !== 'loading') Journal.init();
+</script>

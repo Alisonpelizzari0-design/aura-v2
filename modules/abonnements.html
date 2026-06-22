@@ -1,0 +1,244 @@
+<!-- ============================================================
+     AURA — abonnements.html  (fragment SPA)
+     Gestion des abonnements — sous-ensemble des charges fixes
+     (catégorie 'abonnement' dans aura_finance_v1), enrichi de :
+     - Dates de renouvellement et alertes
+     - Suivi d'utilisation (pour juger si on garde ou annule)
+     - Total mensuel/annuel et projection
+     - Idées d'optimisation IA
+     ============================================================ -->
+
+<style>
+.abo-hero {
+  background:linear-gradient(135deg,var(--pu-l) 0%,var(--pk-l) 100%);
+  border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+.abo-hero-total { font-size:30px; font-weight:800; color:var(--pu-d); line-height:1; }
+
+.abo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.875rem; }
+.abo-card {
+  background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg);
+  padding:1rem; transition:all .15s; position:relative;
+}
+.abo-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.07); }
+.abo-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.625rem; }
+.abo-card-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; }
+.abo-card-price { font-size:16px; font-weight:800; color:var(--text); }
+.abo-card-name { font-size:12.5px; font-weight:700; color:var(--text); }
+.abo-card-renew { font-size:10px; color:var(--t3); margin-top:2px; }
+.abo-usage-row { display:flex; align-items:center; gap:6px; margin-top:.75rem; }
+.abo-usage-label { font-size:10px; color:var(--t2); flex:1; }
+.usage-stars { display:flex; gap:1px; }
+.usage-star { font-size:11px; cursor:pointer; transition:transform .1s; }
+.usage-star:hover { transform:scale(1.25); }
+.abo-card-actions { display:flex; gap:5px; margin-top:.75rem; }
+.abo-action-btn { flex:1; font-size:10px; font-weight:700; padding:5px; border-radius:var(--r-sm); border:1px solid var(--bd2); background:var(--bg); color:var(--t2); cursor:pointer; text-align:center; }
+.abo-action-btn:hover { border-color:var(--pu); color:var(--pu); }
+.abo-action-btn.danger:hover { border-color:var(--re); color:var(--re); background:var(--re-l); }
+.abo-renew-badge { position:absolute; top:-6px; right:10px; font-size:9px; font-weight:700; padding:2px 8px; border-radius:8px; }
+.abo-renew-badge.soon { background:var(--am); color:#fff; }
+.abo-renew-badge.today { background:var(--re); color:#fff; }
+
+.abo-tabs { display:flex; gap:6px; }
+.abo-tab { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; transition:all .12s; }
+.abo-tab.active { border-color:var(--pu); color:var(--pu); background:var(--pu-l); }
+
+@media(max-width:768px) {
+  .abo-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="abo-hero">
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pu-d)">Total abonnements / mois</div>
+    <div class="abo-hero-total" id="abo-total">−47 €</div>
+    <div style="font-size:12px;color:#7C3AED;margin-top:4px" id="abo-year">Soit 564 €/an</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--pu-d)" id="abo-stat-count">3</div>
+      <div style="font-size:10px;color:var(--t2)">Abonnements</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--re)" id="abo-stat-unused">0</div>
+      <div style="font-size:10px;color:var(--t2)">Peu utilisés</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--gr)" id="abo-stat-saving">0 €</div>
+      <div style="font-size:10px;color:var(--t2)">Économie possible</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem">
+  <div class="abo-tabs">
+    <button class="abo-tab active" onclick="Abonnements.filterUsage('all')">Tous</button>
+    <button class="abo-tab" onclick="Abonnements.filterUsage('low')">⚠ Peu utilisés</button>
+    <button class="abo-tab" onclick="Abonnements.filterUsage('soon')">📅 Renouvellement proche</button>
+  </div>
+  <button class="btn-pill pu" onclick="navigate('budget')"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter via Finance</button>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="ti ti-credit-card"></i> <span data-aura-edit="abonnements.title.1" data-aura-edit-label="Titre : Mes abonnements">Mes abonnements</span></span>
+    <span style="font-size:11px;color:var(--t2)">Note ton usage pour identifier ce qui est superflu</span>
+  </div>
+  <div class="abo-grid" id="abo-grid"></div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="ti ti-sparkles"></i> <span data-aura-edit="abonnements.title.2" data-aura-edit-label="Titre : Optimisation IA">Optimisation IA</span></span>
+    <button class="btn-ghost" onclick="Abonnements.optimizeIA()">✨ Analyser</button>
+  </div>
+  <div id="abo-ia-resp" style="display:none;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:var(--text);line-height:1.7"></div>
+  <div id="abo-ia-placeholder" style="font-size:12px;color:var(--t2);text-align:center;padding:1rem">
+    Clique "Analyser" pour obtenir des suggestions personnalisées basées sur ton usage réel.
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'abonnements') return;
+  Abonnements.init();
+};
+
+const Abonnements = {
+  currentFilter: 'all',
+  _usageKey: 'aura_abo_usage_v1',
+
+  init() {
+    this.render();
+  },
+
+  getFinanceData() {
+    try { return JSON.parse(localStorage.getItem('aura_finance_v1')||'{}'); }
+    catch(_) { return {}; }
+  },
+
+  getUsageData() {
+    try { return JSON.parse(localStorage.getItem(this._usageKey)||'{}'); }
+    catch(_) { return {}; }
+  },
+  saveUsage(id, stars) {
+    const d = this.getUsageData();
+    d[id] = stars;
+    localStorage.setItem(this._usageKey, JSON.stringify(d));
+  },
+
+  getRenewDate(id) {
+    // Simulé : jour du mois basé sur l'id pour variation visuelle
+    const day = (id % 28) + 1;
+    const now = new Date();
+    let renew = new Date(now.getFullYear(), now.getMonth(), day);
+    if (renew < now) renew = new Date(now.getFullYear(), now.getMonth()+1, day);
+    return renew;
+  },
+
+  render() {
+    const fin = this.getFinanceData();
+    const abos = (fin.charges||[]).filter(c => c.cat === 'abonnement');
+    const usage = this.getUsageData();
+
+    const total = abos.reduce((s,x)=>s+x.montant,0);
+    _set('abo-total', '−'+fmtE(total));
+    _set('abo-year', `Soit ${fmtE(total*12)}/an`);
+    _set('abo-stat-count', abos.length);
+
+    const lowUsage = abos.filter(a => (usage[a.id]||3) <= 2);
+    _set('abo-stat-unused', lowUsage.length);
+    _set('abo-stat-saving', fmtE(lowUsage.reduce((s,x)=>s+x.montant,0)));
+
+    let filtered = abos;
+    if (this.currentFilter === 'low') filtered = abos.filter(a => (usage[a.id]||3) <= 2);
+    if (this.currentFilter === 'soon') filtered = abos.filter(a => {
+      const days = Math.ceil((this.getRenewDate(a.id) - new Date()) / 86400000);
+      return days <= 7;
+    });
+
+    const el = document.getElementById('abo-grid');
+    if (!filtered.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--t3);font-size:12px;grid-column:1/-1">Aucun abonnement dans ce filtre</div>'; return; }
+
+    el.innerHTML = filtered.map(a => {
+      const stars = usage[a.id] || 3;
+      const renew = this.getRenewDate(a.id);
+      const days  = Math.ceil((renew - new Date()) / 86400000);
+      const badge = days <= 1 ? '<span class="abo-renew-badge today">Aujourd\'hui</span>' : days <= 5 ? `<span class="abo-renew-badge soon">J-${days}</span>` : '';
+      const starsHtml = [1,2,3,4,5].map(s => `<span class="usage-star" style="color:${s<=stars?'var(--pu)':'var(--bd2)'}" onclick="Abonnements.setUsage(${a.id},${s})">★</span>`).join('');
+
+      return `<div class="abo-card">
+        ${badge}
+        <div class="abo-card-top">
+          <div class="abo-card-icon" style="background:${a.color||'var(--pu-l)'}"><i class="ti ${a.ic||'ti-device-mobile'}" style="color:${a.icolor||'var(--pu)'}"></i></div>
+          <div class="abo-card-price">${fmtE(a.montant)}</div>
+        </div>
+        <div class="abo-card-name">${a.label}</div>
+        <div class="abo-card-renew">Renouvellement le ${renew.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</div>
+        <div class="abo-usage-row">
+          <span class="abo-usage-label">Utilité :</span>
+          <div class="usage-stars">${starsHtml}</div>
+        </div>
+        <div class="abo-card-actions">
+          <button class="abo-action-btn" onclick="navigate('budget')"><i class="ti ti-edit" style="font-size:10px"></i> Modifier</button>
+          <button class="abo-action-btn danger" onclick="Abonnements.cancelSuggestion(${a.id})"><i class="ti ti-x" style="font-size:10px"></i> Résilier ?</button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  filterUsage(f) {
+    this.currentFilter = f;
+    document.querySelectorAll('.abo-tab').forEach((t,i) => t.classList.toggle('active', ['all','low','soon'][i]===f));
+    this.render();
+  },
+
+  setUsage(id, stars) {
+    this.saveUsage(id, stars);
+    this.render();
+    earnXP(2, 'Usage abonnement noté', '⭐');
+  },
+
+  cancelSuggestion(id) {
+    const fin = this.getFinanceData();
+    const item = (fin.charges||[]).find(x=>x.id===id);
+    if (!item) return;
+    if (confirm(`Marquer "${item.label}" comme à résilier ? (Tu pourras le supprimer définitivement depuis Finance)`)) {
+      AuraUI.showToast(`📝 Note : pense à résilier "${item.label}"`);
+      earnXP(5, 'Décision de résiliation prise', '✂️');
+    }
+  },
+
+  async optimizeIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('abo-ia-resp'); document.getElementById('abo-ia-resp').style.display='block'; document.getElementById('abo-ia-placeholder').style.display='none'; return; }
+    const fin = this.getFinanceData();
+    const abos = (fin.charges||[]).filter(c=>c.cat==='abonnement');
+    const usage = this.getUsageData();
+    const resp = document.getElementById('abo-ia-resp');
+    document.getElementById('abo-ia-placeholder').style.display='none';
+    resp.style.display='block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de tes abonnements...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const desc = abos.map(a=>`${a.label}: ${a.montant}€/mois, utilité notée ${usage[a.id]||3}/5`).join(', ');
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un conseiller budget pragmatique, spécialisé en optimisation des abonnements récurrents.',
+        prompt: `Voici mes abonnements : ${desc}. Donne-moi un avis honnête sur lesquels garder, fusionner ou résilier, avec le montant d'économie potentielle si je suis tes conseils.`,
+        maxTokens: 400,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(20,'Optimisation abonnements IA','✨');
+    } catch(e) { resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>'; }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+
+if (document.readyState !== 'loading') Abonnements.init();
+</script>

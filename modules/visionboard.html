@@ -1,0 +1,987 @@
+<!-- ============================================================
+     AURA — visionboard.html  (fragment SPA)
+     Vision Board visuel — canvas d'objectifs par sphère :
+     - Vue canvas : cartes objectifs avec image/couleur de fond
+     - Chaque carte : sphère, titre, échéance, mini plan d'action (≤3 étapes)
+     - Filtrage par sphère, vue "Tous" en mosaïque façon moodboard
+     - Progression globale + par sphère
+     - Affirmation liée à chaque carte (alimente le rituel/ancre)
+     - Génération IA : suggère des objectifs selon une sphère faible
+     - Sync Supabase (table: vision_cards)
+     ============================================================ -->
+
+<style>
+/* ══════════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════════ */
+.vb-hero {
+  background:linear-gradient(135deg,#F5F3FF 0%,#FDF2F8 50%,#FFF7ED 100%);
+  border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.5rem;
+  position:relative; overflow:hidden;
+}
+.vb-hero-top { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; margin-bottom:1.125rem; }
+.vb-hero-icon {
+  width:54px; height:54px; border-radius:16px; background:linear-gradient(135deg,#C4B5FD,#7C3AED);
+  display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;
+  box-shadow:0 8px 20px rgba(124,58,237,.3); color:#fff;
+}
+.vb-hero-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#5B21B6; }
+.vb-hero-title { font-size:18px; font-weight:800; color:#3730A3; margin-top:2px; }
+.vb-progress-badge {
+  margin-left:auto; display:flex; align-items:center; gap:10px;
+  background:rgba(255,255,255,.7); border-radius:14px; padding:.625rem 1rem; flex-shrink:0;
+}
+.vb-progress-ring { position:relative; width:44px; height:44px; }
+.vb-progress-ring-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#5B21B6; }
+.vb-progress-label { font-size:11px; font-weight:700; color:#5B21B6; }
+.vb-progress-sub { font-size:9.5px; color:#7C3AED; margin-top:1px; }
+
+/* Citation / intention */
+.vb-affirmation-box {
+  background:rgba(255,255,255,.65); border:1px solid rgba(124,58,237,.18); border-radius:var(--r-lg);
+  padding:.875rem 1.125rem; display:flex; align-items:center; gap:10px;
+}
+.vb-affirmation-icon { font-size:20px; flex-shrink:0; }
+.vb-affirmation-text { font-size:13px; font-style:italic; color:#5B21B6; font-weight:500; }
+
+/* ══════════════════════════════════════════════════
+   STATS PAR SPHÈRE (mini barre horizontale)
+══════════════════════════════════════════════════ */
+.vb-spheres-bar { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.vb-sphere-chip {
+  display:flex; align-items:center; gap:6px; padding:7px 13px; border-radius:20px;
+  border:1.5px solid var(--bd2); background:var(--white); cursor:pointer; transition:all .15s; flex-shrink:0;
+  font-size:11.5px; font-weight:700; white-space:nowrap;
+}
+.vb-sphere-chip:hover { transform:translateY(-1px); }
+.vb-sphere-chip.active { box-shadow:0 0 0 2px currentColor; }
+.vb-sphere-count { font-size:9.5px; padding:1px 6px; border-radius:8px; background:rgba(0,0,0,.06); margin-left:2px; }
+
+/* ══════════════════════════════════════════════════
+   CANVAS — grille de cartes moodboard
+══════════════════════════════════════════════════ */
+.vb-canvas { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+.vb-card {
+  border-radius:18px; overflow:hidden; cursor:pointer; transition:all .2s;
+  position:relative; aspect-ratio:3/4; display:flex; flex-direction:column;
+  border:1px solid var(--bd);
+}
+.vb-card:hover { transform:translateY(-4px) rotate(-0.3deg); box-shadow:0 16px 36px rgba(0,0,0,.14); }
+.vb-card-visual {
+  flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+  font-size:48px; overflow:hidden; background-size:cover; background-position:center;
+}
+.vb-card-visual::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.55) 100%);
+}
+.vb-card-sphere-badge {
+  position:absolute; top:9px; left:9px; z-index:2;
+  font-size:9px; font-weight:800; padding:3px 9px; border-radius:8px; backdrop-filter:blur(4px);
+  color:#fff;
+}
+.vb-card-progress-ring { position:absolute; top:7px; right:7px; z-index:2; width:32px; height:32px; }
+.vb-card-progress-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#fff; }
+.vb-card-body {
+  position:absolute; bottom:0; left:0; right:0; z-index:2; padding:.75rem .875rem;
+}
+.vb-card-title { font-size:13px; font-weight:800; color:#fff; line-height:1.25; text-shadow:0 1px 4px rgba(0,0,0,.3); }
+.vb-card-deadline { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); margin-top:3px; display:flex; align-items:center; gap:4px; }
+.vb-card-deadline.urgent { color:#FCA5A5; }
+.vb-card-deadline.done { color:#86EFAC; }
+
+.vb-add-card {
+  border:1.5px dashed var(--bd2); border-radius:18px; aspect-ratio:3/4;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  cursor:pointer; transition:all .15s; background:var(--bg);
+}
+.vb-add-card:hover { border-color:var(--pu); background:var(--pu-l); border-style:solid; }
+.vb-add-card i { font-size:26px; color:var(--t3); }
+.vb-add-card span { font-size:12px; color:var(--t3); font-weight:700; text-align:center; padding:0 .5rem; }
+
+.vb-empty { text-align:center; padding:3rem 1rem; color:var(--t3); grid-column:1/-1; }
+.vb-empty-icon { font-size:36px; margin-bottom:.75rem; opacity:.6; }
+
+/* ══════════════════════════════════════════════════
+   MODAL CARTE — création/détail
+══════════════════════════════════════════════════ */
+.vb-modal-visual-preview {
+  height:140px; border-radius:14px; margin-bottom:1rem; position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; font-size:52px;
+  background-size:cover; background-position:center;
+}
+.vb-modal-visual-preview::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.4) 100%); }
+.vb-image-search-row { display:flex; gap:6px; margin-top:.625rem; }
+.vb-image-search-row input { flex:1; }
+.vb-image-results { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:.625rem; }
+.vb-image-result { aspect-ratio:1; border-radius:8px; overflow:hidden; cursor:pointer; border:2px solid transparent; transition:all .12s; }
+.vb-image-result:hover, .vb-image-result.sel { border-color:var(--pu); }
+.vb-image-result img { width:100%; height:100%; object-fit:cover; display:block; }
+.vb-emoji-picker { display:flex; gap:6px; flex-wrap:wrap; margin-top:.625rem; }
+.vb-emoji-btn { width:34px; height:34px; border-radius:var(--r-md); border:1.5px solid var(--bd2); background:var(--white); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.vb-emoji-btn:hover, .vb-emoji-btn.sel { border-color:var(--pu); background:var(--pu-l); }
+.vb-visual-mode-tabs { display:flex; gap:6px; margin-bottom:.625rem; }
+.vb-visual-mode-tab { font-size:10.5px; font-weight:700; padding:5px 11px; border-radius:16px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; }
+.vb-visual-mode-tab.sel { background:var(--pu); color:#fff; border-color:var(--pu); }
+
+.vb-steps-list { display:flex; flex-direction:column; gap:.5rem; }
+.vb-step-row { display:flex; align-items:center; gap:8px; }
+.vb-step-row input[type=text] { flex:1; }
+.vb-step-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; flex-shrink:0; }
+.vb-step-cb {
+  width:20px; height:20px; border-radius:6px; border:1.5px solid var(--bd2); flex-shrink:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .12s;
+}
+.vb-step-cb.on { background:var(--gr); border-color:var(--gr); }
+.vb-step-cb.on i { color:#fff; font-size:11px; display:block; }
+.vb-step-cb i { display:none; }
+.vb-step-text { flex:1; font-size:12.5px; color:var(--text); }
+.vb-step-text.done { color:var(--t3); text-decoration:line-through; }
+
+@media(max-width:900px) {
+  .vb-canvas { grid-template-columns:repeat(3,1fr); }
+}
+@media(max-width:768px) {
+  .vb-canvas { grid-template-columns:1fr 1fr; }
+  .vb-image-results { grid-template-columns:repeat(3,1fr); }
+}
+
+/* ══════════════════════════════════════════════════
+   TABS — vue canvas / timeline / atteints
+══════════════════════════════════════════════════ */
+.vb-view-tabs { display:flex; gap:6px; }
+.vb-view-tab { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; transition:all .12s; display:flex; align-items:center; gap:5px; }
+.vb-view-tab:hover { background:var(--bg); }
+.vb-view-tab.active { border-color:#7C3AED; color:#7C3AED; background:var(--pu-l); }
+.vb-view-panel { display:none; }
+.vb-view-panel.on { display:block; }
+
+/* ══════════════════════════════════════════════════
+   TIMELINE — vue chronologique des échéances
+══════════════════════════════════════════════════ */
+.vb-timeline { position:relative; padding-left:28px; }
+.vb-timeline::before { content:''; position:absolute; left:9px; top:6px; bottom:6px; width:2px; background:var(--bd); }
+.vb-timeline-item { position:relative; padding-bottom:1.5rem; }
+.vb-timeline-item:last-child { padding-bottom:0; }
+.vb-timeline-dot { position:absolute; left:-28px; top:2px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; border:3px solid var(--white); box-shadow:0 0 0 1px var(--bd2); }
+.vb-timeline-month { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--t3); margin-bottom:.5rem; }
+.vb-timeline-card { display:flex; align-items:center; gap:10px; padding:.75rem .875rem; border-radius:var(--r-md); border:1px solid var(--bd); background:var(--white); cursor:pointer; transition:all .15s; }
+.vb-timeline-card:hover { transform:translateX(3px); box-shadow:0 4px 14px rgba(0,0,0,.08); }
+.vb-timeline-card.urgent { border-color:#FCA5A5; background:#FEF2F2; }
+.vb-timeline-card.done { opacity:.6; }
+.vb-timeline-emoji { font-size:20px; flex-shrink:0; }
+.vb-timeline-info { flex:1; min-width:0; }
+.vb-timeline-title { font-size:12.5px; font-weight:700; color:var(--text); }
+.vb-timeline-date { font-size:10.5px; color:var(--t3); margin-top:1px; }
+.vb-timeline-progress { font-size:11px; font-weight:800; flex-shrink:0; }
+
+/* ══════════════════════════════════════════════════
+   TABLEAU DE CHASSE — objectifs atteints
+══════════════════════════════════════════════════ */
+.vb-trophy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.875rem; }
+.vb-trophy-card {
+  border-radius:14px; padding:1rem; text-align:center; position:relative; overflow:hidden;
+  background:linear-gradient(135deg,var(--go-l),#FFF7E6); border:1px solid var(--go-b);
+}
+.vb-trophy-ribbon { position:absolute; top:8px; right:-22px; background:var(--go); color:#fff; font-size:9px; font-weight:800; padding:3px 28px; transform:rotate(40deg); }
+.vb-trophy-emoji { font-size:32px; margin-bottom:.5rem; }
+.vb-trophy-title { font-size:12px; font-weight:700; color:#78350F; }
+.vb-trophy-date { font-size:10px; color:#92400E; margin-top:3px; }
+.vb-trophy-empty { text-align:center; padding:2.5rem 1rem; color:var(--t3); grid-column:1/-1; }
+
+/* ══════════════════════════════════════════════════
+   TEMPLATES — objectifs prêts à l'emploi
+══════════════════════════════════════════════════ */
+.vb-template-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.625rem; max-height:380px; overflow-y:auto; }
+.vb-template-card {
+  display:flex; align-items:flex-start; gap:10px; padding:.75rem; border-radius:var(--r-md);
+  border:1px solid var(--bd); cursor:pointer; transition:all .15s; background:var(--white);
+}
+.vb-template-card:hover { border-color:#7C3AED; background:var(--pu-l); transform:translateY(-1px); }
+.vb-template-emoji { font-size:20px; flex-shrink:0; }
+.vb-template-title { font-size:11.5px; font-weight:700; color:var(--text); }
+.vb-template-sub { font-size:10px; color:var(--t3); margin-top:2px; line-height:1.4; }
+
+/* ── Rappels d'échéance (dashboard) ── */
+.vb-dash-reminder { display:flex; align-items:center; gap:9px; padding:.5rem 0; border-bottom:1px solid var(--bd); }
+.vb-dash-reminder:last-child { border-bottom:none; }
+.vb-dash-reminder-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.vb-dash-reminder-text { flex:1; font-size:11.5px; color:var(--text); }
+.vb-dash-reminder-days { font-size:10px; font-weight:800; flex-shrink:0; }
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="vb-hero">
+  <div class="vb-hero-top">
+    <div class="vb-hero-icon">🌌</div>
+    <div>
+      <div class="vb-hero-label">Vision Board</div>
+      <div class="vb-hero-title">Ta vie rêvée, en image</div>
+    </div>
+    <div class="vb-progress-badge">
+      <div class="vb-progress-ring">
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(124,58,237,.15)" stroke-width="5"/>
+          <circle id="vb-progress-circle" cx="22" cy="22" r="18" fill="none" stroke="#7C3AED" stroke-width="5"
+            stroke-dasharray="113" stroke-dashoffset="113" stroke-linecap="round" transform="rotate(-90 22 22)"/>
+        </svg>
+        <div class="vb-progress-ring-text" id="vb-progress-pct">0%</div>
+      </div>
+      <div>
+        <div class="vb-progress-label" id="vb-progress-count">0 objectif</div>
+        <div class="vb-progress-sub">en cours de réalisation</div>
+      </div>
+    </div>
+  </div>
+  <div class="vb-affirmation-box">
+    <span class="vb-affirmation-icon">✨</span>
+    <span class="vb-affirmation-text" id="vb-affirmation-text">Chaque carte que tu poses ici devient une graine de ta réalité future.</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     FILTRES PAR SPHÈRE
+════════════════════════════════════════════════════ -->
+<div class="vb-spheres-bar" id="vb-spheres-bar"></div>
+
+<!-- ════════════════════════════════════════════════════
+     TABS DE VUE
+════════════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+  <div class="vb-view-tabs">
+    <button class="vb-view-tab active" onclick="VisionBoard.showView('canvas')"><i class="ti ti-layout-grid" style="font-size:13px"></i> Canvas</button>
+    <button class="vb-view-tab" onclick="VisionBoard.showView('timeline')"><i class="ti ti-timeline" style="font-size:13px"></i> Timeline</button>
+    <button class="vb-view-tab" onclick="VisionBoard.showView('trophy')"><i class="ti ti-trophy" style="font-size:13px"></i> Tableau de chasse</button>
+  </div>
+  <button class="btn-pill pu" onclick="VisionBoard.openTemplates()"><i class="ti ti-bulb" style="font-size:12px"></i> Idées d'objectifs</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     CANVAS
+════════════════════════════════════════════════════ -->
+<div class="vb-view-panel on" id="vb-view-canvas">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-layout-grid"></i> Mon canvas de vision</span>
+      <button class="btn-ghost" onclick="VisionBoard.suggestIA()">✨ Suggérer un objectif</button>
+    </div>
+    <div class="vb-canvas" id="vb-canvas"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TIMELINE
+════════════════════════════════════════════════════ -->
+<div class="vb-view-panel" id="vb-view-timeline">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-timeline"></i> Échéances à venir</span>
+    </div>
+    <div class="vb-timeline" id="vb-timeline-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TABLEAU DE CHASSE
+════════════════════════════════════════════════════ -->
+<div class="vb-view-panel" id="vb-view-trophy">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-trophy"></i> Objectifs atteints</span>
+      <span style="font-size:11px;color:var(--t2)" id="vb-trophy-count"></span>
+    </div>
+    <div class="vb-trophy-grid" id="vb-trophy-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL CARTE OBJECTIF
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="vb-modal-overlay" style="display:none" onclick="if(event.target===this)VisionBoard.closeModal()">
+  <div class="modal-box" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="modal-title" id="vb-modal-title"><i class="ti ti-plus"></i> Nouvel objectif</div>
+
+    <!-- Visuel -->
+    <div class="vb-modal-visual-preview" id="vb-visual-preview" style="background:linear-gradient(135deg,#C4B5FD,#7C3AED)">🎯</div>
+    <div class="vb-visual-mode-tabs">
+      <button class="vb-visual-mode-tab sel" id="vb-vmode-emoji" onclick="VisionBoard.setVisualMode('emoji')">😀 Emoji</button>
+      <button class="vb-visual-mode-tab" id="vb-vmode-search" onclick="VisionBoard.setVisualMode('search')">🖼️ Photo perso</button>
+    </div>
+    <div id="vb-vmode-emoji-panel">
+      <div class="vb-emoji-picker" id="vb-emoji-picker"></div>
+    </div>
+    <div id="vb-vmode-search-panel" style="display:none">
+      <div class="vb-image-search-row">
+        <input class="modal-input" id="vb-image-query" placeholder="Colle le lien d'une image (Pinterest, Google Images...)">
+        <button style="font-size:12px;padding:0 14px;border-radius:var(--r-md);border:1px solid var(--pu);background:var(--pu-l);color:var(--pu-d);cursor:pointer;font-weight:700" onclick="VisionBoard.applyImageUrl()">Appliquer</button>
+      </div>
+      <div style="font-size:10.5px;color:var(--t3);margin-top:.5rem;line-height:1.5">
+        💡 Trouve une image qui t'inspire (Pinterest, Google Images...), copie son lien direct, et colle-le ici.
+      </div>
+    </div>
+
+    <div class="modal-field" style="margin-top:1rem"><label class="modal-lbl">Titre de l'objectif</label><input class="modal-input" id="vb-title" placeholder="Ex: Courir un semi-marathon"></div>
+
+    <div class="modal-field">
+      <label class="modal-lbl">Sphère de vie</label>
+      <select class="modal-input" id="vb-sphere"></select>
+    </div>
+
+    <div class="g2" style="gap:.75rem">
+      <div class="modal-field"><label class="modal-lbl">Échéance</label><input class="modal-input" id="vb-deadline" type="date"></div>
+      <div class="modal-field"><label class="modal-lbl">Couleur d'accent</label>
+        <select class="modal-input" id="vb-color">
+          <option value="#7C3AED">Violet</option><option value="#DB2777">Rose</option><option value="#0D9488">Teal</option>
+          <option value="#EA580C">Orange</option><option value="#2563EB">Bleu</option><option value="#16A34A">Vert</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-lbl">Affirmation liée</label>
+      <input class="modal-input" id="vb-affirmation" placeholder="Ex: Je suis capable d'aller jusqu'au bout">
+    </div>
+
+    <div class="modal-field">
+      <label class="modal-lbl">Plan d'action (3 étapes max)</label>
+      <div class="vb-steps-list" id="vb-steps-list"></div>
+    </div>
+
+    <div class="modal-actions" id="vb-modal-actions">
+      <button class="modal-btn primary" onclick="VisionBoard.saveCard()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="VisionBoard.closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL TEMPLATES — idées d'objectifs prêtes à l'emploi
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="vb-templates-overlay" style="display:none" onclick="if(event.target===this)VisionBoard.closeTemplates()">
+  <div class="modal-box" style="max-width:560px" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-bulb"></i> Idées d'objectifs par sphère</div>
+    <div style="font-size:11.5px;color:var(--t2);margin-bottom:1rem;line-height:1.5">
+      Clique sur une idée pour pré-remplir une nouvelle carte — tu pourras tout ajuster avant d'enregistrer.
+    </div>
+    <div class="vb-spheres-bar" id="vb-template-filter" style="margin-bottom:1rem"></div>
+    <div class="vb-template-grid" id="vb-template-grid"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="VisionBoard.closeTemplates()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'visionboard') return;
+  VisionBoard.init();
+};
+
+/* ══════════════════════════════════════════════════
+   SPHÈRES — même référentiel que spheres.html
+══════════════════════════════════════════════════ */
+const VB_SPHERES = {
+  famille:  { name:'Famille & Relations',    icon:'👨‍👩‍👧', color:'#9D174D' },
+  maison:   { name:'Maison & Intérieur',     icon:'🏡', color:'#1E40AF' },
+  travail:  { name:'Travail & Carrière',     icon:'💼', color:'#5B21B6' },
+  finance:  { name:'Finance & Abondance',    icon:'💰', color:'#166534' },
+  sante:    { name:'Santé & Bien-être',      icon:'🌿', color:'#C2410C' },
+  creation: { name:'Projets & Création',     icon:'🚀', color:'#92400E' },
+  dev:      { name:'Développement Personnel',icon:'🌱', color:'#0F766E' },
+  vision:   { name:'Vision & LOA',           icon:'✨', color:'#6D28D9' },
+};
+const VB_SPHERE_ORDER = ['famille','maison','travail','finance','sante','creation','dev','vision'];
+
+const VB_EMOJIS = ['🎯','🏆','✈️','🏡','💪','📚','💰','🎓','🚀','💍','🌍','🧘','🎨','🌿','⛰️','🚗','👨‍👩‍👧','💡','🎵','🏃','🐾','💼','🌅','✨'];
+
+/* ══════════════════════════════════════════════════
+   TEMPLATES — idées d'objectifs prêts à l'emploi par sphère
+══════════════════════════════════════════════════ */
+const VB_TEMPLATES = [
+  { sphere:'sante',    emoji:'🏃', title:'Courir 5km sans m\'arrêter',        months:3,  affirmation:'Mon corps devient plus fort chaque jour' },
+  { sphere:'sante',    emoji:'🥗', title:'Manger plus équilibré au quotidien', months:2,  affirmation:'Je nourris mon corps avec amour' },
+  { sphere:'sante',    emoji:'🧘', title:'Méditer 10 minutes chaque matin',    months:1,  affirmation:'Mon calme intérieur grandit chaque jour' },
+  { sphere:'finance',  emoji:'💰', title:'Constituer 3 mois d\'épargne de sécurité', months:8, affirmation:'Ma sécurité financière se construit pas à pas' },
+  { sphere:'finance',  emoji:'📊', title:'Ouvrir un PEA et investir régulièrement', months:2, affirmation:'L\'abondance circule naturellement vers moi' },
+  { sphere:'finance',  emoji:'🏠', title:'Épargner pour un apport immobilier', months:18, affirmation:'Je construis les fondations de mon futur chez-moi' },
+  { sphere:'famille',  emoji:'👨‍👩‍👧', title:'Organiser un moment qualité hebdomadaire en famille', months:1, affirmation:'Mes liens familiaux s\'épanouissent' },
+  { sphere:'famille',  emoji:'📞', title:'Reprendre contact avec un proche éloigné', months:1, affirmation:'Je nourris mes relations les plus précieuses' },
+  { sphere:'maison',   emoji:'🏡', title:'Désencombrer et réorganiser mon intérieur', months:2, affirmation:'Mon espace reflète ma clarté intérieure' },
+  { sphere:'maison',   emoji:'🪴', title:'Créer un coin de verdure chez moi',  months:1,  affirmation:'Je cultive la vie autour de moi' },
+  { sphere:'travail',  emoji:'📈', title:'Obtenir une promotion ou évolution', months:12, affirmation:'Mes compétences sont reconnues à leur juste valeur' },
+  { sphere:'travail',  emoji:'🎓', title:'Suivre une formation pour monter en compétence', months:4, affirmation:'J\'investis dans mon potentiel' },
+  { sphere:'creation', emoji:'🎨', title:'Terminer un projet créatif personnel', months:6,  affirmation:'Ma créativité trouve enfin sa pleine expression' },
+  { sphere:'creation', emoji:'📝', title:'Écrire et publier mon premier contenu', months:3, affirmation:'J\'ose partager ce que je crée' },
+  { sphere:'dev',      emoji:'📚', title:'Lire 12 livres cette année',         months:12, affirmation:'Chaque page me fait grandir' },
+  { sphere:'dev',      emoji:'🧠', title:'Travailler une croyance limitante',  months:3,  affirmation:'Je me libère de ce qui me freine' },
+  { sphere:'vision',   emoji:'🌍', title:'Voyager dans un endroit qui m\'inspire', months:9, affirmation:'Je mérite de découvrir le monde' },
+  { sphere:'vision',   emoji:'✨', title:'Clarifier ma vision de vie à 5 ans', months:1,   affirmation:'Mon futur se dessine avec clarté' },
+];
+
+/* ══════════════════════════════════════════════════
+   STORE
+══════════════════════════════════════════════════ */
+const VbStore = {
+  _key: 'aura_visionboard_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    const today = new Date();
+    const inMonths = n => { const d=new Date(today); d.setMonth(d.getMonth()+n); return d.toISOString().slice(0,10); };
+    this._data = {
+      cards: [
+        { id:1, title:'Courir un semi-marathon', sphere:'sante', visual:{type:'emoji', value:'🏃'}, color:'#C2410C',
+          deadline: inMonths(4), affirmation:'Je suis capable d\'aller jusqu\'au bout', steps:[
+            { text:'Établir un plan d\'entraînement 12 semaines', done:true },
+            { text:'Courir 10km sans m\'arrêter', done:false },
+            { text:'S\'inscrire à une course officielle', done:false },
+          ]},
+        { id:2, title:'Voyage à Bali', sphere:'vision', visual:{type:'emoji', value:'🌴'}, color:'#6D28D9',
+          deadline: inMonths(8), affirmation:'Je mérite de découvrir le monde', steps:[
+            { text:'Définir le budget du voyage', done:true },
+            { text:'Choisir les dates et réserver les billets', done:false },
+            { text:'Planifier l\'itinéraire', done:false },
+          ]},
+        { id:3, title:'Épargner 10 000€', sphere:'finance', visual:{type:'emoji', value:'💰'}, color:'#166534',
+          deadline: inMonths(12), affirmation:'L\'abondance circule naturellement vers moi', steps:[
+            { text:'Automatiser un virement mensuel', done:true },
+            { text:'Réviser le budget tous les mois', done:true },
+            { text:'Ne pas toucher à l\'épargne avant l\'objectif', done:false },
+          ]},
+        { id:4, title:'Lire 24 livres cette année', sphere:'dev', visual:{type:'emoji', value:'📚'}, color:'#0F766E',
+          deadline: inMonths(6), affirmation:'Chaque page me fait grandir', steps:[
+            { text:'Lire 20 minutes chaque soir', done:true },
+            { text:'Tenir un carnet de lecture', done:false },
+          ]},
+      ],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  addCard(c) { const d=this.get(); c.id=d.cards.length?Math.max(...d.cards.map(x=>x.id))+1:1; d.cards.unshift(c); this.save(); return c; },
+  updateCard(c) { const d=this.get(); const idx=d.cards.findIndex(x=>x.id===c.id); if(idx>=0) d.cards[idx]=c; this.save(); },
+  deleteCard(id) { const d=this.get(); d.cards=d.cards.filter(x=>x.id!==id); this.save(); },
+
+  cardProgress(card) {
+    if (!card.steps || !card.steps.length) return 0;
+    return Math.round((card.steps.filter(s=>s.done).length / card.steps.length) * 100);
+  },
+};
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const VisionBoard = {
+  activeFilter: null,
+  editingId: null,
+  visualMode: 'emoji',
+  selectedEmoji: '🎯',
+  selectedImageUrl: null,
+  steps: [],
+
+  init() {
+    this.renderSphereFilters();
+    this.renderCanvas();
+    this.renderGlobalProgress();
+    this.renderAffirmation();
+    this.renderTimeline();
+    this.renderTrophyBoard();
+    this.syncFromDB();
+  },
+
+  /* ── Bascule entre les 3 vues : Canvas / Timeline / Tableau de chasse ── */
+  showView(view) {
+    document.querySelectorAll('.vb-view-tab').forEach((t,i) => t.classList.toggle('active', ['canvas','timeline','trophy'][i]===view));
+    document.querySelectorAll('.vb-view-panel').forEach(p => p.classList.remove('on'));
+    document.getElementById('vb-view-'+view)?.classList.add('on');
+    if (view === 'timeline') this.renderTimeline();
+    if (view === 'trophy') this.renderTrophyBoard();
+  },
+
+  /* ── Filtres sphères ── */
+  renderSphereFilters() {
+    const d = VbStore.get();
+    const counts = {};
+    d.cards.forEach(c => { counts[c.sphere] = (counts[c.sphere]||0)+1; });
+
+    const el = document.getElementById('vb-spheres-bar');
+    el.innerHTML = `
+      <div class="vb-sphere-chip ${this.activeFilter===null?'active':''}" style="color:#7C3AED" onclick="VisionBoard.filterSphere(null)">
+        🌌 Toutes <span class="vb-sphere-count">${d.cards.length}</span>
+      </div>
+      ${VB_SPHERE_ORDER.map(key => {
+        const s = VB_SPHERES[key];
+        const n = counts[key] || 0;
+        return `<div class="vb-sphere-chip ${this.activeFilter===key?'active':''}" style="color:${s.color}" onclick="VisionBoard.filterSphere('${key}')">
+          ${s.icon} ${s.name.split(' ')[0]} <span class="vb-sphere-count">${n}</span>
+        </div>`;
+      }).join('')}`;
+  },
+
+  filterSphere(key) {
+    this.activeFilter = key;
+    this.renderSphereFilters();
+    this.renderCanvas();
+  },
+
+  /* ── Canvas ── */
+  renderCanvas() {
+    const d = VbStore.get();
+    let cards = d.cards;
+    if (this.activeFilter) cards = cards.filter(c => c.sphere === this.activeFilter);
+
+    const el = document.getElementById('vb-canvas');
+    const today = new Date().toISOString().slice(0,10);
+
+    const cardsHtml = cards.map(c => {
+      const s = VB_SPHERES[c.sphere] || VB_SPHERES.vision;
+      const pct = VbStore.cardProgress(c);
+      const isDone = pct === 100;
+      const daysLeft = c.deadline ? Math.ceil((new Date(c.deadline) - new Date(today)) / 86400000) : null;
+      const urgent = daysLeft !== null && daysLeft <= 14 && daysLeft >= 0 && !isDone;
+      const overdue = daysLeft !== null && daysLeft < 0 && !isDone;
+
+      const bgStyle = c.visual?.type === 'image'
+        ? `background-image:url('${c.visual.value}')`
+        : `background:linear-gradient(135deg,${c.color}99,${c.color})`;
+
+      const deadlineLabel = isDone ? '✓ Atteint' : overdue ? 'Échéance dépassée' : daysLeft !== null ? `J-${daysLeft}` : '';
+      const deadlineCls = isDone ? 'done' : (urgent || overdue) ? 'urgent' : '';
+
+      const circ = 2*Math.PI*13;
+      const offset = circ - (pct/100)*circ;
+
+      return `<div class="vb-card" onclick="VisionBoard.openDetail(${c.id})">
+        <div class="vb-card-visual" style="${bgStyle}">
+          <span class="vb-card-sphere-badge" style="background:${s.color}cc">${s.icon} ${s.name.split(' ')[0]}</span>
+          <div class="vb-card-progress-ring">
+            <svg width="32" height="32" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="3.5"/>
+              <circle cx="16" cy="16" r="13" fill="none" stroke="#fff" stroke-width="3.5" stroke-dasharray="${circ.toFixed(0)}" stroke-dashoffset="${offset.toFixed(0)}" stroke-linecap="round" transform="rotate(-90 16 16)"/>
+            </svg>
+            <div class="vb-card-progress-text">${pct}%</div>
+          </div>
+          ${c.visual?.type!=='image' ? `<span>${c.visual?.value||'🎯'}</span>` : ''}
+          <div class="vb-card-body">
+            <div class="vb-card-title">${c.title}</div>
+            ${deadlineLabel ? `<div class="vb-card-deadline ${deadlineCls}"><i class="ti ti-calendar" style="font-size:10px"></i> ${deadlineLabel}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = cardsHtml + `<div class="vb-add-card" onclick="VisionBoard.openAddModal()"><i class="ti ti-plus"></i><span>Nouvel objectif ✦</span></div>`;
+
+    if (!cards.length) {
+      el.innerHTML = `<div class="vb-empty"><div class="vb-empty-icon">🌌</div><div>Aucun objectif dans cette sphère encore</div></div>` + el.innerHTML;
+    }
+  },
+
+  /* ── Progression globale ── */
+  renderGlobalProgress() {
+    const d = VbStore.get();
+    if (!d.cards.length) { _set('vb-progress-pct','0%'); _set('vb-progress-count','0 objectif'); return; }
+    const avg = Math.round(d.cards.reduce((s,c)=>s+VbStore.cardProgress(c),0) / d.cards.length);
+    const circ = 2*Math.PI*18;
+    const offset = circ - (avg/100)*circ;
+    document.getElementById('vb-progress-circle').setAttribute('stroke-dasharray', circ.toFixed(0));
+    document.getElementById('vb-progress-circle').setAttribute('stroke-dashoffset', offset.toFixed(0));
+    _set('vb-progress-pct', avg+'%');
+    const doneCount = d.cards.filter(c=>VbStore.cardProgress(c)===100).length;
+    _set('vb-progress-count', `${d.cards.length} objectif${d.cards.length>1?'s':''} · ${doneCount} atteint${doneCount>1?'s':''}`);
+  },
+
+  renderAffirmation() {
+    const d = VbStore.get();
+    const withAff = d.cards.filter(c=>c.affirmation);
+    if (!withAff.length) return;
+    const seed = new Date().getDate() % withAff.length;
+    _set('vb-affirmation-text', withAff[seed].affirmation);
+  },
+
+  /* ── Timeline chronologique des échéances ── */
+  renderTimeline() {
+    const el = document.getElementById('vb-timeline-content');
+    if (!el) return;
+    const d = VbStore.get();
+    const today = new Date();
+
+    const withDeadline = d.cards.filter(c => c.deadline).map(c => ({
+      ...c, pct: VbStore.cardProgress(c), daysLeft: Math.ceil((new Date(c.deadline) - today) / 86400000),
+    })).sort((a,b) => new Date(a.deadline) - new Date(b.deadline));
+
+    if (!withDeadline.length) {
+      el.innerHTML = '<div class="vb-empty"><div class="vb-empty-icon">📅</div><div>Aucun objectif avec échéance pour l\'instant</div></div>';
+      return;
+    }
+
+    let lastMonth = '';
+    el.innerHTML = withDeadline.map(c => {
+      const s = VB_SPHERES[c.sphere] || VB_SPHERES.vision;
+      const isDone = c.pct === 100;
+      const isUrgent = !isDone && c.daysLeft <= 14;
+      const monthLabel = new Date(c.deadline).toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+      const showMonth = monthLabel !== lastMonth;
+      lastMonth = monthLabel;
+
+      const emoji = c.visual?.type === 'emoji' ? c.visual.value : '🎯';
+      const dateLabel = isDone ? '✓ Atteint' : c.daysLeft < 0 ? 'Échéance dépassée' : `J-${c.daysLeft}`;
+
+      return `${showMonth ? `<div class="vb-timeline-month">${monthLabel}</div>` : ''}
+        <div class="vb-timeline-item">
+          <div class="vb-timeline-dot" style="background:${s.color}">
+            <span style="font-size:9px">${isDone?'✓':''}</span>
+          </div>
+          <div class="vb-timeline-card ${isUrgent?'urgent':''} ${isDone?'done':''}" onclick="VisionBoard.openDetail(${c.id})">
+            <span class="vb-timeline-emoji">${emoji}</span>
+            <div class="vb-timeline-info">
+              <div class="vb-timeline-title">${c.title}</div>
+              <div class="vb-timeline-date">${s.icon} ${s.name.split(' ')[0]} · ${dateLabel}</div>
+            </div>
+            <span class="vb-timeline-progress" style="color:${s.color}">${c.pct}%</span>
+          </div>
+        </div>`;
+    }).join('');
+  },
+
+  /* ── Tableau de chasse : objectifs à 100% ── */
+  renderTrophyBoard() {
+    const el = document.getElementById('vb-trophy-content');
+    if (!el) return;
+    const d = VbStore.get();
+    const done = d.cards.filter(c => VbStore.cardProgress(c) === 100);
+    _set('vb-trophy-count', `${done.length} objectif${done.length!==1?'s':''} atteint${done.length!==1?'s':''}`);
+
+    if (!done.length) {
+      el.innerHTML = '<div class="vb-trophy-empty"><div style="font-size:32px;margin-bottom:.5rem">🏆</div>Aucun objectif atteint encore — continue, ta première victoire arrive !</div>';
+      return;
+    }
+
+    el.innerHTML = done.map(c => {
+      const s = VB_SPHERES[c.sphere] || VB_SPHERES.vision;
+      const emoji = c.visual?.type === 'emoji' ? c.visual.value : '🎯';
+      return `<div class="vb-trophy-card" onclick="VisionBoard.openDetail(${c.id})">
+        <div class="vb-trophy-ribbon">RÉUSSI</div>
+        <div class="vb-trophy-emoji">${emoji}</div>
+        <div class="vb-trophy-title">${c.title}</div>
+        <div class="vb-trophy-date">${s.icon} ${s.name.split(' ')[0]}</div>
+      </div>`;
+    }).join('');
+  },
+
+  /* ── Templates d'objectifs prêts à l'emploi ── */
+  openTemplates() {
+    this._templateFilter = null;
+    this.renderTemplateFilters();
+    this.renderTemplateGrid();
+    document.getElementById('vb-templates-overlay').style.display = 'flex';
+  },
+
+  closeTemplates() { document.getElementById('vb-templates-overlay').style.display = 'none'; },
+
+  renderTemplateFilters() {
+    const el = document.getElementById('vb-template-filter');
+    el.innerHTML = `
+      <div class="vb-sphere-chip ${this._templateFilter===null?'active':''}" style="color:#7C3AED" onclick="VisionBoard.filterTemplates(null)">🌌 Toutes</div>
+      ${VB_SPHERE_ORDER.map(key => {
+        const s = VB_SPHERES[key];
+        return `<div class="vb-sphere-chip ${this._templateFilter===key?'active':''}" style="color:${s.color}" onclick="VisionBoard.filterTemplates('${key}')">${s.icon} ${s.name.split(' ')[0]}</div>`;
+      }).join('')}`;
+  },
+
+  filterTemplates(key) {
+    this._templateFilter = key;
+    this.renderTemplateFilters();
+    this.renderTemplateGrid();
+  },
+
+  renderTemplateGrid() {
+    const el = document.getElementById('vb-template-grid');
+    let list = VB_TEMPLATES;
+    if (this._templateFilter) list = list.filter(t => t.sphere === this._templateFilter);
+    el.innerHTML = list.map((t, i) => {
+      const s = VB_SPHERES[t.sphere];
+      return `<div class="vb-template-card" onclick="VisionBoard.useTemplate(${VB_TEMPLATES.indexOf(t)})">
+        <span class="vb-template-emoji">${t.emoji}</span>
+        <div>
+          <div class="vb-template-title">${t.title}</div>
+          <div class="vb-template-sub">${s.icon} ${s.name.split(' ')[0]} · ~${t.months} mois</div>
+        </div>
+      </div>`;
+    }).join('') || '<div class="vb-empty" style="grid-column:1/-1"><div>Aucun template pour cette sphère</div></div>';
+  },
+
+  useTemplate(idx) {
+    const t = VB_TEMPLATES[idx];
+    if (!t) return;
+    this.closeTemplates();
+    this.openAddModal();
+    const deadline = new Date(); deadline.setMonth(deadline.getMonth() + t.months);
+    document.getElementById('vb-title').value = t.title;
+    document.getElementById('vb-deadline').value = deadline.toISOString().slice(0,10);
+    document.getElementById('vb-affirmation').value = t.affirmation;
+    document.getElementById('vb-sphere').value = t.sphere;
+    this.selectedEmoji = t.emoji;
+    this.renderEmojiPicker();
+    this.updatePreview();
+    AuraUI.showToast('✦ Template appliqué — personnalise-le avant d\'enregistrer');
+  },
+
+  /* ── Modal : création ── */
+  openAddModal() {
+    this.editingId = null;
+    this.visualMode = 'emoji';
+    this.selectedEmoji = VB_EMOJIS[0];
+    this.selectedImageUrl = null;
+    this.steps = [{text:'',done:false},{text:'',done:false},{text:'',done:false}];
+
+    document.getElementById('vb-modal-title').innerHTML = '<i class="ti ti-plus"></i> Nouvel objectif';
+    document.getElementById('vb-title').value = '';
+    document.getElementById('vb-deadline').value = '';
+    document.getElementById('vb-affirmation').value = '';
+    document.getElementById('vb-color').value = '#7C3AED';
+
+    const sphereSel = document.getElementById('vb-sphere');
+    sphereSel.innerHTML = VB_SPHERE_ORDER.map(k=>`<option value="${k}">${VB_SPHERES[k].icon} ${VB_SPHERES[k].name}</option>`).join('');
+
+    this.setVisualMode('emoji');
+    this.renderEmojiPicker();
+    this.renderStepsList();
+    this.updatePreview();
+
+    document.getElementById('vb-modal-actions').innerHTML = `
+      <button class="modal-btn primary" onclick="VisionBoard.saveCard()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="VisionBoard.closeModal()">Annuler</button>`;
+    document.getElementById('vb-modal-overlay').style.display = 'flex';
+  },
+
+  /* ── Modal : détail / édition ── */
+  openDetail(id) {
+    const c = VbStore.get().cards.find(x=>x.id===id);
+    if (!c) return;
+    this.editingId = id;
+    this.visualMode = c.visual?.type === 'image' ? 'search' : 'emoji';
+    this.selectedEmoji = c.visual?.type === 'emoji' ? c.visual.value : VB_EMOJIS[0];
+    this.selectedImageUrl = c.visual?.type === 'image' ? c.visual.value : null;
+    this.steps = JSON.parse(JSON.stringify(c.steps || []));
+
+    document.getElementById('vb-modal-title').innerHTML = `${VB_SPHERES[c.sphere]?.icon||'🎯'} ${c.title}`;
+    document.getElementById('vb-title').value = c.title;
+    document.getElementById('vb-deadline').value = c.deadline || '';
+    document.getElementById('vb-affirmation').value = c.affirmation || '';
+    document.getElementById('vb-color').value = c.color || '#7C3AED';
+
+    const sphereSel = document.getElementById('vb-sphere');
+    sphereSel.innerHTML = VB_SPHERE_ORDER.map(k=>`<option value="${k}" ${k===c.sphere?'selected':''}>${VB_SPHERES[k].icon} ${VB_SPHERES[k].name}</option>`).join('');
+
+    this.setVisualMode(this.visualMode);
+    this.renderEmojiPicker();
+    this.renderStepsList();
+    this.updatePreview();
+
+    document.getElementById('vb-modal-actions').innerHTML = `
+      <button class="modal-btn primary" onclick="VisionBoard.saveCard()"><i class="ti ti-check"></i> Enregistrer</button>
+      <button class="modal-btn danger" onclick="VisionBoard.deleteCard(${id})"><i class="ti ti-trash"></i> Supprimer</button>
+      <button class="modal-btn cancel" onclick="VisionBoard.closeModal()">Fermer</button>`;
+    document.getElementById('vb-modal-overlay').style.display = 'flex';
+  },
+
+  closeModal() { document.getElementById('vb-modal-overlay').style.display = 'none'; },
+
+  /* ── Visuel : mode emoji / recherche image ── */
+  setVisualMode(mode) {
+    this.visualMode = mode;
+    document.getElementById('vb-vmode-emoji').classList.toggle('sel', mode==='emoji');
+    document.getElementById('vb-vmode-search').classList.toggle('sel', mode==='search');
+    document.getElementById('vb-vmode-emoji-panel').style.display = mode==='emoji' ? 'block' : 'none';
+    document.getElementById('vb-vmode-search-panel').style.display = mode==='search' ? 'block' : 'none';
+  },
+
+  renderEmojiPicker() {
+    document.getElementById('vb-emoji-picker').innerHTML = VB_EMOJIS.map(e => `
+      <button class="vb-emoji-btn ${e===this.selectedEmoji?'sel':''}" onclick="VisionBoard.pickEmoji('${e}')">${e}</button>`).join('');
+  },
+
+  pickEmoji(e) {
+    this.selectedEmoji = e;
+    document.querySelectorAll('.vb-emoji-btn').forEach(b => b.classList.toggle('sel', b.textContent.trim()===e));
+    this.updatePreview();
+  },
+
+  /* ── Visuel : coller une URL d'image personnelle ──
+     Note : pas de recherche d'image intégrée (les APIs gratuites sans clé type
+     "Unsplash Source" ont été dépréciées). L'utilisateur peut coller le lien
+     d'une image trouvée ailleurs (Pinterest, Google Images, ses propres photos
+     hébergées), ou utiliser un emoji + couleur comme représentation visuelle. */
+  applyImageUrl() {
+    const url = document.getElementById('vb-image-query')?.value?.trim();
+    if (!url) { AuraUI.showToast('⚠ Colle le lien d\'une image'); return; }
+    this.selectedImageUrl = url;
+    this.updatePreview();
+    earnXP(3, 'Image vision board ajoutée', '🖼️');
+    AuraUI.showToast('✓ Image appliquée à la carte');
+  },
+
+  updatePreview() {
+    const preview = document.getElementById('vb-visual-preview');
+    const color = document.getElementById('vb-color')?.value || '#7C3AED';
+    if (this.visualMode === 'search' && this.selectedImageUrl) {
+      preview.style.background = `url('${this.selectedImageUrl}') center/cover`;
+      preview.textContent = '';
+    } else {
+      preview.style.background = `linear-gradient(135deg,${color}99,${color})`;
+      preview.textContent = this.selectedEmoji;
+    }
+  },
+
+  /* ── Plan d'action (étapes) ── */
+  renderStepsList() {
+    const el = document.getElementById('vb-steps-list');
+    el.innerHTML = this.steps.map((s, i) => `
+      <div class="vb-step-row">
+        <div class="vb-step-cb ${s.done?'on':''}" onclick="VisionBoard.toggleStepDone(${i})"><i class="ti ti-check"></i></div>
+        <input type="text" class="modal-input" value="${s.text}" placeholder="Étape ${i+1}..." onchange="VisionBoard.updateStepText(${i},this.value)">
+        <button class="vb-step-del" onclick="VisionBoard.removeStep(${i})"><i class="ti ti-x"></i></button>
+      </div>`).join('') + (this.steps.length < 3 ? `
+      <button class="btn-ghost" onclick="VisionBoard.addStep()" style="text-align:left">+ Ajouter une étape</button>` : '');
+  },
+
+  toggleStepDone(i) { this.steps[i].done = !this.steps[i].done; this.renderStepsList(); },
+  updateStepText(i, val) { this.steps[i].text = val; },
+  addStep() { if (this.steps.length<3) { this.steps.push({text:'',done:false}); this.renderStepsList(); } },
+  removeStep(i) { this.steps.splice(i,1); this.renderStepsList(); },
+
+  /* ── Sauvegarde ── */
+  saveCard() {
+    const title = document.getElementById('vb-title')?.value?.trim();
+    if (!title) { AuraUI.showToast('⚠ Donne un titre à ton objectif'); return; }
+
+    const visual = this.visualMode === 'search' && this.selectedImageUrl
+      ? { type:'image', value:this.selectedImageUrl }
+      : { type:'emoji', value:this.selectedEmoji };
+
+    const card = {
+      title,
+      sphere: document.getElementById('vb-sphere')?.value || 'vision',
+      deadline: document.getElementById('vb-deadline')?.value || '',
+      color: document.getElementById('vb-color')?.value || '#7C3AED',
+      affirmation: document.getElementById('vb-affirmation')?.value?.trim() || '',
+      visual,
+      steps: this.steps.filter(s => s.text.trim()),
+    };
+
+    if (this.editingId) {
+      card.id = this.editingId;
+      VbStore.updateCard(card);
+      AuraUI.showToast('✓ Objectif mis à jour');
+    } else {
+      VbStore.addCard(card);
+      earnXP(20, `Objectif "${title}" posé sur le board`, '🌌');
+      AuraUI.showToast('✦ Nouvel objectif ajouté à ton vision board');
+    }
+
+    this.closeModal();
+    this.renderCanvas();
+    this.renderSphereFilters();
+    this.renderGlobalProgress();
+    this.renderTimeline();
+    this.renderTrophyBoard();
+    this.syncCardToDB(card);
+  },
+
+  deleteCard(id) {
+    if (!confirm('Supprimer cet objectif de ton vision board ?')) return;
+    VbStore.deleteCard(id);
+    this.closeModal();
+    this.renderCanvas();
+    this.renderSphereFilters();
+    this.renderGlobalProgress();
+    this.renderTimeline();
+    this.renderTrophyBoard();
+    AuraUI.showToast('Objectif supprimé');
+  },
+
+  /* ── IA : suggestion d'objectif basée sur la sphère la plus faible ── */
+  async suggestIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showToast('Configure ta clé Gemini dans Paramètres'); return; }
+
+    // Lire les scores de spheres.html si disponibles
+    let weakestSphere = 'vision';
+    try {
+      const sphData = JSON.parse(localStorage.getItem('aura_spheres_v1')||'{}');
+      if (sphData.scores) {
+        weakestSphere = Object.entries(sphData.scores).sort((a,b)=>a[1]-b[1])[0]?.[0] || 'vision';
+      }
+    } catch(_) {}
+
+    AuraUI.showToast('✨ Réflexion en cours...');
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const sphereInfo = VB_SPHERES[weakestSphere] || VB_SPHERES.vision;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un coach de vie inspirant. Réponds UNIQUEMENT en JSON, sans markdown.',
+        prompt: `Suggère un objectif concret et motivant pour la sphère "${sphereInfo.name}", avec une échéance réaliste (en mois) et une affirmation associée. JSON: {"title":"...","mois":6,"affirmation":"..."}`,
+        maxTokens: 200,
+      });
+      const obj = AURA_GEMINI.parseJSON(text);
+      const deadline = new Date(); deadline.setMonth(deadline.getMonth() + (obj.mois||6));
+      this.openAddModal();
+      document.getElementById('vb-title').value = obj.title || '';
+      document.getElementById('vb-deadline').value = deadline.toISOString().slice(0,10);
+      document.getElementById('vb-affirmation').value = obj.affirmation || '';
+      document.getElementById('vb-sphere').value = weakestSphere;
+      earnXP(10, 'Suggestion IA reçue', '✨');
+    } catch(e) {
+      AuraUI.showToast('Suggestion indisponible — vérifie ta clé Gemini');
+    }
+  },
+
+  /* ── Sync Supabase ── */
+  async syncCardToDB(card) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const payload = {
+        user_id: SupaClient.userId(), title: card.title, sphere: card.sphere,
+        deadline: card.deadline || null, color: card.color, affirmation: card.affirmation,
+        visual_type: card.visual.type, visual_value: card.visual.value,
+        steps: card.steps,
+      };
+      if (card.db_id) {
+        await SupaClient.update('vision_cards', payload, `id=eq.${card.db_id}&user_id=eq.${SupaClient.userId()}`);
+      } else {
+        const res = await SupaClient.insert('vision_cards', payload);
+        if (res?.id) { card.db_id = res.id; VbStore.updateCard(card); }
+      }
+    } catch(e) { console.warn('[VisionBoard sync]', e.message); }
+  },
+
+  async syncFromDB() {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await SupaClient.select('vision_cards', `user_id=eq.${SupaClient.userId()}`);
+      if (rows?.length) {
+        const d = VbStore.get();
+        d.cards = rows.map(r => ({
+          id: r.id, db_id: r.id, title: r.title, sphere: r.sphere, deadline: r.deadline || '',
+          color: r.color, affirmation: r.affirmation,
+          visual: { type: r.visual_type, value: r.visual_value },
+          steps: r.steps || [],
+        }));
+        VbStore.save();
+        this.renderCanvas(); this.renderSphereFilters(); this.renderGlobalProgress();
+      }
+    } catch(e) { console.warn('[VisionBoard pull]', e.message); }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+
+if (document.readyState !== 'loading') VisionBoard.init();
+</script>

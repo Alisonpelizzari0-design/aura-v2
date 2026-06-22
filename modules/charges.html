@@ -1,0 +1,319 @@
+<!-- ============================================================
+     AURA — charges.html  (fragment SPA)
+     Vue détaillée des charges fixes — PARTAGE la même source
+     de données que budget.html (clé localStorage: aura_finance_v1)
+     pour rester toujours synchronisé entre les deux écrans.
+     - Liste complète par secteur avec dates de prélèvement
+     - Analyse répartition (camembert visuel + barres)
+     - Détection doublons / charges à réviser
+     - Simulateur d'impact d'une nouvelle charge
+     - Sync Supabase (table: finance_charges, déjà existante)
+     ============================================================ -->
+
+<style>
+.cha-hero {
+  background:linear-gradient(135deg,var(--re-l) 0%,var(--or-l) 100%);
+  border:1px solid var(--re-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+.cha-hero-total { font-size:30px; font-weight:800; color:#991B1B; line-height:1; }
+
+.cha-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.cha-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; }
+.cha-tab.active { border-color:var(--re); color:var(--re); background:var(--re-l); }
+.cha-panel { display:none; flex-direction:column; gap:1.25rem; }
+.cha-panel.on { display:flex; }
+
+.cha-row { display:grid; grid-template-columns:32px 1fr auto auto auto; gap:10px; align-items:center; padding:.75rem 0; border-bottom:1px solid var(--bd); }
+.cha-row:last-child { border-bottom:none; }
+.cha-ic { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cha-name { font-size:12.5px; font-weight:600; color:var(--text); }
+.cha-sub  { font-size:10px; color:var(--t3); margin-top:1px; }
+.cha-amount { font-size:14px; font-weight:800; color:var(--text); }
+.cha-period-tag { font-size:9px; font-weight:700; padding:2px 8px; border-radius:8px; background:var(--bg); color:var(--t2); }
+.cha-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; }
+.cha-del:hover { color:var(--re); }
+
+/* ── Camembert simple (CSS conic-gradient) ── */
+.pie-chart { width:160px; height:160px; border-radius:50%; margin:0 auto; }
+.pie-legend { display:flex; flex-direction:column; gap:.5rem; margin-top:1rem; }
+.pie-legend-item { display:flex; align-items:center; gap:8px; font-size:12px; }
+.pie-legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.pie-legend-label { flex:1; color:var(--t2); }
+.pie-legend-val { font-weight:700; color:var(--text); }
+
+/* ── Alertes révision ── */
+.review-alert { display:flex; align-items:flex-start; gap:10px; padding:.875rem; border-radius:var(--r-md); border:1px solid var(--am-b); background:var(--am-l); margin-bottom:.625rem; }
+.review-alert:last-child { margin-bottom:0; }
+
+@media(max-width:768px) {
+  .pie-chart { width:130px; height:130px; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="cha-hero">
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#991B1B">Total charges fixes mensuelles</div>
+    <div class="cha-hero-total" id="cha-total">−1 153 €</div>
+    <div style="font-size:12px;color:var(--t2);margin-top:4px" id="cha-pct-revenus">29% de tes revenus</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#991B1B" id="cha-stat-count">7</div>
+      <div style="font-size:10px;color:var(--t2)">Charges actives</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#991B1B" id="cha-stat-year">13 836€</div>
+      <div style="font-size:10px;color:var(--t2)">Coût annuel</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.5);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:#991B1B" id="cha-stat-avg">165€</div>
+      <div style="font-size:10px;color:var(--t2)">Moyenne / charge</div>
+    </div>
+  </div>
+</div>
+
+<div class="cha-tabs">
+  <button class="cha-tab active" onclick="Charges.showTab('liste')"><i class="ti ti-list" style="font-size:13px"></i> Liste complète</button>
+  <button class="cha-tab" onclick="Charges.showTab('repartition')"><i class="ti ti-chart-pie" style="font-size:13px"></i> Répartition</button>
+  <button class="cha-tab" onclick="Charges.showTab('revision')"><i class="ti ti-alert-triangle" style="font-size:13px"></i> À réviser</button>
+  <button class="cha-tab" onclick="Charges.showTab('simulateur')"><i class="ti ti-calculator" style="font-size:13px"></i> Simuler un ajout</button>
+</div>
+
+<!-- ════════ LISTE COMPLÈTE ════════ -->
+<div class="cha-panel on" id="cha-panel-liste">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-receipt"></i> <span data-aura-edit="charges.title.1" data-aura-edit-label="Titre : Toutes mes charges fixes">Toutes mes charges fixes</span></span>
+      <button class="btn-pill pu" onclick="navigate('budget')"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter via Finance</button>
+    </div>
+    <div id="cha-list"></div>
+  </div>
+</div>
+
+<!-- ════════ RÉPARTITION ════════ -->
+<div class="cha-panel" id="cha-panel-repartition">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-chart-pie"></i> <span data-aura-edit="charges.title.2" data-aura-edit-label="Titre : Par secteur">Par secteur</span></span></div>
+      <div class="pie-chart" id="pie-chart"></div>
+      <div class="pie-legend" id="pie-legend"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-trending-up"></i> <span data-aura-edit="charges.title.3" data-aura-edit-label="Titre : Évolution & repères">Évolution & repères</span></span></div>
+      <div style="background:var(--bg);border-radius:var(--r-md);padding:.875rem;margin-bottom:.75rem">
+        <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px">Règle des 30%</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:.375rem;line-height:1.5">Les charges fixes (hors loisirs) ne devraient idéalement pas dépasser 30% des revenus nets.</div>
+        <div id="rule-30-status" style="margin-top:.625rem;font-size:12px;font-weight:700"></div>
+      </div>
+      <div id="sector-bars"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ À RÉVISER ════════ -->
+<div class="cha-panel" id="cha-panel-revision">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-alert-triangle"></i> <span data-aura-edit="charges.title.4" data-aura-edit-label="Titre : Charges à surveiller">Charges à surveiller</span></span>
+      <button class="btn-ghost" onclick="Charges.analyzeIA()">✨ Analyse IA</button>
+    </div>
+    <div id="review-list"></div>
+    <div id="cha-ia-resp" style="display:none;margin-top:1rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:var(--text);line-height:1.7"></div>
+  </div>
+</div>
+
+<!-- ════════ SIMULATEUR ════════ -->
+<div class="cha-panel" id="cha-panel-simulateur">
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-calculator"></i> <span data-aura-edit="charges.title.5" data-aura-edit-label="Titre : Quel impact si j'ajoute une charge ?">Quel impact si j'ajoute une charge ?</span></span></div>
+    <div class="g2">
+      <div>
+        <label class="field-lbl">Nom de la charge envisagée</label>
+        <input class="field-input" id="sim-cha-name" placeholder="Ex: Nouvelle assurance" style="margin-bottom:.75rem">
+        <label class="field-lbl">Montant mensuel (€)</label>
+        <input class="field-input" id="sim-cha-amount" type="number" placeholder="0" oninput="Charges.simulateImpact()">
+      </div>
+      <div class="sim-result" style="margin-top:0">
+        <div>
+          <div class="sim-result-lbl">Nouveau total charges</div>
+          <div class="sim-result-sub" id="sim-cha-pct">0% des revenus</div>
+        </div>
+        <div class="sim-result-val" id="sim-cha-total">−</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'charges') return;
+  Charges.init();
+};
+
+const Charges = {
+
+  init() {
+    this.render();
+  },
+
+  showTab(tab) {
+    document.querySelectorAll('.cha-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.cha-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['liste','repartition','revision','simulateur'];
+    document.querySelectorAll('.cha-tab')[tabs.indexOf(tab)]?.classList.add('active');
+    document.getElementById('cha-panel-'+tab)?.classList.add('on');
+  },
+
+  /* ── Source de données partagée avec budget.html ── */
+  getFinanceData() {
+    try { return JSON.parse(localStorage.getItem('aura_finance_v1')||'{}'); }
+    catch(_) { return {}; }
+  },
+
+  render() {
+    const fin = this.getFinanceData();
+    const charges = fin.charges || [];
+    const revenus = (fin.revenus||[]).reduce((s,x)=>s+x.montant,0);
+    const total   = charges.reduce((s,x)=>s+x.montant,0);
+
+    _set('cha-total', '−'+fmtE(total));
+    _set('cha-stat-count', charges.length);
+    _set('cha-stat-year', fmtE(total*12));
+    _set('cha-stat-avg', charges.length ? fmtE(total/charges.length) : '0 €');
+    _set('cha-pct-revenus', revenus>0 ? `${Math.round((total/revenus)*100)}% de tes revenus` : '');
+
+    this.renderList(charges);
+    this.renderRepartition(charges, total, revenus);
+    this.renderReview(charges, revenus);
+  },
+
+  renderList(charges) {
+    const el = document.getElementById('cha-list');
+    if (!charges.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--t3);font-size:12px">Aucune charge — ajoute-en une depuis le module Finance</div>'; return; }
+    el.innerHTML = charges.map(c => `
+      <div class="cha-row">
+        <div class="cha-ic" style="background:${c.color||'var(--bg)'}"><i class="ti ${c.ic||'ti-receipt'}" style="color:${c.icolor||'var(--t2)'}"></i></div>
+        <div>
+          <div class="cha-name">${c.label}</div>
+          <div class="cha-sub">${c.cat||'Charge'}</div>
+        </div>
+        <span class="cha-period-tag">${c.period||'Mensuel'}</span>
+        <span class="cha-amount">${fmtE(c.montant)}</span>
+        <button class="cha-del" onclick="Charges.deleteCharge(${c.id})"><i class="ti ti-trash"></i></button>
+      </div>`).join('');
+  },
+
+  deleteCharge(id) {
+    if (!confirm('Supprimer cette charge ? (synchronisé avec le module Finance)')) return;
+    const fin = this.getFinanceData();
+    const item = (fin.charges||[]).find(x=>x.id===id);
+    fin.charges = (fin.charges||[]).filter(x=>x.id!==id);
+    localStorage.setItem('aura_finance_v1', JSON.stringify(fin));
+    if (item?.db_id && window.SupaClient?.isLoggedIn()) {
+      SupaClient.delete('finance_charges', `id=eq.${item.db_id}&user_id=eq.${SupaClient.userId()}`).catch(()=>{});
+    }
+    this.render();
+    AuraUI.showToast('Charge supprimée ✓');
+  },
+
+  renderRepartition(charges, total, revenus) {
+    const secteurs = {};
+    charges.forEach(c => { secteurs[c.cat||'autre'] = (secteurs[c.cat||'autre']||0) + c.montant; });
+    const colors = ['#7C3AED','#0D9488','#EA580C','#DB2777','#16A34A','#2563EB','#C9A84C','#64748B'];
+    const entries = Object.entries(secteurs).sort((a,b)=>b[1]-a[1]);
+
+    // Conic gradient camembert
+    let acc = 0;
+    const gradParts = entries.map(([k,v],i) => {
+      const pct = (v/total)*100;
+      const start = acc; acc += pct;
+      return `${colors[i%colors.length]} ${start}% ${acc}%`;
+    });
+    document.getElementById('pie-chart').style.background = `conic-gradient(${gradParts.join(',')})`;
+
+    document.getElementById('pie-legend').innerHTML = entries.map(([k,v],i) => `
+      <div class="pie-legend-item">
+        <div class="pie-legend-dot" style="background:${colors[i%colors.length]}"></div>
+        <span class="pie-legend-label">${k}</span>
+        <span class="pie-legend-val">${fmtE(v)}</span>
+      </div>`).join('');
+
+    document.getElementById('sector-bars').innerHTML = entries.map(([k,v],i) => {
+      const pct = Math.round((v/total)*100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <div style="font-size:11.5px;color:var(--t2);width:100px;flex-shrink:0">${k}</div>
+        <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${colors[i%colors.length]};border-radius:3px"></div></div>
+        <div style="font-size:11.5px;font-weight:700;color:var(--text);min-width:52px;text-align:right">${fmtE(v)}</div>
+      </div>`;
+    }).join('');
+
+    const ruleEl = document.getElementById('rule-30-status');
+    if (revenus>0) {
+      const pct = Math.round((total/revenus)*100);
+      if (pct<=30) ruleEl.innerHTML = `<span style="color:var(--gr)">✓ ${pct}% — Tu es dans la zone saine</span>`;
+      else ruleEl.innerHTML = `<span style="color:var(--re)">⚠ ${pct}% — Au-dessus du seuil recommandé</span>`;
+    }
+  },
+
+  renderReview(charges, revenus) {
+    const el = document.getElementById('review-list');
+    const alerts = [];
+
+    // Doublons potentiels (même catégorie "abonnement")
+    const abos = charges.filter(c => c.cat==='abonnement');
+    if (abos.length >= 3) alerts.push({ title:`${abos.length} abonnements actifs`, sub:`Total: ${fmtE(abos.reduce((s,x)=>s+x.montant,0))}/mois — vérifie lesquels sont encore utilisés.` });
+
+    // Charge élevée isolée
+    charges.forEach(c => { if (c.montant > 200) alerts.push({ title:`${c.label} — ${fmtE(c.montant)}/mois`, sub:'Charge importante — vérifie si une renégociation est possible.' }); });
+
+    // Total trop élevé
+    const total = charges.reduce((s,x)=>s+x.montant,0);
+    if (revenus>0 && (total/revenus) > 0.35) alerts.push({ title:'Charges fixes élevées', sub:`${Math.round((total/revenus)*100)}% des revenus partent en charges fixes — marge de manœuvre réduite.` });
+
+    el.innerHTML = alerts.length ? alerts.map(a => `
+      <div class="review-alert">
+        <i class="ti ti-alert-triangle" style="color:var(--am);font-size:16px;flex-shrink:0;margin-top:1px"></i>
+        <div><div style="font-size:12.5px;font-weight:700;color:#92400E">${a.title}</div><div style="font-size:11.5px;color:var(--t2);margin-top:2px">${a.sub}</div></div>
+      </div>`).join('') : '<div style="text-align:center;padding:1.5rem;color:var(--gr);font-size:12px">✓ Aucune alerte — tes charges semblent bien maîtrisées</div>';
+  },
+
+  async analyzeIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('cha-ia-resp'); document.getElementById('cha-ia-resp').style.display='block'; return; }
+    const fin = this.getFinanceData();
+    const charges = fin.charges||[];
+    const resp = document.getElementById('cha-ia-resp');
+    resp.style.display='block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de tes charges en cours...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un conseiller budget bienveillant et pragmatique.',
+        prompt: `Voici mes charges fixes mensuelles : ${charges.map(c=>`${c.label} (${c.cat}): ${c.montant}€`).join(', ')}. Identifie les 2-3 charges qui pourraient être optimisées ou renégociées, avec un conseil concret pour chacune.`,
+        maxTokens: 400,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(20,'Analyse charges IA','📊');
+    } catch(e) { resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>'; }
+  },
+
+  simulateImpact() {
+    const fin = this.getFinanceData();
+    const current = (fin.charges||[]).reduce((s,x)=>s+x.montant,0);
+    const revenus  = (fin.revenus||[]).reduce((s,x)=>s+x.montant,0);
+    const newAmount = parseFloat(document.getElementById('sim-cha-amount')?.value)||0;
+    const newTotal = current + newAmount;
+    _set('sim-cha-total', fmtE(newTotal));
+    _set('sim-cha-pct', revenus>0 ? `${Math.round((newTotal/revenus)*100)}% des revenus` : '');
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+
+if (document.readyState !== 'loading') Charges.init();
+</script>

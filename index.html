@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+  <meta name="theme-color" content="#F8F7FF">
+  <title>AURA — Life Architecture OS</title>
+  <meta name="description" content="AURA — Ton OS de vie personnel. Intention, finances, bien-être, horoscope et coach IA.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="aura.css">
+  <style>
+    /* ── Shell override pour SPA full-height (desktop) ── */
+    html, body { height:100%; margin:0; }
+    .aura-shell { min-height:100vh; height:100vh; }
+    .aura-main  { height:100vh; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+    #app-content { flex:1 1 auto; overflow-y:auto; padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem; min-height:0; }
+    .aura-topbar { flex-shrink:0; }
+
+    /* ── Scrollbar custom ── */
+    #app-content::-webkit-scrollbar { width:5px; }
+    #app-content::-webkit-scrollbar-track { background:transparent; }
+    #app-content::-webkit-scrollbar-thumb { background:var(--pu-b); border-radius:3px; }
+
+    /* ── Mobile : la page entière scrolle, pas de overflow:hidden bloquant ── */
+    @media(max-width:768px) {
+      html, body { height:auto; overflow-x:hidden; }
+      .aura-shell { height:auto; min-height:100vh; }
+      .aura-main  { height:auto; overflow:visible; }
+      #app-content { overflow-y:visible; }
+    }
+
+    /* ── Menu compte (profil sidebar) ── */
+    .account-menu {
+      position:absolute; bottom:calc(100% + 6px); left:1rem; right:1rem;
+      background:var(--white); border:1px solid var(--bd); border-radius:var(--r-md);
+      box-shadow:0 8px 24px rgba(0,0,0,.12); padding:.375rem;
+      display:none; flex-direction:column; gap:2px; z-index:60;
+    }
+    .account-menu.open { display:flex; }
+    .account-menu button {
+      display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+      font-size:12.5px; font-weight:600; color:var(--text); background:none; border:none;
+      padding:8px 10px; border-radius:var(--r-sm); cursor:pointer; transition:background .12s;
+    }
+    .account-menu button:hover { background:var(--bg); }
+    .account-menu button.danger { color:var(--re); }
+    .account-menu button.danger:hover { background:var(--re-l); }
+    .account-menu-divider { height:1px; background:var(--bd); margin:3px 4px; }
+  </style>
+</head>
+<body>
+
+<!-- Overlay mobile -->
+<div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<div class="aura-shell">
+
+  <!-- ════════════════════════════════════════
+       SIDEBAR
+  ════════════════════════════════════════ -->
+  <aside class="aura-sb" id="aura-sidebar">
+
+    <div class="sb-logo">
+      <div class="sb-logo-icon"><i class="ti ti-sun"></i></div>
+      <div>
+        <div class="sb-logo-name">AURA</div>
+        <div class="sb-logo-tag">Life Architecture OS</div>
+      </div>
+    </div>
+
+
+    <!-- Navigation -->
+    <nav style="flex:1;overflow-y:auto;padding-bottom:.5rem">
+
+      <div class="nav-grp">
+        <div class="nav-grp-lbl">Intention</div>
+        <button class="nav-item" data-module="dashboard" onclick="navigate('dashboard')">
+          <i class="ti ti-sun-high"></i> Ancre du jour
+        </button>
+        <button class="nav-item" data-module="spheres" onclick="navigate('spheres')">
+          <i class="ti ti-circles"></i> 8 Sphères de vie
+        </button>
+        <button class="nav-item" data-module="visionboard" onclick="navigate('visionboard')">
+          <i class="ti ti-stars"></i> Vision Board
+          <span class="nav-pip new">✦</span>
+        </button>
+        <button class="nav-item" data-module="rituel" onclick="navigate('rituel')">
+          <i class="ti ti-sunrise"></i> Rituel du matin
+        </button>
+        <button class="nav-item" data-module="habitudes" onclick="navigate('habitudes')">
+          <i class="ti ti-repeat"></i> Habitudes
+        </button>
+      </div>
+
+      <div class="nav-grp">
+        <div class="nav-grp-lbl">Patrimoine & Finances</div>
+        <button class="nav-item" data-module="budget" onclick="navigate('budget')">
+          <i class="ti ti-chart-pie"></i> Budget & Épargne
+          <span class="nav-pip alert" id="pip-alertes">2</span>
+        </button>
+        <button class="nav-item" data-module="patrimoine" onclick="navigate('patrimoine')">
+          <i class="ti ti-building-bank"></i> Patrimoine
+        </button>
+        <button class="nav-item" data-module="cagnottes" onclick="navigate('cagnottes')">
+          <i class="ti ti-pig-money"></i> Cagnottes
+        </button>
+        <button class="nav-item" data-module="charges" onclick="navigate('charges')">
+          <i class="ti ti-receipt"></i> Charges fixes
+        </button>
+      </div>
+
+      <div class="nav-grp">
+        <div class="nav-grp-lbl">Quotidien</div>
+        <button class="nav-item" data-module="agenda" onclick="navigate('agenda')">
+          <i class="ti ti-calendar"></i> Agenda
+        </button>
+        <button class="nav-item" data-module="cuisine" onclick="navigate('cuisine')">
+          <i class="ti ti-chef-hat"></i> Cuisine
+        </button>
+        <button class="nav-item" data-module="maison" onclick="navigate('maison')">
+          <i class="ti ti-home-2"></i> Maison
+        </button>
+        <button class="nav-item" data-module="sante" onclick="navigate('sante')">
+          <i class="ti ti-heart-rate-monitor"></i> Santé
+        </button>
+        <button class="nav-item" data-module="social" onclick="navigate('social')">
+          <i class="ti ti-users"></i> Social
+          <span class="nav-pip new">new</span>
+        </button>
+        <button class="nav-item" data-module="voyages" onclick="navigate('voyages')">
+          <i class="ti ti-plane"></i> Voyages
+        </button>
+        <button class="nav-item" data-module="abonnements" onclick="navigate('abonnements')">
+          <i class="ti ti-credit-card"></i> Abonnements
+        </button>
+      </div>
+      
+<div class="nav-grp">
+        <div class="nav-grp-lbl">Coach</div>
+        <button class="nav-item" data-module="coach" onclick="navigate('coach')">
+          <i class="ti ti-sparkles"></i> Coach IA
+          <span class="nav-pip new">✦</span>
+        </button>
+      </div>
+
+      <div class="nav-grp">
+        <button class="nav-item" data-module="studio" onclick="navigate('studio')">
+          <i class="ti ti-wand"></i> Studio
+          <span class="nav-pip new">✦</span>
+        </button>
+        <button class="nav-item" data-module="params" onclick="navigate('params')">
+          <i class="ti ti-settings"></i> Paramètres
+        </button>
+      </div>
+
+    </nav>
+
+    <!-- Carte "Explorer plus" — visible seulement si des modules sont masqués -->
+    <div id="explore-more-card" style="display:none;margin:0 .875rem .75rem;padding:.75rem;border-radius:var(--r-md);background:var(--pu-l);border:1px solid var(--pu-b);cursor:pointer" onclick="navigate('studio')">
+      <div style="font-size:11px;font-weight:700;color:var(--pu-d);display:flex;align-items:center;gap:6px">
+        <i class="ti ti-sparkles" style="font-size:13px"></i> <span id="explore-more-count">3</span> modules masqués
+      </div>
+      <div style="font-size:10px;color:#7C3AED;margin-top:2px">Clique pour les explorer dans le Studio →</div>
+    </div>
+
+    <!-- Footer profil -->
+    <div style="position:relative">
+      <button class="sb-footer" onclick="toggleAccountMenu(event)" id="sb-footer-btn">
+        <div class="sb-avatar" id="sb-avatar">A</div>
+        <div style="flex:1;text-align:left">
+          <div class="sb-user-name" id="sb-user-name">Mon AURA</div>
+          <div class="sb-user-level" id="sb-user-level">Architecte · Niv.7 ✦</div>
+        </div>
+        <i class="ti ti-dots-vertical" style="font-size:13px;color:var(--t3)"></i>
+      </button>
+      <div id="account-menu" class="account-menu">
+        <button onclick="navigate('params');closeAccountMenu()"><i class="ti ti-settings" style="font-size:14px"></i> Paramètres</button>
+        <button onclick="navigate('studio');closeAccountMenu()"><i class="ti ti-wand" style="font-size:14px"></i> Studio</button>
+        <div class="account-menu-divider" id="account-menu-divider" style="display:none"></div>
+        <button onclick="handleAccountAction()" id="account-action-btn"><i class="ti ti-login-2" style="font-size:14px"></i> Se connecter</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ════════════════════════════════════════
+       MAIN
+  ════════════════════════════════════════ -->
+  <div class="aura-main">
+
+    <!-- Topbar -->
+    <header class="aura-topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="mobile-burger" onclick="openSidebar()" aria-label="Menu">
+          <i class="ti ti-menu-2" style="font-size:20px"></i>
+        </button>
+        <div>
+          <div class="topbar-page-title" id="topbar-title">Ancre du jour</div>
+          <div class="topbar-page-sub"   id="topbar-sub">Chargement...</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-pill xp" onclick="navigate('xp')">
+          <i class="ti ti-star-filled"></i>
+        </button>
+        <button class="btn-pill" onclick="navigate('coach')">
+          <i class="ti ti-sparkles"></i>
+          <span style="display:none" id="btn-coach-lbl">Coach</span>
+        </button>
+        <button class="btn-pill gr" onclick="AuraSynthese?.afficherModal('hebdo')" title="Synthèse hebdomadaire">
+          <i class="ti ti-chart-bar"></i>
+        </button>
+        <button class="btn-pill" onclick="toggleTheme()" title="Changer le thème">
+          <i class="ti ti-moon" id="theme-icon"></i>
+        </button>
+        <button class="btn-pill pu" onclick="navigate('params')">
+          <i class="ti ti-settings"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Zone SPA -->
+    <main id="app-content">
+      <div class="aura-loading">
+        <div class="aura-loading-icon"><i class="ti ti-sun"></i></div>
+        <p>Chargement de ton AURA...</p>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     BOTTOM NAV MOBILE — 5 accès essentiels + Plus
+════════════════════════════════════════ -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <div class="mbn-row">
+    <button class="mbn-item" data-module="dashboard" onclick="navigate('dashboard')">
+      <i class="ti ti-sun-high"></i><span>Accueil</span>
+    </button>
+    <button class="mbn-item" data-module="agenda" onclick="navigate('agenda')">
+      <i class="ti ti-calendar"></i><span>Agenda</span>
+    </button>
+    <button class="mbn-item" data-module="budget" onclick="navigate('budget')">
+      <i class="ti ti-chart-pie"></i><span>Finance</span>
+    </button>
+    <button class="mbn-item" data-module="coach" onclick="navigate('coach')">
+      <i class="ti ti-sparkles"></i><span>Coach</span>
+    </button>
+    <button class="mbn-item-more" onclick="openMoreSheet()">
+      <i class="ti ti-grid-dots"></i><span>Plus</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════
+     SHEET "PLUS" MOBILE — tous les modules
+════════════════════════════════════════ -->
+<div class="mobile-more-sheet" id="mobile-more-sheet" onclick="if(event.target===this) closeMoreSheet()">
+  <div class="mobile-more-content">
+    <div class="mobile-more-handle"></div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:0 .25rem .625rem">Intention</div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-item" onclick="navAndClose('spheres')"><i class="ti ti-circles"></i><span>Sphères</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('visionboard')"><i class="ti ti-stars"></i><span>Vision Board</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('rituel')"><i class="ti ti-sunrise"></i><span>Rituel</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('habitudes')"><i class="ti ti-repeat"></i><span>Habitudes</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('xp')"><i class="ti ti-trophy"></i><span>XP & Badges</span></button>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Patrimoine & Finances</div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-item" onclick="navAndClose('patrimoine')"><i class="ti ti-building-bank"></i><span>Patrimoine</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('cagnottes')"><i class="ti ti-pig-money"></i><span>Cagnottes</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('charges')"><i class="ti ti-receipt"></i><span>Charges</span></button>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Quotidien</div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-item" onclick="navAndClose('cuisine')"><i class="ti ti-chef-hat"></i><span>Cuisine</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('maison')"><i class="ti ti-home-2"></i><span>Maison</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('sante')"><i class="ti ti-heart-rate-monitor"></i><span>Santé</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('social')"><i class="ti ti-users"></i><span>Social</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('voyages')"><i class="ti ti-plane"></i><span>Voyages</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('abonnements')"><i class="ti ti-credit-card"></i><span>Abonnements</span></button>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Réglages</div>
+    <div class="mobile-more-grid">
+      <button class="mobile-more-item" onclick="navAndClose('studio')"><i class="ti ti-wand"></i><span>Studio ✦</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('params')"><i class="ti ti-settings"></i><span>Paramètres</span></button>
+      <button class="mobile-more-item" onclick="AuraSynthese?.afficherModal('hebdo');closeMoreSheet()"><i class="ti ti-chart-bar"></i><span>Synthèse</span></button>
+      <button class="mobile-more-item" onclick="toggleTheme();closeMoreSheet()"><i class="ti ti-moon" id="theme-icon-mobile"></i><span>Thème</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Assistant flottant -->
+<div id="assistant-layer"></div>
+
+<!-- Scripts — ordre important -->
+<script src="aura-db.js"></script>
+<script src="aura.js"></script>
+<script src="main.js"></script>
+<script src="aura-editor.js"></script>
+<script src="aura-onboarding.js"></script>
+<script>
+  /* ── Mobile sidebar (tablette 769-900px) ── */
+  function openSidebar()  { document.getElementById('aura-sidebar').classList.add('open'); document.getElementById('sb-overlay').classList.add('show'); }
+  function closeSidebar() { document.getElementById('aura-sidebar').classList.remove('open'); document.getElementById('sb-overlay').classList.remove('show'); }
+
+  /* ── Fermer sidebar au clic nav (mobile/tablette) ── */
+  document.querySelectorAll('.nav-item').forEach(el => { el.addEventListener('click', () => { if(window.innerWidth<=900) closeSidebar(); }); });
+
+  /* ── Bottom nav mobile : sheet "Plus" ── */
+  function openMoreSheet()  { document.getElementById('mobile-more-sheet').classList.add('open'); }
+  function closeMoreSheet() { document.getElementById('mobile-more-sheet').classList.remove('open'); }
+  function navAndClose(mod) { navigate(mod); closeMoreSheet(); }
+
+  /* ── Menu compte (profil sidebar) ── */
+  function toggleAccountMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('account-menu');
+    menu.classList.toggle('open');
+    if (menu.classList.contains('open')) updateAccountMenuState();
+  }
+  function closeAccountMenu() { document.getElementById('account-menu')?.classList.remove('open'); }
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('account-menu');
+    const btn  = document.getElementById('sb-footer-btn');
+    if (menu?.classList.contains('open') && !menu.contains(e.target) && !btn?.contains(e.target)) closeAccountMenu();
+  });
+
+  function updateAccountMenuState() {
+    const isLoggedIn = window.SupaClient?.isLoggedIn?.();
+    const btn = document.getElementById('account-action-btn');
+    const divider = document.getElementById('account-menu-divider');
+    if (!btn) return;
+    if (isLoggedIn) {
+      btn.innerHTML = '<i class="ti ti-logout" style="font-size:14px"></i> Se déconnecter';
+      btn.classList.add('danger');
+      divider.style.display = 'block';
+    } else {
+      btn.innerHTML = '<i class="ti ti-login-2" style="font-size:14px"></i> Se connecter';
+      btn.classList.remove('danger');
+      divider.style.display = 'none';
+    }
+  }
+
+  async function handleAccountAction() {
+    closeAccountMenu();
+    const isLoggedIn = window.SupaClient?.isLoggedIn?.();
+    if (isLoggedIn) {
+      if (!confirm('Se déconnecter de ton compte AURA ?')) return;
+      await AuraAuth.logout();
+    } else {
+      AuraAuth.showLoginModal();
+    }
+  }
+
+  /* ── Synchroniser l'état actif de la bottom nav avec le module courant ── */
+  const _origSetActiveNav = window.AuraUI?.setActiveNav;
+  function syncBottomNav(mod) {
+    document.querySelectorAll('.mbn-item').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('data-module') === mod);
+    });
+  }
+  // Observer les changements de module via un hook léger sur navigate()
+  const _origNavigate = window.navigate;
+  window.navigate = function(mod) {
+    syncBottomNav(mod);
+    return _origNavigate(mod);
+  };
+  // Premier appel au chargement (hash ou dashboard par défaut)
+  setTimeout(() => { syncBottomNav(window.AuraApp?.current || 'dashboard'); }, 300);
+
+  /* ── Toggle thème (synchronise aussi l'icône mobile) ── */
+  function toggleTheme() {
+    const html = document.documentElement;
+    const dark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', dark ? 'light' : 'dark');
+    const newIcon = dark ? 'ti ti-moon' : 'ti ti-sun';
+    const t1 = document.getElementById('theme-icon');
+    const t2 = document.getElementById('theme-icon-mobile');
+    if (t1) t1.className = newIcon;
+    if (t2) t2.className = newIcon;
+    if (window.AuraStore) AuraStore.set('prefs.theme', dark ? 'light' : 'dark');
+  }
+
+  /* ── Appliquer thème sauvegardé avant init ── */
+  try {
+    const raw = localStorage.getItem('aura_data_v2');
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.prefs?.theme === 'dark') {
+        document.documentElement.setAttribute('data-theme','dark');
+        const newIcon = 'ti ti-sun';
+        document.getElementById('theme-icon') && (document.getElementById('theme-icon').className = newIcon);
+        document.getElementById('theme-icon-mobile') && (document.getElementById('theme-icon-mobile').className = newIcon);
+      }
+    }
+  } catch(_) {}
+</script>
+</body>
+</html>

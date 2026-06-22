@@ -1,0 +1,1685 @@
+<!-- ============================================================
+     AURA — budget.html  (fragment SPA)
+     Module Finance complet :
+     - Revenus (salaire, freelance, autres)
+     - Charges fixes (loyer, abos, assurances...)
+     - Enveloppes variables avec suivi en temps réel
+     - Cagnottes d'épargne
+     - Simulateur + analyse IA Gemini
+     - Ajout rapide dépense / entrée d'argent
+     ============================================================ -->
+
+<style>
+/* ── Tabs ── */
+.fin-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:.125rem; }
+.fin-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; }
+.fin-tab:hover  { background:var(--bg); color:var(--text); }
+.fin-tab.active { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
+
+/* ── Vue panels ── */
+.fin-panel { display:none; flex-direction:column; gap:1.25rem; }
+.fin-panel.on { display:flex; }
+
+/* ── Hero bilan ── */
+.bilan-hero { background:linear-gradient(135deg,var(--gr-l) 0%,var(--pu-l) 100%); border:1px solid var(--gr-b); border-radius:var(--r-xl); padding:1.5rem; }
+.bilan-main { font-size:32px; font-weight:800; color:var(--text); line-height:1; }
+.bilan-main.pos { color:var(--gr); }
+.bilan-main.neg { color:var(--re); }
+.bilan-cols { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:.875rem; margin-top:1rem; }
+.bilan-col  { background:rgba(255,255,255,.6); border-radius:var(--r-md); padding:.75rem; text-align:center; backdrop-filter:blur(4px); }
+.bilan-col-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--t2); }
+.bilan-col-val { font-size:18px; font-weight:800; margin-top:3px; line-height:1; }
+.bilan-col-hint { font-size:10px; color:var(--t3); margin-top:2px; }
+
+/* ── Ajout rapide flottant ── */
+.quick-add-bar { display:flex; gap:8px; align-items:center; background:var(--white); border:1px solid var(--bd); border-radius:var(--r-xl); padding:.875rem 1.25rem; flex-wrap:wrap; }
+.quick-type-btn { font-size:11px; font-weight:700; padding:6px 14px; border-radius:20px; border:1px solid; cursor:pointer; transition:all .12s; white-space:nowrap; }
+.quick-type-btn.revenu  { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
+.quick-type-btn.revenu.active  { background:var(--gr); color:#fff; }
+.quick-type-btn.depense { border-color:var(--re); color:var(--re); background:var(--re-l); }
+.quick-type-btn.depense.active { background:var(--re); color:#fff; }
+.quick-type-btn.epargne { border-color:var(--pu); color:var(--pu); background:var(--pu-l); }
+.quick-type-btn.epargne.active { background:var(--pu); color:#fff; }
+.quick-input { flex:1; min-width:120px; font-size:13px; font-weight:700; padding:8px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
+.quick-input:focus { border-color:var(--gr); }
+.quick-input.red:focus { border-color:var(--re); }
+.quick-input.pu:focus  { border-color:var(--pu); }
+.quick-select { font-size:12px; padding:8px 10px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--t2); outline:none; }
+.quick-submit { font-size:13px; font-weight:700; padding:8px 18px; border-radius:var(--r-md); border:none; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.quick-submit.gr { background:var(--gr); color:#fff; }
+.quick-submit.re { background:var(--re); color:#fff; }
+.quick-submit.pu { background:var(--pu); color:#fff; }
+.quick-submit:hover { opacity:.88; }
+
+/* ── Listes transactions ── */
+.tx-list { display:flex; flex-direction:column; gap:0; }
+.tx-item { display:flex; align-items:center; gap:10px; padding:.625rem .75rem; border-bottom:1px solid var(--bd); cursor:default; transition:background .1s; }
+.tx-item:last-child { border-bottom:none; }
+.tx-item:hover { background:var(--bg); border-radius:var(--r-md); }
+.tx-dot { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.tx-dot i { font-size:15px; }
+.tx-meta { flex:1; min-width:0; }
+.tx-name { font-size:12.5px; font-weight:600; color:var(--text); }
+.tx-sub  { font-size:11px; color:var(--t3); margin-top:1px; }
+.tx-cat  { font-size:10px; font-weight:700; padding:1px 6px; border-radius:7px; display:inline-block; margin-top:2px; }
+.tx-amount { font-size:13px; font-weight:800; flex-shrink:0; }
+.tx-amount.pos { color:var(--gr); }
+.tx-amount.neg { color:var(--re); }
+.tx-amount.pu  { color:var(--pu); }
+.tx-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; flex-shrink:0; padding:4px; opacity:0; transition:opacity .12s; }
+.tx-item:hover .tx-del { opacity:1; }
+.tx-del:hover { color:var(--re); }
+
+/* ── Charge row ── */
+.charge-row { display:grid; grid-template-columns:32px 1fr auto auto; gap:10px; align-items:center; padding:.625rem 0; border-bottom:1px solid var(--bd); }
+.charge-row:last-child { border-bottom:none; }
+.charge-ic { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.charge-ic i { font-size:14px; }
+.charge-info-name { font-size:12.5px; font-weight:600; color:var(--text); }
+.charge-info-cat  { font-size:10px; color:var(--t3); }
+.charge-amount { font-size:13px; font-weight:700; color:var(--text); }
+.charge-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; padding:4px; transition:color .1s; }
+.charge-del:hover { color:var(--re); }
+.charge-period { font-size:10px; color:var(--t3); }
+
+/* ── Enveloppes ── */
+.env-extended { margin-bottom:1rem; }
+.env-extended:last-child { margin-bottom:0; }
+.env-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.env-ic-big { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.env-ic-big i { font-size:14px; }
+.env-details { display:flex; justify-content:space-between; font-size:11px; color:var(--t2); margin-bottom:5px; }
+.env-bar-bg { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; cursor:pointer; position:relative; }
+.env-bar-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+.env-bar-fill.ok  { background:linear-gradient(90deg,#10B981,#34D399); }
+.env-bar-fill.mid { background:linear-gradient(90deg,#F59E0B,#FBBF24); }
+.env-bar-fill.ov  { background:linear-gradient(90deg,#EF4444,#F87171); }
+.env-budget-edit { display:none; gap:6px; align-items:center; margin-top:6px; }
+.env-budget-edit input { flex:1; font-size:12px; padding:5px 9px; border-radius:var(--r-sm); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
+.env-budget-edit input:focus { border-color:var(--pu); }
+.env-budget-edit button { font-size:11px; padding:5px 10px; border-radius:var(--r-sm); border:1px solid var(--pu); background:var(--pu-l); color:var(--pu-d); cursor:pointer; font-weight:700; }
+
+/* ── Cagnotte card ── */
+.cag-card { background:var(--bg); border-radius:var(--r-lg); padding:1rem; border:1px solid var(--bd); position:relative; overflow:hidden; }
+.cag-card::before { content:''; position:absolute; top:-10px; right:-10px; width:60px; height:60px; border-radius:50%; opacity:.08; }
+.cag-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+.cag-emoji { font-size:22px; }
+.cag-pct-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+.cag-name { font-size:13px; font-weight:700; color:var(--text); }
+.cag-vals { font-size:11px; color:var(--t2); margin:.25rem 0 .625rem; }
+.cag-prog { height:7px; background:var(--bd); border-radius:4px; overflow:hidden; margin-bottom:6px; }
+.cag-prog-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+.cag-hint { font-size:10px; color:var(--t3); }
+.cag-actions { display:flex; gap:5px; margin-top:.75rem; }
+.cag-btn { flex:1; font-size:11px; font-weight:700; padding:5px 8px; border-radius:var(--r-sm); border:1px solid; cursor:pointer; text-align:center; transition:all .12s; }
+.cag-btn.add { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
+.cag-btn.add:hover { background:var(--gr); color:#fff; }
+.cag-btn.edit { border-color:var(--bd2); color:var(--t2); background:var(--bg); }
+.cag-btn.edit:hover { border-color:var(--pu); color:var(--pu); }
+.add-cagnotte-card { border:1.5px dashed var(--bd2); border-radius:var(--r-lg); padding:1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; cursor:pointer; min-height:160px; transition:all .12s; }
+.add-cagnotte-card:hover { border-color:var(--pu); border-style:solid; background:var(--pu-l); }
+.add-cagnotte-card i { font-size:22px; color:var(--t3); }
+.add-cagnotte-card span { font-size:12px; color:var(--t3); font-weight:600; }
+
+/* ── Simulateur ── */
+.sim-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+.sim-field { display:flex; align-items:center; gap:10px; margin-bottom:.75rem; }
+.sim-lbl   { font-size:12px; color:var(--t2); width:130px; flex-shrink:0; }
+.sim-val   { font-size:12px; font-weight:700; color:var(--text); width:55px; text-align:right; }
+.sim-result { background:var(--gr-l); border:1px solid var(--gr-b); border-radius:var(--r-md); padding:.875rem 1rem; display:flex; justify-content:space-between; align-items:center; }
+.sim-result-lbl { font-size:12px; color:#065F46; font-weight:700; }
+.sim-result-sub { font-size:10px; color:var(--gr); margin-top:2px; }
+.sim-result-val { font-size:22px; font-weight:800; color:#065F46; }
+
+/* ── Modal overlay ── */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+.modal-box { background:var(--white); border-radius:var(--r-xl); padding:1.5rem; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.modal-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:1rem; display:flex; align-items:center; gap:8px; }
+.modal-title i { font-size:18px; }
+.modal-field { margin-bottom:.875rem; }
+.modal-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--t2); margin-bottom:5px; display:block; }
+.modal-input { width:100%; font-size:13px; padding:9px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; font-family:var(--font); }
+.modal-input:focus { border-color:var(--pu); background:var(--white); }
+.modal-actions { display:flex; gap:8px; margin-top:1.25rem; }
+.modal-btn { flex:1; padding:10px; border-radius:var(--r-md); border:none; cursor:pointer; font-size:13px; font-weight:700; transition:opacity .15s; }
+.modal-btn.primary { background:var(--pu); color:#fff; }
+.modal-btn.primary.gr { background:var(--gr); }
+.modal-btn.cancel  { background:var(--bg); color:var(--t2); border:1px solid var(--bd2); }
+.modal-btn:hover { opacity:.88; }
+
+/* ── IA Analyse ── */
+.ia-panel { background:var(--pu-l); border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.25rem; }
+.ia-resp   { background:var(--white); border:1px solid var(--pu-b); border-radius:var(--r-md); padding:1rem; margin-top:.875rem; font-size:12.5px; line-height:1.7; display:none; }
+
+/* ── Chart mini ── */
+.chart-bar-wrap { display:flex; align-items:flex-end; gap:4px; height:80px; }
+.chart-bar-col  { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.chart-bar      { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height .4s ease; }
+.chart-bar.rev  { background:var(--gr); }
+.chart-bar.dep  { background:var(--re); }
+.chart-bar.epa  { background:var(--pu); }
+.chart-lbl      { font-size:9px; color:var(--t3); font-weight:600; }
+.chart-legend   { display:flex; gap:12px; margin-top:.5rem; }
+.chart-leg-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--t2); }
+.chart-leg-dot  { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+</style>
+
+<!-- ═══════════════════════════════════════════════
+     QUICK ADD BAR — toujours visible
+════════════════════════════════════════════════ -->
+<div class="quick-add-bar">
+  <div style="font-size:11px;font-weight:700;color:var(--t3);white-space:nowrap">Ajouter :</div>
+  <button class="quick-type-btn revenu active" id="qt-revenu"  onclick="setQuickType('revenu')">+ Revenu</button>
+  <button class="quick-type-btn depense"       id="qt-depense" onclick="setQuickType('depense')">- Dépense</button>
+  <button class="quick-type-btn epargne"       id="qt-epargne" onclick="setQuickType('epargne')">✦ Épargne</button>
+  <input  type="number" class="quick-input" id="q-amount"  placeholder="Montant €" min="0" step="0.01">
+  <input  type="text"   class="quick-input" id="q-label"   placeholder="Description..." style="max-width:160px">
+  <select class="quick-select" id="q-cat">
+    <option value="salaire">💼 Salaire</option>
+    <option value="freelance">🚀 Freelance</option>
+    <option value="remboursement">💳 Remboursement</option>
+    <option value="autre-revenu">➕ Autre revenu</option>
+    <option value="loyer">🏠 Loyer</option>
+    <option value="alimentation">🛒 Alimentation</option>
+    <option value="loisirs">🎭 Loisirs</option>
+    <option value="transport">🚗 Transport</option>
+    <option value="sante">💊 Santé</option>
+    <option value="vetements">👗 Vêtements</option>
+    <option value="beaute">💄 Beauté</option>
+    <option value="restaurant">🍽️ Restaurant</option>
+    <option value="technologie">📱 Tech / Abos</option>
+    <option value="autre">📦 Autre</option>
+  </select>
+  <button class="quick-submit gr" id="q-submit" onclick="quickAdd()">
+    <i class="ti ti-plus"></i> Enregistrer
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     HERO BILAN DU MOIS
+════════════════════════════════════════════════ -->
+<div class="bilan-hero">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--gr)">💰 Bilan — <span id="bilan-mois">Juin 2026</span></div>
+      <div class="bilan-main pos" id="bilan-solde">+1 247 €</div>
+      <div style="font-size:12px;color:var(--t2);margin-top:4px">Disponible après toutes les charges</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:12px;color:var(--t2)">Taux d'épargne</div>
+      <div style="font-size:24px;font-weight:800;color:var(--pu)" id="bilan-taux">18,2%</div>
+      <div style="font-size:11px;color:var(--pu)">Objectif : 20%</div>
+    </div>
+  </div>
+  <div class="bilan-cols">
+    <div class="bilan-col">
+      <div class="bilan-col-lbl">Revenus</div>
+      <div class="bilan-col-val" style="color:var(--gr)" id="bilan-revenus">3 400 €</div>
+      <div class="bilan-col-hint" id="bilan-revenus-detail">Salaire + autres</div>
+    </div>
+    <div class="bilan-col">
+      <div class="bilan-col-lbl">Charges fixes</div>
+      <div class="bilan-col-val" style="color:var(--re)" id="bilan-charges">−1 153 €</div>
+      <div class="bilan-col-hint" id="bilan-charges-nb">5 charges</div>
+    </div>
+    <div class="bilan-col">
+      <div class="bilan-col-lbl">Dépenses var.</div>
+      <div class="bilan-col-val" style="color:var(--or)" id="bilan-depenses">−1 000 €</div>
+      <div class="bilan-col-hint" id="bilan-depenses-nb">Ce mois</div>
+    </div>
+    <div class="bilan-col">
+      <div class="bilan-col-lbl">Épargne</div>
+      <div class="bilan-col-val" style="color:var(--pu)" id="bilan-epargne">618 €</div>
+      <div class="bilan-col-hint">Virée ce mois</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PRÉVISION DE TRÉSORERIE (façon Copilot/YNAB)
+════════════════════════════════════════════════ -->
+<div class="card">
+  <style>
+    .cf-chart-wrap { display:flex; align-items:flex-end; gap:2px; height:90px; margin:.5rem 0; position:relative; }
+    .cf-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; position:relative; }
+    .cf-bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; transition:height .4s; }
+    .cf-bar.pos { background:var(--gr); opacity:.25; }
+    .cf-bar.neg { background:var(--re); opacity:.35; }
+    .cf-zero-line { position:absolute; left:0; right:0; height:1px; background:var(--bd2); }
+    .cf-today-marker { position:absolute; top:-6px; width:2px; height:calc(100% + 6px); background:var(--pu); }
+    .cf-low-point { background:var(--re-l); border:1px solid var(--re-b); border-radius:var(--r-md); padding:.625rem .875rem; display:flex; align-items:center; gap:8px; margin-top:.75rem; }
+  </style>
+  <div class="card-header">
+    <span class="card-title"><i class="ti ti-chart-line"></i> Prévision de trésorerie — 30 prochains jours</span>
+    <span style="font-size:11px;color:var(--t2)" id="cf-end-balance"></span>
+  </div>
+  <div class="cf-chart-wrap" id="cf-chart"></div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:2px">
+    <span>Aujourd'hui</span><span>+15 jours</span><span>+30 jours</span>
+  </div>
+  <div id="cf-low-point-box"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ONGLETS NAVIGATION
+════════════════════════════════════════════════ -->
+<div class="fin-tabs">
+  <button class="fin-tab active" onclick="showTab('vue-ensemble')"><i class="ti ti-chart-bar" style="font-size:13px"></i> Vue d'ensemble</button>
+  <button class="fin-tab" onclick="showTab('zero')"><i class="ti ti-target" style="font-size:13px"></i> Budget Zéro</button>
+  <button class="fin-tab" onclick="showTab('revenus')"><i class="ti ti-trending-up" style="font-size:13px"></i> Revenus</button>
+  <button class="fin-tab" onclick="showTab('charges')"><i class="ti ti-receipt" style="font-size:13px"></i> Charges fixes</button>
+  <button class="fin-tab" onclick="showTab('depenses')"><i class="ti ti-credit-card" style="font-size:13px"></i> Dépenses</button>
+  <button class="fin-tab" onclick="showTab('epargne')"><i class="ti ti-pig-money" style="font-size:13px"></i> Épargne & Cagnottes</button>
+  <button class="fin-tab" onclick="showTab('abonnements')"><i class="ti ti-refresh-alert" style="font-size:13px"></i> Abonnements <span id="abo-alert-pip" style="display:none;background:var(--re);color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:8px;margin-left:3px">!</span></button>
+  <button class="fin-tab" onclick="showTab('simulateur')"><i class="ti ti-calculator" style="font-size:13px"></i> Simulateur</button>
+  <button class="fin-tab" onclick="showTab('ia-analyse')"><i class="ti ti-sparkles" style="font-size:13px"></i> Analyse IA</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VUE D'ENSEMBLE
+════════════════════════════════════════════════ -->
+<div class="fin-panel on" id="panel-vue-ensemble">
+  <div class="g2">
+
+    <!-- Graphique 6 mois -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-chart-bar"></i> <span data-aura-edit="budget.title.1" data-aura-edit-label="Titre : Évolution 6 mois">Évolution 6 mois</span></span>
+      </div>
+      <div class="chart-bar-wrap" id="chart-6mois"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px" id="chart-labels"></div>
+      <div class="chart-legend">
+        <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--gr)"></div> Revenus</div>
+        <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--re)"></div> Dépenses</div>
+        <div class="chart-leg-item"><div class="chart-leg-dot" style="background:var(--pu)"></div> Épargne</div>
+      </div>
+    </div>
+
+    <!-- Dépenses par catégorie -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-chart-donut"></i> <span data-aura-edit="budget.title.2" data-aura-edit-label="Titre : Répartition dépenses">Répartition dépenses</span></span>
+        <button class="btn-ghost" onclick="showTab('depenses')">Détail →</button>
+      </div>
+      <div id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- Enveloppes budget -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-layout-columns"></i> <span data-aura-edit="budget.title.3" data-aura-edit-label="Titre : Enveloppes budgétaires">Enveloppes budgétaires</span></span>
+      <button class="btn-ghost" onclick="openEnvModal()">+ Enveloppe</button>
+    </div>
+    <div id="env-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     BUDGET ZÉRO (méthode zero-based, façon YNAB)
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-zero">
+  <style>
+    .zb-hero { background:linear-gradient(135deg,#EEF2FF,#F5F3FF); border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.5rem; text-align:center; }
+    .zb-remaining-val { font-size:42px; font-weight:800; line-height:1; }
+    .zb-remaining-val.ok   { color:var(--gr); }
+    .zb-remaining-val.over { color:var(--re); }
+    .zb-remaining-val.zero { color:#5B21B6; }
+    .zb-remaining-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--pu-d); margin-top:6px; }
+    .zb-remaining-sub { font-size:12px; color:var(--t2); margin-top:4px; }
+    .zb-progress-bar { height:10px; background:var(--pu-m); border-radius:5px; overflow:hidden; margin-top:1rem; max-width:380px; margin-left:auto; margin-right:auto; }
+    .zb-progress-fill { height:100%; border-radius:5px; transition:width .5s ease; }
+    .zb-row { display:grid; grid-template-columns:1fr 110px 90px 28px; gap:10px; align-items:center; padding:.625rem 0; border-bottom:1px solid var(--bd); }
+    .zb-row:last-child { border-bottom:none; }
+    .zb-row-name { font-size:12.5px; font-weight:600; color:var(--text); }
+    .zb-row-input { font-size:12.5px; padding:6px 10px; border-radius:var(--r-sm); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; text-align:right; }
+    .zb-row-input:focus { border-color:var(--pu); }
+    .zb-row-status { font-size:11px; font-weight:700; text-align:right; }
+    .zb-row-status.assigned { color:var(--gr); }
+    .zb-row-status.partial  { color:var(--am); }
+    .zb-row-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:13px; }
+  </style>
+
+  <div class="zb-hero">
+    <div class="zb-remaining-val" id="zb-remaining">0 €</div>
+    <div class="zb-remaining-lbl" id="zb-remaining-lbl">À assigner</div>
+    <div class="zb-remaining-sub">Méthode budget zéro : chaque euro de revenu doit avoir une destination précise.</div>
+    <div class="zb-progress-bar"><div class="zb-progress-fill" id="zb-progress-fill" style="width:0%;background:var(--pu)"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-target"></i> Assigne ton revenu du mois</span>
+      <button class="btn-ghost" onclick="addZeroLine()">+ Ligne</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 110px 90px 28px;gap:10px;padding-bottom:.5rem;border-bottom:2px solid var(--bd);margin-bottom:.25rem">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)">Catégorie</span>
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3);text-align:right">Assigné</span>
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3);text-align:right">Dépensé</span>
+      <span></span>
+    </div>
+    <div id="zb-list"></div>
+  </div>
+
+  <div class="card" style="background:var(--go-l);border-color:var(--go-b)">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <i class="ti ti-bulb" style="color:#92400E;font-size:18px;flex-shrink:0;margin-top:1px"></i>
+      <div style="font-size:12px;color:#78350F;line-height:1.6">
+        <strong>Pourquoi "zéro" ?</strong> Quand le montant "à assigner" atteint 0 €, ça ne veut pas dire que tu es à sec — ça veut dire que <em>chaque euro a un travail à faire</em> : charges, plaisir, épargne. C'est la méthode qui change vraiment le comportement, pas juste le suivi passif.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     REVENUS
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-revenus">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-trending-up"></i> <span data-aura-edit="budget.title.4" data-aura-edit-label="Titre : Mes revenus — Juin">Mes revenus — Juin</span></span>
+        <button class="btn-ghost" onclick="openModal('revenu')">+ Ajouter</button>
+      </div>
+      <div class="tx-list" id="revenus-list"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.875rem 0 0;border-top:1px solid var(--bd);margin-top:.5rem">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">Total mensuel</span>
+        <span style="font-size:16px;font-weight:800;color:var(--gr)" id="revenus-total">3 400 €</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-calendar-repeat"></i> <span data-aura-edit="budget.title.5" data-aura-edit-label="Titre : Sources régulières">Sources régulières</span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.625rem">
+        <div style="background:var(--gr-l);border:1px solid var(--gr-b);border-radius:var(--r-md);padding:.875rem">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--text)">💼 Salaire principal</div>
+              <div style="font-size:11px;color:var(--t3)">Virement le 15 de chaque mois</div>
+            </div>
+            <div style="font-size:16px;font-weight:800;color:var(--gr)">3 000 €</div>
+          </div>
+        </div>
+        <div style="background:var(--bl-l);border:1px solid var(--bl-b);border-radius:var(--r-md);padding:.875rem">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--text)">🚀 Revenus complémentaires</div>
+              <div style="font-size:11px;color:var(--t3)">Freelance, commissions, autres</div>
+            </div>
+            <div style="font-size:16px;font-weight:800;color:var(--bl)">400 €</div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px dashed var(--bd2);border-radius:var(--r-md);padding:.875rem;cursor:pointer" onclick="openModal('revenu')">
+          <div style="font-size:12px;color:var(--t3);text-align:center">+ Ajouter une source de revenu</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md)">
+        <div style="font-size:11px;font-weight:700;color:var(--pu-d);margin-bottom:3px">💡 Conseil AURA</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.5">Diversifier ses revenus réduit la vulnérabilité financière. Un 2e flux de revenus, même modeste, change tout sur le long terme.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CHARGES FIXES
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-charges">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-receipt"></i> <span data-aura-edit="budget.title.6" data-aura-edit-label="Titre : Mes charges fixes">Mes charges fixes</span></span>
+        <button class="btn-ghost" onclick="openModal('charge')">+ Ajouter</button>
+      </div>
+      <div id="charges-list"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.875rem 0 0;border-top:1px solid var(--bd);margin-top:.5rem">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">Total mensuel</div>
+          <div style="font-size:11px;color:var(--t3)" id="charges-pct-revenus">% des revenus</div>
+        </div>
+        <span style="font-size:16px;font-weight:800;color:var(--re)" id="charges-total">−1 153 €</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-chart-pie"></i> <span data-aura-edit="budget.title.7" data-aura-edit-label="Titre : Charges par secteur">Charges par secteur</span></span>
+      </div>
+      <div id="charges-secteurs"></div>
+      <div style="margin-top:1rem;padding:.875rem;background:var(--am-l);border:1px solid var(--am-b);border-radius:var(--r-md)">
+        <div style="font-size:11px;font-weight:700;color:#92400E;margin-bottom:3px">📊 Règle 50/30/20</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.5">
+          <strong>50%</strong> besoins (logement, alimentation, transport)<br>
+          <strong>30%</strong> envies (loisirs, sorties, shopping)<br>
+          <strong>20%</strong> épargne & remboursements
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     DÉPENSES VARIABLES
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-depenses">
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-credit-card"></i> <span data-aura-edit="budget.title.8" data-aura-edit-label="Titre : Dépenses du mois">Dépenses du mois</span></span>
+        <div style="display:flex;gap:6px">
+          <select class="quick-select" id="dep-filter" onchange="renderDepenses()" style="font-size:11px;padding:4px 8px">
+            <option value="all">Toutes</option>
+            <option value="alimentation">Alimentation</option>
+            <option value="loisirs">Loisirs</option>
+            <option value="transport">Transport</option>
+            <option value="sante">Santé</option>
+            <option value="vetements">Vêtements</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="autre">Autre</option>
+          </select>
+          <button class="btn-ghost" onclick="openModal('depense')">+ Ajouter</button>
+        </div>
+      </div>
+      <div class="tx-list" id="depenses-list"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.875rem 0 0;border-top:1px solid var(--bd);margin-top:.5rem">
+        <span style="font-size:13px;font-weight:700">Total filtré</span>
+        <span style="font-size:16px;font-weight:800;color:var(--re)" id="depenses-total-filtered">0 €</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-target"></i> <span data-aura-edit="budget.title.9" data-aura-edit-label="Titre : Suivi enveloppes">Suivi enveloppes</span></span>
+      </div>
+      <div id="env-suivi"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ÉPARGNE & CAGNOTTES
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-epargne">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem" id="cagnottes-grid"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ABONNEMENTS & RÈGLES AUTO (façon Rocket Money)
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-abonnements">
+  <style>
+    .abo-card2 { display:grid; grid-template-columns:32px 1fr auto auto auto; gap:10px; align-items:center; padding:.75rem 0; border-bottom:1px solid var(--bd); }
+    .abo-card2:last-child { border-bottom:none; }
+    .abo-ic2 { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; }
+    .abo-name2 { font-size:12.5px; font-weight:600; color:var(--text); }
+    .abo-sub2 { font-size:10px; color:var(--t3); }
+    .abo-trend { font-size:10px; font-weight:700; padding:2px 8px; border-radius:8px; white-space:nowrap; }
+    .abo-trend.up   { background:var(--re-l); color:var(--re); }
+    .abo-trend.flat { background:var(--bg); color:var(--t3); }
+    .abo-amount2 { font-size:13px; font-weight:800; color:var(--text); }
+    .rule-row { display:grid; grid-template-columns:1fr 1fr 28px; gap:8px; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--bd); }
+    .rule-row:last-child { border-bottom:none; }
+    .rule-arrow { color:var(--t3); font-size:13px; text-align:center; }
+  </style>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-refresh-alert"></i> Tes abonnements détectés</span>
+        <span style="font-size:11px;color:var(--t2)" id="abo-total-mensuel">0 €/mois</span>
+      </div>
+      <div id="abo-list2"></div>
+      <div style="margin-top:1rem;padding:.875rem;background:var(--am-l);border:1px solid var(--am-b);border-radius:var(--r-md);font-size:11.5px;color:#78350F;line-height:1.5" id="abo-insight">
+        Analyse en cours...
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list-check"></i> Règles de catégorisation auto</span>
+        <button class="btn-ghost" onclick="addCategorizationRule()">+ Règle</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--t2);margin-bottom:.75rem;line-height:1.5">
+        Quand un libellé de dépense contient un mot-clé, AURA lui attribue automatiquement une catégorie — comme le fait l'IA des apps premium, mais ici tu gardes le contrôle total.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 28px;gap:8px;padding-bottom:.5rem;border-bottom:2px solid var(--bd);margin-bottom:.25rem">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--t3)">Mot-clé contient</span>
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--t3)">→ Catégorie</span>
+        <span></span>
+      </div>
+      <div id="rules-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SIMULATEUR
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-simulateur">
+  <div class="sim-grid">
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-calculator"></i> <span data-aura-edit="budget.title.10" data-aura-edit-label="Titre : Simulateur épargne">Simulateur épargne</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="50" max="2000" value="300" step="50" id="sim-monthly" oninput="calcSim()"><span class="sim-val" id="sim-monthly-v">300 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Durée</span><input type="range" min="1" max="40" value="10" step="1" id="sim-years" oninput="calcSim()"><span class="sim-val" id="sim-years-v">10 ans</span></div>
+      <div class="sim-field"><span class="sim-lbl">Rendement annuel</span><input type="range" min="0" max="10" value="4" step="1" id="sim-rate" oninput="calcSim()"><span class="sim-val" id="sim-rate-v">4%</span></div>
+      <div class="sim-result">
+        <div>
+          <div class="sim-result-lbl">Capital estimé</div>
+          <div class="sim-result-sub" id="sim-detail">36 000 € versés</div>
+        </div>
+        <div class="sim-result-val" id="sim-result">44 539 €</div>
+      </div>
+      <div style="margin-top:.875rem;padding:.75rem;background:var(--bg);border-radius:var(--r-md);font-size:11px;color:var(--t2);line-height:1.5">
+        📈 Grâce aux intérêts composés, les <span id="sim-interets" style="font-weight:700;color:var(--gr)">8 539 €</span> de rendement s'ajoutent à ton effort d'épargne.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-home-2"></i> <span data-aura-edit="budget.title.11" data-aura-edit-label="Titre : Simulateur apport immo">Simulateur apport immo</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Apport cible</span><input type="range" min="5000" max="100000" value="30000" step="1000" id="immo-target" oninput="calcImmo()"><span class="sim-val" id="immo-target-v">30 000 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="100" max="2000" value="500" step="50" id="immo-monthly" oninput="calcImmo()"><span class="sim-val" id="immo-monthly-v">500 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Déjà épargné</span><input type="range" min="0" max="50000" value="4000" step="500" id="immo-already" oninput="calcImmo()"><span class="sim-val" id="immo-already-v">4 000 €</span></div>
+      <div class="sim-result">
+        <div>
+          <div class="sim-result-lbl">Objectif atteint dans</div>
+          <div class="sim-result-sub" id="immo-detail">À 500 €/mois</div>
+        </div>
+        <div class="sim-result-val" id="immo-result">4,3 ans</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-trending-up"></i> <span data-aura-edit="budget.title.12" data-aura-edit-label="Titre : Simulateur retraite">Simulateur retraite</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Âge actuel</span><input type="range" min="18" max="60" value="30" step="1" id="ret-age" oninput="calcRetraite()"><span class="sim-val" id="ret-age-v">30 ans</span></div>
+      <div class="sim-field"><span class="sim-lbl">Âge retraite</span><input type="range" min="55" max="75" value="65" step="1" id="ret-target" oninput="calcRetraite()"><span class="sim-val" id="ret-target-v">65 ans</span></div>
+      <div class="sim-field"><span class="sim-lbl">Épargne / mois</span><input type="range" min="50" max="1000" value="200" step="50" id="ret-monthly" oninput="calcRetraite()"><span class="sim-val" id="ret-monthly-v">200 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Rendement</span><input type="range" min="1" max="8" value="5" step="1" id="ret-rate" oninput="calcRetraite()"><span class="sim-val" id="ret-rate-v">5%</span></div>
+      <div class="sim-result">
+        <div>
+          <div class="sim-result-lbl">Capital à la retraite</div>
+          <div class="sim-result-sub" id="ret-detail">Sur 35 ans</div>
+        </div>
+        <div class="sim-result-val" id="ret-result">−</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-percent"></i> <span data-aura-edit="budget.title.13" data-aura-edit-label="Titre : Calculateur crédit">Calculateur crédit</span></span></div>
+      <div class="sim-field"><span class="sim-lbl">Montant emprunté</span><input type="range" min="5000" max="300000" value="100000" step="5000" id="cred-amount" oninput="calcCredit()"><span class="sim-val" id="cred-amount-v">100 000 €</span></div>
+      <div class="sim-field"><span class="sim-lbl">Durée (mois)</span><input type="range" min="12" max="360" value="240" step="12" id="cred-months" oninput="calcCredit()"><span class="sim-val" id="cred-months-v">240 m</span></div>
+      <div class="sim-field"><span class="sim-lbl">Taux annuel</span><input type="range" min="1" max="10" value="4" step="0.5" id="cred-rate" oninput="calcCredit()"><span class="sim-val" id="cred-rate-v">4%</span></div>
+      <div class="sim-result">
+        <div>
+          <div class="sim-result-lbl">Mensualité estimée</div>
+          <div class="sim-result-sub" id="cred-detail">Coût total : −</div>
+        </div>
+        <div class="sim-result-val" id="cred-result">−</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     ANALYSE IA GEMINI
+════════════════════════════════════════════════ -->
+<div class="fin-panel" id="panel-ia-analyse">
+  <div class="ia-panel">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+      <div style="width:40px;height:40px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-sparkles" style="color:#fff;font-size:18px"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--pu-d)">Analyse financière IA — Gemini</div>
+        <div style="font-size:12px;color:#7C3AED">Analyse personnalisée de ta situation · +30 XP</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:.625rem;margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2)">Type d'analyse</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="ia-type-btns">
+        <button class="coach-type sel" id="ia-bilan"     onclick="setIaType('bilan')">📊 Bilan complet</button>
+        <button class="coach-type"     id="ia-economies" onclick="setIaType('economies')">✂️ Économies possibles</button>
+        <button class="coach-type"     id="ia-projection" onclick="setIaType('projection')">📈 Projection 1 an</button>
+        <button class="coach-type"     id="ia-conseils"  onclick="setIaType('conseils')">💡 Conseils personnalisés</button>
+        <button class="coach-type"     id="ia-patrimoine" onclick="setIaType('patrimoine')">🏦 Stratégie patrimoine</button>
+      </div>
+    </div>
+
+    <textarea id="ia-context" rows="2" style="width:100%;font-size:12px;padding:9px 12px;border-radius:var(--r-md);border:1px solid var(--pu-b);background:var(--white);color:var(--text);resize:none;outline:none;font-family:var(--font);margin-bottom:.75rem;line-height:1.5" placeholder="Contexte supplémentaire : projet en cours, objectif, question spécifique..."></textarea>
+
+    <button class="btn-primary" onclick="launchIaAnalyse()">
+      <i class="ti ti-sparkles"></i> Lancer l'analyse Gemini
+    </button>
+
+    <div class="ia-resp" id="ia-response"></div>
+  </div>
+
+  <!-- Éducation financière -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-book-2"></i> <span data-aura-edit="budget.title.14" data-aura-edit-label="Titre : Éducation financière">Éducation financière</span></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.625rem">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">🏦 Comprendre le PEA</div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5">Plafond 150 000 €, exonération d'impôt après 5 ans, idéal pour actions européennes. Rendement historique ~7%/an. +15 XP</div>
+      </div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">🏢 Les SCPI en 2 minutes</div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5">Investir dans l'immobilier dès 200 €, rendement 4-6%/an, aucune gestion locative. Idéal pour diversifier. +15 XP</div>
+      </div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">💎 La règle des 6 mois</div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5">Avant tout investissement : constitue 6 mois de dépenses en épargne de sécurité. C'est la fondation de toute liberté financière. +15 XP</div>
+      </div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">📈 La magie des intérêts composés</div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5">100 € investis à 7%/an pendant 30 ans = 761 €. Sans rien faire de plus. Albert Einstein l'appelait "la 8e merveille du monde". +15 XP</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" style="display:none" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title"><i class="ti ti-plus"></i> Ajouter</div>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" id="modal-confirm" onclick="confirmModal()">Confirmer</button>
+      <button class="modal-btn cancel" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPT DU MODULE
+════════════════════════════════════════════════ -->
+<script>
+/* ── Init ── */
+window.initModule = function(name) {
+  if (name !== 'budget') return;
+  initBudget();
+};
+
+/* ── State ── */
+const FinState = {
+  type: 'revenu', // type de saisie rapide actif
+  iaType: 'bilan',
+  modalType: null,
+  data: null,
+
+  get() {
+    if (this.data) return this.data;
+    const stored = localStorage.getItem('aura_finance_v1');
+    if (stored) { this.data = JSON.parse(stored); return this.data; }
+    this.data = {
+      revenus: [],
+      charges: [],
+      depenses: [],
+      epargne: [],
+      enveloppes: [
+        { id:1, label:'Alimentation', budget:0, ic:'ti-shopping-cart', bg:'#FFF7ED', ic2:'#EA580C' },
+        { id:2, label:'Loisirs',      budget:0, ic:'ti-confetti',      bg:'#FDF2F8', ic2:'#DB2777' },
+        { id:3, label:'Transport',    budget:0, ic:'ti-car',           bg:'#F0FDFA', ic2:'#0D9488' },
+        { id:4, label:'Santé',        budget:0, ic:'ti-heart',         bg:'#F0FDF4', ic2:'#16A34A' },
+        { id:5, label:'Vêtements',    budget:0, ic:'ti-shirt',         bg:'#EFF6FF', ic2:'#2563EB' },
+        { id:6, label:'Restaurant',   budget:0, ic:'ti-tools-kitchen-2',bg:'#FEFCE8',ic2:'#C9A84C' },
+      ],
+      histChart: [],
+    };
+    this.save();
+    return this.data;
+  },
+
+  save() { localStorage.setItem('aura_finance_v1', JSON.stringify(this.data)); },
+  nextId(arr) { return arr.length ? Math.max(...arr.map(x=>x.id)) + 1 : 1; },
+};
+
+/* ── Init budget ── */
+async function initBudget() {
+  // 1. Afficher les données locales immédiatement
+  renderBilan();
+  renderChart();
+  renderCategories();
+  renderEnveloppes();
+  renderRevenus();
+  renderCharges();
+  renderDepenses();
+  renderEpargne();
+  renderCashflowForecast();
+  calcSim(); calcImmo(); calcRetraite(); calcCredit();
+
+  // 2. Si connecté → charger les données Supabase et merger
+  if (window.SupaClient?.isLoggedIn()) {
+    _showSyncBadge('Synchronisation...');
+    try {
+      const [revenus, charges, depenses, cagnottes] = await Promise.all([
+        AuraSync.loadRevenus(),
+        AuraSync.loadCharges(),
+        AuraSync.loadDepenses(),
+        AuraSync.loadCagnottes(),
+      ]);
+      const d = FinState.get();
+
+      // Merger : les données BDD remplacent le localStorage si plus récentes
+      if (revenus.length)  {
+        d.revenus  = revenus.map(r  => ({ id:r.id, db_id:r.id, label:r.label, cat:r.categorie, montant:parseFloat(r.montant), date:r.date_op, recurrent:r.recurrent }));
+      }
+      if (charges.length)  {
+        d.charges  = charges.map(c  => ({ id:c.id, db_id:c.id, label:c.label, cat:c.categorie, montant:parseFloat(c.montant), ic:c.ic, icolor:c.icolor, color:c.color, period:c.period }));
+      }
+      if (depenses.length) {
+        d.depenses = depenses.map(dep=> ({ id:dep.id, db_id:dep.id, label:dep.label, cat:dep.categorie, montant:parseFloat(dep.montant), date:dep.date_op }));
+      }
+      if (cagnottes.length) {
+        d.epargne  = cagnottes.map(c => ({ id:c.id, db_id:c.id, emoji:c.emoji, name:c.name, montant:parseFloat(c.montant), cible:parseFloat(c.cible), mensuel:parseFloat(c.mensuel), color:[c.color_from,c.color_to] }));
+      }
+
+      FinState.save();
+      renderBilan(); renderChart(); renderCategories(); renderEnveloppes();
+      renderRevenus(); renderCharges(); renderDepenses(); renderEpargne();
+      renderCashflowForecast();
+      _showSyncBadge('✓ Synchronisé', true);
+    } catch(e) {
+      console.warn('[Budget init sync]', e.message);
+      _showSyncBadge('Mode local', false, true);
+    }
+  }
+
+  // 3. Détection des abonnements en hausse → pip d'alerte sur l'onglet
+  checkAbonnementsAlert();
+}
+
+function _showSyncBadge(msg, ok = false, warn = false) {
+  let badge = document.getElementById('sync-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'sync-badge';
+    badge.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;z-index:99;transition:opacity .3s';
+    document.body.appendChild(badge);
+  }
+  badge.textContent = msg;
+  badge.style.background = ok ? 'var(--gr-l)' : warn ? 'var(--am-l)' : 'var(--pu-l)';
+  badge.style.color       = ok ? 'var(--gr)'   : warn ? 'var(--am)'   : 'var(--pu)';
+  badge.style.border      = `1px solid ${ok ? 'var(--gr-b)' : warn ? 'var(--am-b)' : 'var(--pu-b)'}`;
+  badge.style.opacity     = '1';
+  if (ok || warn) setTimeout(() => { badge.style.opacity = '0'; }, 2500);
+}
+
+/* ── Tabs ── */
+function showTab(id) {
+  document.querySelectorAll('.fin-tab').forEach((t,i)=>{ t.classList.remove('active'); });
+  document.querySelectorAll('.fin-panel').forEach(p=>{ p.classList.remove('on'); });
+  const panels = {
+    'vue-ensemble':'panel-vue-ensemble','zero':'panel-zero','revenus':'panel-revenus','charges':'panel-charges',
+    'depenses':'panel-depenses','epargne':'panel-epargne','abonnements':'panel-abonnements',
+    'simulateur':'panel-simulateur','ia-analyse':'panel-ia-analyse'
+  };
+  const tabs   = ['vue-ensemble','zero','revenus','charges','depenses','epargne','abonnements','simulateur','ia-analyse'];
+  const idx    = tabs.indexOf(id);
+  if (idx >= 0) document.querySelectorAll('.fin-tab')[idx].classList.add('active');
+  const panel  = document.getElementById(panels[id]);
+  if (panel) panel.classList.add('on');
+  if (id === 'zero') renderZeroBudget();
+  if (id === 'abonnements') renderAbonnements();
+}
+
+/* ── Quick Add ── */
+function setQuickType(t) {
+  FinState.type = t;
+  ['revenu','depense','epargne'].forEach(k => {
+    document.getElementById('qt-'+k)?.classList.remove('active');
+  });
+  document.getElementById('qt-'+t)?.classList.add('active');
+  const inp = document.getElementById('q-amount');
+  const sub = document.getElementById('q-submit');
+  const cl  = { revenu:'gr', depense:'re', epargne:'pu' };
+  if (inp) inp.className = `quick-input ${cl[t]==='re'?'red':cl[t]==='pu'?'pu':''}`;
+  if (sub) { sub.className = `quick-submit ${cl[t]}`; }
+  // Filtrer les catégories selon le type
+  const catMap = {
+    revenu:  ['salaire','freelance','remboursement','autre-revenu'],
+    depense: ['loyer','alimentation','loisirs','transport','sante','vetements','beaute','restaurant','technologie','autre'],
+    epargne: ['salaire','freelance','remboursement','autre-revenu'],
+  };
+  const sel = document.getElementById('q-cat');
+  if (!sel) return;
+  Array.from(sel.options).forEach(o => {
+    o.style.display = catMap[t].includes(o.value) ? '' : 'none';
+  });
+  sel.value = catMap[t][0];
+}
+
+async function quickAdd() {
+  const amount = parseFloat(document.getElementById('q-amount')?.value);
+  let label    = document.getElementById('q-label')?.value?.trim();
+  let cat      = document.getElementById('q-cat')?.value;
+  if (!amount || amount <= 0) { AuraUI.showToast('⚠ Saisis un montant'); return; }
+
+  // Règle de catégorisation auto : si le libellé matche un mot-clé connu, on suggère sa catégorie
+  let autoMatched = false;
+  if (label && FinState.type === 'depense') {
+    const matched = CategorizationRules.matchCategory(label);
+    if (matched && matched !== cat) { cat = matched; autoMatched = true; }
+  }
+
+  const d    = FinState.get();
+  const type = FinState.type;
+  const date = new Date().toISOString().slice(0,10);
+  const item = { id: FinState.nextId(d[type === 'revenu' ? 'revenus' : 'depenses']), label: label || getCatLabel(cat), cat, montant: amount, date };
+
+  if (type === 'revenu')  { d.revenus.unshift(item);  }
+  if (type === 'depense') { d.depenses.unshift(item);  }
+  if (type === 'epargne') { if (d.epargne.length) d.epargne[0].montant += amount; }
+  FinState.save();
+
+  // ── Sync Supabase en arrière-plan ──────────────────────────
+  if (window.SupaClient?.isLoggedIn()) {
+    try {
+      if      (type === 'revenu')  await AuraSync.addRevenu(item);
+      else if (type === 'depense') await AuraSync.addDepense(item);
+      else if (type === 'epargne' && d.epargne[0]) {
+        await AuraSync.saveCagnotte({ ...d.epargne[0], db_id: d.epargne[0].db_id });
+      }
+    } catch(e) { console.warn('[Budget sync]', e.message); }
+  }
+
+  document.getElementById('q-amount').value = '';
+  document.getElementById('q-label').value  = '';
+  renderBilan(); renderChart(); renderRevenus(); renderDepenses(); renderEpargne(); renderEnveloppes(); renderCategories();
+  renderCashflowForecast();
+  if (autoMatched) {
+    AuraUI.showToast(`✓ Catégorisé automatiquement en "${getCatLabel(cat)}" (règle détectée)`);
+  } else {
+    AuraUI.showToast(`✓ ${type === 'revenu' ? '+' : type === 'epargne' ? '✦' : '−'}${fmtEuro(amount)} enregistré`);
+  }
+  earnXP(5, `${getCatLabel(cat)} ajouté`, '💰');
+}
+
+function getCatLabel(cat) {
+  const m = { salaire:'Salaire', freelance:'Freelance', remboursement:'Remboursement', 'autre-revenu':'Revenu', loyer:'Loyer', alimentation:'Alimentation', loisirs:'Loisirs', transport:'Transport', sante:'Santé', vetements:'Vêtements', beaute:'Beauté', restaurant:'Restaurant', technologie:'Tech/Abos', autre:'Dépense', logement:'Logement', abonnement:'Abonnement', assurance:'Assurance' };
+  return m[cat] || cat;
+}
+
+/* ── Bilan ── */
+function renderBilan() {
+  const d    = FinState.get();
+  const rev  = d.revenus.reduce((s,x)=>s+x.montant, 0);
+  const cha  = d.charges.reduce((s,x)=>s+x.montant, 0);
+  const dep  = d.depenses.reduce((s,x)=>s+x.montant, 0);
+  const epa  = d.epargne.reduce((s,x)=>s+(x.mensuel||0), 0);
+  const sol  = rev - cha - dep;
+  const taux = rev > 0 ? ((epa / rev) * 100).toFixed(1) : 0;
+  const el   = document.getElementById('bilan-solde');
+  if (el) { el.textContent = (sol >= 0 ? '+' : '') + fmtEuro(sol); el.className = 'bilan-main ' + (sol >= 0 ? 'pos' : 'neg'); }
+  _set('bilan-revenus',        '+' + fmtEuro(rev));
+  _set('bilan-charges',        '−' + fmtEuro(cha));
+  _set('bilan-depenses',       '−' + fmtEuro(dep));
+  _set('bilan-epargne',        fmtEuro(epa));
+  _set('bilan-taux',           taux + '%');
+  _set('bilan-revenus-detail', `${d.revenus.length} source${d.revenus.length>1?'s':''}`);
+  _set('bilan-charges-nb',     `${d.charges.length} charge${d.charges.length>1?'s':''}`);
+  _set('bilan-depenses-nb',    `${d.depenses.length} opération${d.depenses.length>1?'s':''}`);
+  // Pip alertes
+  const pip = document.getElementById('pip-alertes');
+  const alerts = getAlerts(d, rev, cha, dep);
+  if (pip) { pip.textContent = alerts; pip.style.display = alerts > 0 ? '' : 'none'; }
+}
+
+function getAlerts(d, rev, cha, dep) {
+  let n = 0;
+  d.enveloppes.forEach(env => {
+    const spent = getEnvSpent(env.label, d.depenses);
+    if (spent / env.budget > 0.9) n++;
+  });
+  return n;
+}
+
+/* ── Graphique ── */
+function renderChart() {
+  const d    = FinState.get();
+  const wrap = document.getElementById('chart-6mois');
+  const lbls = document.getElementById('chart-labels');
+  if (!wrap || !d.histChart?.length) return;
+  const maxVal = Math.max(...d.histChart.map(m => m.revenus));
+  wrap.innerHTML = d.histChart.map(m => {
+    const hRev = Math.round((m.revenus  / maxVal) * 80);
+    const hDep = Math.round((m.depenses / maxVal) * 80);
+    const hEpa = Math.round((m.epargne  / maxVal) * 80);
+    return `<div class="chart-bar-col" style="gap:2px;justify-content:flex-end;flex-direction:row;height:80px;align-items:flex-end">
+      <div class="chart-bar rev" style="height:${hRev}px;flex:1;min-width:6px" title="Revenus ${m.mois}: ${fmtEuro(m.revenus)}"></div>
+      <div class="chart-bar dep" style="height:${hDep}px;flex:1;min-width:6px" title="Dépenses ${m.mois}: ${fmtEuro(m.depenses)}"></div>
+      <div class="chart-bar epa" style="height:${hEpa}px;flex:1;min-width:6px" title="Épargne ${m.mois}: ${fmtEuro(m.epargne)}"></div>
+    </div>`;
+  }).join('');
+  if (lbls) lbls.innerHTML = d.histChart.map(m => `<span style="font-size:9px;color:var(--t3);font-weight:600;flex:1;text-align:center">${m.mois}</span>`).join('');
+}
+
+/* ── Catégories ── */
+const CAT_META = {
+  alimentation:{ label:'Alimentation', color:'#EA580C', bg:'#FFF7ED' },
+  loisirs:     { label:'Loisirs',      color:'#DB2777', bg:'#FDF2F8' },
+  transport:   { label:'Transport',    color:'#0D9488', bg:'#F0FDFA' },
+  sante:       { label:'Santé',        color:'#16A34A', bg:'#F0FDF4' },
+  vetements:   { label:'Vêtements',    color:'#2563EB', bg:'#EFF6FF' },
+  restaurant:  { label:'Restaurant',   color:'#C9A84C', bg:'#FEFCE8' },
+  beaute:      { label:'Beauté',       color:'#9333EA', bg:'#F5F3FF' },
+  technologie: { label:'Tech/Abos',    color:'#7C3AED', bg:'#F5F3FF' },
+  autre:       { label:'Autre',        color:'#64748B', bg:'#F8F7FF' },
+};
+
+function renderCategories() {
+  const d   = FinState.get();
+  const el  = document.getElementById('cat-list');
+  if (!el) return;
+  const totals = {};
+  d.depenses.forEach(dep => { totals[dep.cat] = (totals[dep.cat]||0) + dep.montant; });
+  const total = Object.values(totals).reduce((s,v)=>s+v,0) || 1;
+  el.innerHTML = Object.entries(totals).sort((a,b)=>b[1]-a[1]).map(([cat, amt]) => {
+    const m = CAT_META[cat] || CAT_META.autre;
+    const pct = Math.round((amt/total)*100);
+    return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--t2);width:90px;flex-shrink:0">${m.label}</div>
+      <div style="flex:1;height:7px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${m.color};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text);min-width:52px;text-align:right">${fmtEuro(amt)}</div>
+      <div style="font-size:10px;color:var(--t3);min-width:28px;text-align:right">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Enveloppes ── */
+function renderEnveloppes() {
+  const d  = FinState.get();
+  const el = document.getElementById('env-list');
+  const es = document.getElementById('env-suivi');
+  if (!el && !es) return;
+  const html = d.enveloppes.map(env => {
+    const spent = getEnvSpent(env.label, d.depenses);
+    const pct   = Math.min(100, Math.round((spent/env.budget)*100));
+    const cls   = pct >= 100 ? 'ov' : pct >= 80 ? 'mid' : 'ok';
+    const clsT  = pct >= 100 ? '#DC2626' : pct >= 80 ? '#D97706' : '#059669';
+    return `
+    <div class="env-extended">
+      <div class="env-header">
+        <div class="env-ic-big" style="background:${env.bg||'var(--bg)'}"><i class="ti ${env.ic}" style="font-size:14px;color:${env.ic2}"></i></div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">${env.label}</div>
+          <div class="env-details">
+            <span style="color:${clsT}"><strong>${fmtEuro(spent)}</strong> dépensés</span>
+            <span>Budget : ${fmtEuro(env.budget)}</span>
+          </div>
+          <div class="env-bar-bg" onclick="toggleEnvEdit(${env.id})">
+            <div class="env-bar-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+          <div class="env-budget-edit" id="env-edit-${env.id}">
+            <input type="number" value="${env.budget}" id="env-input-${env.id}" placeholder="Nouveau budget">
+            <button onclick="updateEnvBudget(${env.id})">OK</button>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:${clsT};min-width:36px;text-align:right">${pct}%</div>
+      </div>
+    </div>`;
+  }).join('');
+  if (el) el.innerHTML = html;
+  if (es) es.innerHTML = html;
+}
+
+function getEnvSpent(label, depenses) {
+  const map = { 'Alimentation':['alimentation','restaurant'], 'Loisirs':['loisirs','beaute'], 'Transport':['transport'], 'Santé':['sante'], 'Vêtements':['vetements'], 'Restaurant':['restaurant'] };
+  const cats = map[label] || [];
+  return depenses.filter(d=>cats.includes(d.cat)).reduce((s,x)=>s+x.montant,0);
+}
+
+function toggleEnvEdit(id) {
+  const el = document.getElementById('env-edit-'+id);
+  if (el) el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function updateEnvBudget(id) {
+  const inp = document.getElementById('env-input-'+id);
+  if (!inp) return;
+  const val = parseFloat(inp.value);
+  if (isNaN(val) || val <= 0) return;
+  const d = FinState.get();
+  const env = d.enveloppes.find(e=>e.id===id);
+  if (env) { env.budget = val; FinState.save(); renderEnveloppes(); renderBilan(); AuraUI.showToast('Budget mis à jour ✓'); }
+}
+
+/* ── Revenus ── */
+const CAT_ICON_R = { salaire:'ti-briefcase', freelance:'ti-rocket', remboursement:'ti-receipt-refund', 'autre-revenu':'ti-plus' };
+function renderRevenus() {
+  const d  = FinState.get();
+  const el = document.getElementById('revenus-list');
+  const tot= document.getElementById('revenus-total');
+  if (!el) return;
+  const total = d.revenus.reduce((s,x)=>s+x.montant,0);
+  if (tot) tot.textContent = fmtEuro(total);
+  el.innerHTML = d.revenus.map(r => `
+    <div class="tx-item">
+      <div class="tx-dot" style="background:var(--gr-l)"><i class="ti ${CAT_ICON_R[r.cat]||'ti-plus'}" style="color:var(--gr)"></i></div>
+      <div class="tx-meta">
+        <div class="tx-name">${r.label}</div>
+        <div class="tx-sub">${fmtDate(r.date)}</div>
+        <span class="tx-cat" style="background:var(--gr-l);color:var(--gr)">${getCatLabel(r.cat)}</span>
+      </div>
+      <div class="tx-amount pos">+${fmtEuro(r.montant)}</div>
+      <button class="tx-del" onclick="deleteItem('revenus',${r.id})" title="Supprimer"><i class="ti ti-trash"></i></button>
+    </div>`).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucun revenu enregistré</div>';
+}
+
+/* ── Charges ── */
+function renderCharges() {
+  const d   = FinState.get();
+  const el  = document.getElementById('charges-list');
+  const tot = document.getElementById('charges-total');
+  const pct = document.getElementById('charges-pct-revenus');
+  const sec = document.getElementById('charges-secteurs');
+  if (!el) return;
+  const total = d.charges.reduce((s,x)=>s+x.montant,0);
+  const rev   = d.revenus.reduce((s,x)=>s+x.montant,0);
+  if (tot) tot.textContent = '−'+fmtEuro(total);
+  if (pct && rev>0) pct.textContent = Math.round((total/rev)*100)+'% des revenus';
+  el.innerHTML = d.charges.map(c => `
+    <div class="charge-row">
+      <div class="charge-ic" style="background:${c.color||'var(--bg)'}"><i class="ti ${c.ic}" style="color:${c.icolor}"></i></div>
+      <div>
+        <div class="charge-info-name">${c.label}</div>
+        <div class="charge-info-cat">${c.cat} · ${c.period||'Mensuel'}</div>
+      </div>
+      <div>
+        <div class="charge-amount">${fmtEuro(c.montant)}</div>
+        <div class="charge-period">/mois</div>
+      </div>
+      <button class="charge-del" onclick="deleteItem('charges',${c.id})" title="Supprimer"><i class="ti ti-trash"></i></button>
+    </div>`).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucune charge enregistrée</div>';
+  // Secteurs
+  if (sec) {
+    const secteurs = {};
+    d.charges.forEach(c => { secteurs[c.cat] = (secteurs[c.cat]||0) + c.montant; });
+    sec.innerHTML = Object.entries(secteurs).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => {
+      const pctS = total > 0 ? Math.round((amt/total)*100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <div style="font-size:12px;color:var(--t2);width:100px;flex-shrink:0;text-transform:capitalize">${cat}</div>
+        <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pctS}%;background:var(--re);border-radius:3px"></div></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);min-width:52px;text-align:right">${fmtEuro(amt)}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+/* ── Dépenses ── */
+const CAT_ICON_D = { alimentation:'ti-shopping-cart', loisirs:'ti-confetti', transport:'ti-car', sante:'ti-pill', vetements:'ti-shirt', beaute:'ti-sparkles', restaurant:'ti-tools-kitchen-2', technologie:'ti-device-mobile', autre:'ti-package' };
+function renderDepenses() {
+  const d      = FinState.get();
+  const el     = document.getElementById('depenses-list');
+  const totEl  = document.getElementById('depenses-total-filtered');
+  const filter = document.getElementById('dep-filter')?.value || 'all';
+  if (!el) return;
+  const filtered = filter === 'all' ? d.depenses : d.depenses.filter(x=>x.cat===filter);
+  const total    = filtered.reduce((s,x)=>s+x.montant,0);
+  if (totEl) totEl.textContent = fmtEuro(total);
+  const meta = CAT_META;
+  el.innerHTML = filtered.map(dep => {
+    const m = meta[dep.cat] || meta.autre;
+    return `
+    <div class="tx-item">
+      <div class="tx-dot" style="background:${m.bg}"><i class="ti ${CAT_ICON_D[dep.cat]||'ti-package'}" style="color:${m.color}"></i></div>
+      <div class="tx-meta">
+        <div class="tx-name">${dep.label}</div>
+        <div class="tx-sub">${fmtDate(dep.date)}</div>
+        <span class="tx-cat" style="background:${m.bg};color:${m.color}">${m.label}</span>
+      </div>
+      <div class="tx-amount neg">−${fmtEuro(dep.montant)}</div>
+      <button class="tx-del" onclick="deleteItem('depenses',${dep.id})" title="Supprimer"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucune dépense enregistrée</div>';
+}
+
+/* ── Épargne / Cagnottes ── */
+function renderEpargne() {
+  const d  = FinState.get();
+  const el = document.getElementById('cagnottes-grid');
+  if (!el) return;
+  el.innerHTML = d.epargne.map(c => {
+    const pct    = Math.min(100, Math.round((c.montant/c.cible)*100));
+    const reste  = c.cible - c.montant;
+    const moisR  = c.mensuel > 0 ? Math.ceil(reste / c.mensuel) : '∞';
+    const badgeColor = pct >= 75 ? 'var(--gr)' : pct >= 40 ? 'var(--am)' : 'var(--pu)';
+    return `
+    <div class="cag-card">
+      <div class="cag-top">
+        <span class="cag-emoji">${c.emoji}</span>
+        <span class="cag-pct-badge" style="background:${badgeColor}15;color:${badgeColor};border:1px solid ${badgeColor}40">${pct}%</span>
+      </div>
+      <div class="cag-name">${c.name}</div>
+      <div class="cag-vals"><strong>${fmtEuro(c.montant)}</strong> / ${fmtEuro(c.cible)}</div>
+      <div class="cag-prog"><div class="cag-prog-fill" style="width:${pct}%;background:linear-gradient(90deg,${c.color[0]},${c.color[1]})"></div></div>
+      <div class="cag-hint">+${fmtEuro(c.mensuel)}/mois · encore ~${moisR} mois</div>
+      <div class="cag-actions">
+        <button class="cag-btn add" onclick="openCagnottAdd(${c.id})">+ Virer</button>
+        <button class="cag-btn edit" onclick="openCagnottEdit(${c.id})">✏ Modifier</button>
+      </div>
+    </div>`;
+  }).join('') + `
+  <div class="add-cagnotte-card" onclick="openModal('cagnotte')">
+    <i class="ti ti-plus"></i>
+    <span>Nouvelle cagnotte ✦</span>
+  </div>`;
+}
+
+/* ── Supprimer ── */
+async function deleteItem(list, id) {
+  const d = FinState.get();
+  if (!confirm('Supprimer cet élément ?')) return;
+
+  // ── Sync Supabase en arrière-plan ──────────────────────────
+  if (window.SupaClient?.isLoggedIn()) {
+    try {
+      const item = d[list].find(x => x.id === id);
+      if (item?.db_id) {
+        if      (list === 'revenus')  await AuraSync.deleteRevenu(item.db_id);
+        else if (list === 'depenses') await AuraSync.deleteDepense(item.db_id);
+        else if (list === 'charges')  await AuraSync.deleteCharge(item.db_id);
+      }
+    } catch(e) { console.warn('[Budget delete sync]', e.message); }
+  }
+
+  d[list] = d[list].filter(x => x.id !== id);
+  FinState.save();
+  renderBilan(); renderChart(); renderRevenus(); renderCharges(); renderDepenses(); renderEpargne(); renderEnveloppes(); renderCategories();
+  AuraUI.showToast('Supprimé ✓');
+}
+
+/* ── Cagnotte actions ── */
+async function openCagnottAdd(id) {
+  const d = FinState.get();
+  const c = d.epargne.find(x=>x.id===id);
+  if (!c) return;
+  const montant = parseFloat(prompt(`Combien virer vers "${c.name}" ?`));
+  if (!montant || isNaN(montant) || montant <= 0) return;
+  c.montant += montant;
+  FinState.save();
+  // Sync Supabase
+  if (window.SupaClient?.isLoggedIn() && c.db_id) {
+    try { await AuraSync.saveCagnotte({ ...c, db_id: c.db_id }); }
+    catch(e) { console.warn('[Cagnotte sync]', e.message); }
+  }
+  renderEpargne(); renderBilan();
+  earnXP(10, `+${fmtEuro(montant)} vers ${c.name}`, '✦');
+  AuraUI.showToast(`✦ +${fmtEuro(montant)} vers ${c.name}`);
+}
+
+function openCagnottEdit(id) {
+  const d = FinState.get();
+  const c = d.epargne.find(x=>x.id===id);
+  if (!c) return;
+  const newMensuel = parseFloat(prompt(`Virement mensuel actuel pour "${c.name}" : ${c.mensuel} €\nNouveau montant :`));
+  if (!isNaN(newMensuel) && newMensuel >= 0) { c.mensuel = newMensuel; FinState.save(); renderEpargne(); AuraUI.showToast('Mis à jour ✓'); }
+}
+
+/* ── Modals ── */
+let _modalData = {};
+function openModal(type) {
+  FinState.modalType = type;
+  const titles = { revenu:'+ Nouveau revenu', depense:'+ Nouvelle dépense', charge:'+ Nouvelle charge fixe', cagnotte:'✦ Nouvelle cagnotte', env:'+ Nouvelle enveloppe' };
+  const body = {
+    revenu: `
+      <div class="modal-field"><label class="modal-lbl">Label</label><input class="modal-input" id="m-label" placeholder="Ex: Salaire, Freelance..."></div>
+      <div class="modal-field"><label class="modal-lbl">Montant (€)</label><input class="modal-input" id="m-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="modal-field"><label class="modal-lbl">Catégorie</label><select class="modal-input" id="m-cat"><option value="salaire">💼 Salaire</option><option value="freelance">🚀 Freelance</option><option value="remboursement">💳 Remboursement</option><option value="autre-revenu">➕ Autre</option></select></div>
+      <div class="modal-field"><label class="modal-lbl">Date</label><input class="modal-input" id="m-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>`,
+    depense: `
+      <div class="modal-field"><label class="modal-lbl">Label</label><input class="modal-input" id="m-label" placeholder="Ex: Carrefour, Restaurant..."></div>
+      <div class="modal-field"><label class="modal-lbl">Montant (€)</label><input class="modal-input" id="m-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="modal-field"><label class="modal-lbl">Catégorie</label><select class="modal-input" id="m-cat"><option value="alimentation">🛒 Alimentation</option><option value="loisirs">🎭 Loisirs</option><option value="transport">🚗 Transport</option><option value="sante">💊 Santé</option><option value="vetements">👗 Vêtements</option><option value="beaute">💄 Beauté</option><option value="restaurant">🍽️ Restaurant</option><option value="technologie">📱 Tech/Abos</option><option value="autre">📦 Autre</option></select></div>
+      <div class="modal-field"><label class="modal-lbl">Date</label><input class="modal-input" id="m-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>`,
+    charge: `
+      <div class="modal-field"><label class="modal-lbl">Label</label><input class="modal-input" id="m-label" placeholder="Ex: Loyer, Netflix..."></div>
+      <div class="modal-field"><label class="modal-lbl">Montant mensuel (€)</label><input class="modal-input" id="m-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="modal-field"><label class="modal-lbl">Catégorie</label><select class="modal-input" id="m-cat"><option value="logement">🏠 Logement</option><option value="abonnement">📱 Abonnement</option><option value="assurance">🛡 Assurance</option><option value="sante">💊 Santé</option><option value="transport">🚗 Transport</option><option value="autre">📦 Autre</option></select></div>`,
+    cagnotte: `
+      <div class="modal-field"><label class="modal-lbl">Nom du projet</label><input class="modal-input" id="m-label" placeholder="Ex: Vacances, Immo..."></div>
+      <div class="modal-field"><label class="modal-lbl">Emoji</label><input class="modal-input" id="m-emoji" placeholder="✈️" maxlength="4" style="font-size:20px"></div>
+      <div class="modal-field"><label class="modal-lbl">Objectif (€)</label><input class="modal-input" id="m-amount" type="number" min="0" placeholder="0"></div>
+      <div class="modal-field"><label class="modal-lbl">Déjà épargné (€)</label><input class="modal-input" id="m-already" type="number" min="0" value="0" placeholder="0"></div>
+      <div class="modal-field"><label class="modal-lbl">Virement mensuel (€)</label><input class="modal-input" id="m-mensuel" type="number" min="0" placeholder="0"></div>`,
+    env: `
+      <div class="modal-field"><label class="modal-lbl">Nom de l'enveloppe</label><input class="modal-input" id="m-label" placeholder="Ex: Sorties, Beauté..."></div>
+      <div class="modal-field"><label class="modal-lbl">Budget mensuel (€)</label><input class="modal-input" id="m-amount" type="number" min="0" placeholder="0"></div>`,
+  };
+  const conf = { revenu:'modal-btn primary gr', depense:'modal-btn primary', charge:'modal-btn primary', cagnotte:'modal-btn primary', env:'modal-btn primary' };
+  const el = document.getElementById('modal-overlay');
+  if (el) {
+    el.style.display = 'flex';
+    document.getElementById('modal-title').innerHTML = `<i class="ti ti-plus"></i> ${titles[type]}`;
+    document.getElementById('modal-body').innerHTML  = body[type] || '';
+    document.getElementById('modal-confirm').className = conf[type] || 'modal-btn primary';
+  }
+}
+
+function openEnvModal() { openModal('env'); }
+
+async function confirmModal() {
+  const type = FinState.modalType;
+  const d    = FinState.get();
+  const label  = document.getElementById('m-label')?.value?.trim();
+  const amount = parseFloat(document.getElementById('m-amount')?.value);
+  if (!label) { AuraUI.showToast('⚠ Saisis un label'); return; }
+  if (isNaN(amount) || amount <= 0) { AuraUI.showToast('⚠ Saisis un montant valide'); return; }
+
+  let newItem = null;
+
+  if (type === 'revenu') {
+    newItem = { id:FinState.nextId(d.revenus), label, cat:document.getElementById('m-cat')?.value||'salaire', montant:amount, date:document.getElementById('m-date')?.value||new Date().toISOString().slice(0,10) };
+    d.revenus.unshift(newItem);
+  } else if (type === 'depense') {
+    newItem = { id:FinState.nextId(d.depenses), label, cat:document.getElementById('m-cat')?.value||'autre', montant:amount, date:document.getElementById('m-date')?.value||new Date().toISOString().slice(0,10) };
+    d.depenses.unshift(newItem);
+  } else if (type === 'charge') {
+    const icMap = { logement:['ti-home-2','#2563EB','#EFF6FF'], abonnement:['ti-device-mobile','#7C3AED','#F5F3FF'], assurance:['ti-shield','#EA580C','#FFF7ED'], sante:['ti-activity','#16A34A','#F0FDF4'], transport:['ti-car','#0D9488','#F0FDFA'], autre:['ti-package','#64748B','#F8F7FF'] };
+    const cat = document.getElementById('m-cat')?.value||'autre';
+    const [ic, icolor, color] = icMap[cat]||icMap.autre;
+    newItem = { id:FinState.nextId(d.charges), label, cat, montant:amount, ic, icolor, color, period:'Mensuel' };
+    d.charges.push(newItem);
+  } else if (type === 'cagnotte') {
+    const emoji   = document.getElementById('m-emoji')?.value?.trim() || '💰';
+    const already = parseFloat(document.getElementById('m-already')?.value)||0;
+    const mensuel = parseFloat(document.getElementById('m-mensuel')?.value)||0;
+    newItem = { id:FinState.nextId(d.epargne), emoji, name:label, montant:already, cible:amount, mensuel, color:['#7C3AED','#5B21B6'] };
+    d.epargne.push(newItem);
+  } else if (type === 'env') {
+    newItem = { id:FinState.nextId(d.enveloppes), label, budget:amount, ic:'ti-tag', bg:'var(--bg)', ic2:'var(--t2)' };
+    d.enveloppes.push(newItem);
+  }
+
+  FinState.save();
+
+  // ── Sync Supabase en arrière-plan ──────────────────────────
+  if (newItem && window.SupaClient?.isLoggedIn()) {
+    try {
+      let dbRow = null;
+      if      (type === 'revenu')   dbRow = await AuraSync.addRevenu(newItem);
+      else if (type === 'depense')  dbRow = await AuraSync.addDepense(newItem);
+      else if (type === 'charge')   dbRow = await AuraSync.addCharge(newItem);
+      else if (type === 'cagnotte') dbRow = await AuraSync.saveCagnotte(newItem);
+      // Stocker l'UUID Supabase sur l'item local pour les suppressions futures
+      if (dbRow?.id) { newItem.db_id = dbRow.id; FinState.save(); }
+    } catch(e) { console.warn('[Budget modal sync]', e.message); }
+  }
+
+  closeModal();
+  renderBilan(); renderChart(); renderRevenus(); renderCharges(); renderDepenses(); renderEpargne(); renderEnveloppes(); renderCategories();
+  earnXP(5, `${label} ajouté`, '✓');
+  AuraUI.showToast(`✓ ${label} enregistré`);
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  const el = document.getElementById('modal-overlay');
+  if (el) el.style.display = 'none';
+}
+
+/* ── Simulateurs ── */
+function calcSim() {
+  const m = parseInt(document.getElementById('sim-monthly')?.value)||300;
+  const y = parseInt(document.getElementById('sim-years')?.value)||10;
+  const r = parseInt(document.getElementById('sim-rate')?.value)||4;
+  _set('sim-monthly-v', fmtEuro(m));
+  _set('sim-years-v',   y+' ans');
+  _set('sim-rate-v',    r+'%');
+  const mo=y*12, mr=(r/100)/12;
+  const total = mr===0 ? m*mo : m*((Math.pow(1+mr,mo)-1)/mr);
+  const versed = m*mo;
+  _set('sim-result', fmtEuro(Math.round(total)));
+  _set('sim-detail', fmtEuro(versed)+' versés');
+  _set('sim-interets', fmtEuro(Math.round(total-versed)));
+}
+
+function calcImmo() {
+  const target  = parseInt(document.getElementById('immo-target')?.value)||30000;
+  const monthly = parseInt(document.getElementById('immo-monthly')?.value)||500;
+  const already = parseInt(document.getElementById('immo-already')?.value)||0;
+  _set('immo-target-v',  fmtEuro(target));
+  _set('immo-monthly-v', fmtEuro(monthly));
+  _set('immo-already-v', fmtEuro(already));
+  const reste = Math.max(0, target - already);
+  const mois  = monthly > 0 ? reste / monthly : Infinity;
+  const ans   = (mois / 12).toFixed(1);
+  _set('immo-result', isFinite(mois) ? ans+' ans' : '∞');
+  _set('immo-detail', `Il reste ${fmtEuro(Math.round(reste))} à atteindre`);
+}
+
+function calcRetraite() {
+  const age   = parseInt(document.getElementById('ret-age')?.value)||30;
+  const end   = parseInt(document.getElementById('ret-target')?.value)||65;
+  const m     = parseInt(document.getElementById('ret-monthly')?.value)||200;
+  const r     = parseInt(document.getElementById('ret-rate')?.value)||5;
+  _set('ret-age-v',     age+' ans');
+  _set('ret-target-v',  end+' ans');
+  _set('ret-monthly-v', fmtEuro(m));
+  _set('ret-rate-v',    r+'%');
+  const y=Math.max(0,end-age), mo=y*12, mr=(r/100)/12;
+  const total = mr===0?m*mo:m*((Math.pow(1+mr,mo)-1)/mr);
+  _set('ret-result', fmtEuro(Math.round(total)));
+  _set('ret-detail', `Sur ${y} ans d'épargne`);
+}
+
+function calcCredit() {
+  const amount = parseInt(document.getElementById('cred-amount')?.value)||100000;
+  const months = parseInt(document.getElementById('cred-months')?.value)||240;
+  const rate   = parseFloat(document.getElementById('cred-rate')?.value)||4;
+  _set('cred-amount-v',  fmtEuro(amount));
+  _set('cred-months-v',  months+' m');
+  _set('cred-rate-v',    rate+'%');
+  const mr = (rate/100)/12;
+  const mensualite = mr===0 ? amount/months : amount*(mr*Math.pow(1+mr,months))/(Math.pow(1+mr,months)-1);
+  const coutTotal  = mensualite*months - amount;
+  _set('cred-result', fmtEuro(Math.round(mensualite))+'/mois');
+  _set('cred-detail', `Coût total intérêts : ${fmtEuro(Math.round(coutTotal))}`);
+}
+
+/* ── IA Analyse ── */
+let _iaType = 'bilan';
+function setIaType(t) {
+  _iaType = t;
+  document.querySelectorAll('#ia-type-btns .coach-type').forEach(b => b.classList.remove('sel'));
+  const el = document.getElementById('ia-'+t);
+  if (el) el.classList.add('sel');
+}
+
+async function launchIaAnalyse() {
+  const key = AuraStore.getGeminiKey();
+  if (!key || key === 'VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('ia-response'); return; }
+  const d    = FinState.get();
+  const resp = document.getElementById('ia-response');
+  if (resp) { resp.style.display='block'; resp.innerHTML='<span style="color:#7C3AED">✦ Analyse de ta situation financière en cours...</span>'; }
+  const rev   = d.revenus.reduce((s,x)=>s+x.montant,0);
+  const cha   = d.charges.reduce((s,x)=>s+x.montant,0);
+  const dep   = d.depenses.reduce((s,x)=>s+x.montant,0);
+  const epa   = d.epargne.reduce((s,x)=>s+(x.mensuel||0),0);
+  const catDep= {};
+  d.depenses.forEach(x=>{ catDep[x.cat]=(catDep[x.cat]||0)+x.montant; });
+  const ctx   = document.getElementById('ia-context')?.value?.trim();
+  const typeLabel = { bilan:'Bilan complet et recommandations', economies:'Identifier des économies possibles', projection:'Projection et prévision sur 12 mois', conseils:'Conseils personnalisés de gestion', patrimoine:'Stratégie patrimoniale long terme' };
+  const prompt = `Analyse financière — Type : ${typeLabel[_iaType]}
+
+DONNÉES FINANCIÈRES :
+- Revenus mensuels : ${fmtEuro(rev)}
+- Charges fixes : ${fmtEuro(cha)} (${d.charges.map(c=>`${c.label}: ${fmtEuro(c.montant)}`).join(', ')})
+- Dépenses variables ce mois : ${fmtEuro(dep)}
+  Répartition : ${Object.entries(catDep).map(([k,v])=>`${k}: ${fmtEuro(v)}`).join(', ')}
+- Épargne mensuelle : ${fmtEuro(epa)}
+- Solde disponible : ${fmtEuro(rev-cha-dep)}
+- Taux d'épargne : ${rev>0?((epa/rev)*100).toFixed(1):0}%
+- Cagnottes : ${d.epargne.map(c=>`${c.name}: ${fmtEuro(c.montant)}/${fmtEuro(c.cible)}`).join(', ')}
+
+${ctx ? 'CONTEXTE SUPPLÉMENTAIRE :\n'+ctx : ''}
+
+Fournis une analyse claire, chaleureuse, actionnable et bienveillante. Utilise des émojis et une structure lisible. 3-5 points clés maximum.`;
+  try {
+    AURA_GEMINI.API_KEY = key;
+    const text = await AURA_GEMINI.call({ prompt, maxTokens:1000 });
+    if (resp) resp.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    earnXP(30, 'Analyse IA finance', '📊');
+  } catch(err) {
+    if (resp) resp.innerHTML = `<span style="color:var(--re)">Analyse indisponible — vérifie ta clé Gemini dans les Paramètres.</span>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   BUDGET ZÉRO — méthode zero-based (façon YNAB)
+   Chaque euro de revenu doit être assigné à une ligne.
+   Stocké séparément : aura_finance_zero_v1
+══════════════════════════════════════════════════ */
+const ZeroBudget = {
+  _key: 'aura_finance_zero_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    this._data = {
+      lines: [
+        { id:1, name:'Logement',      assigned:0 },
+        { id:2, name:'Alimentation',  assigned:0 },
+        { id:3, name:'Transport',     assigned:0 },
+        { id:4, name:'Loisirs',       assigned:0 },
+        { id:5, name:'Épargne',       assigned:0 },
+      ],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+  addLine(name) { const d=this.get(); d.lines.push({ id:d.lines.length?Math.max(...d.lines.map(x=>x.id))+1:1, name, assigned:0 }); this.save(); },
+  updateAssigned(id, val) { const d=this.get(); const l=d.lines.find(x=>x.id===id); if(l){ l.assigned=val; this.save(); } },
+  deleteLine(id) { const d=this.get(); d.lines=d.lines.filter(x=>x.id!==id); this.save(); },
+
+  // Dépensé réel pour une ligne donnée = somme des dépenses + charges dont le label correspond approximativement
+  spentForLine(lineName) {
+    const fin = FinState.get();
+    const needle = lineName.toLowerCase();
+    const fromCharges  = fin.charges.filter(c => c.cat.toLowerCase().includes(needle) || c.label.toLowerCase().includes(needle)).reduce((s,x)=>s+x.montant,0);
+    const fromDepenses = fin.depenses.filter(d => d.cat.toLowerCase().includes(needle) || d.label.toLowerCase().includes(needle)).reduce((s,x)=>s+x.montant,0);
+    return fromCharges + fromDepenses;
+  },
+};
+
+function renderZeroBudget() {
+  const fin = FinState.get();
+  const zb  = ZeroBudget.get();
+  const revenuTotal = fin.revenus.reduce((s,x)=>s+x.montant,0);
+  const totalAssigned = zb.lines.reduce((s,l)=>s+(l.assigned||0),0);
+  const remaining = revenuTotal - totalAssigned;
+
+  const valEl = document.getElementById('zb-remaining');
+  const lblEl = document.getElementById('zb-remaining-lbl');
+  valEl.textContent = fmtEuro(remaining);
+  if (remaining === 0) { valEl.className = 'zb-remaining-val zero'; lblEl.textContent = '✓ Budget parfaitement équilibré'; }
+  else if (remaining > 0) { valEl.className = 'zb-remaining-val ok'; lblEl.textContent = 'À assigner'; }
+  else { valEl.className = 'zb-remaining-val over'; lblEl.textContent = '⚠ Tu as assigné plus que ton revenu'; }
+
+  const pct = revenuTotal > 0 ? Math.min(100, Math.round((totalAssigned/revenuTotal)*100)) : 0;
+  const fill = document.getElementById('zb-progress-fill');
+  fill.style.width = pct+'%';
+  fill.style.background = remaining < 0 ? 'var(--re)' : remaining === 0 ? 'var(--gr)' : 'var(--pu)';
+
+  const el = document.getElementById('zb-list');
+  el.innerHTML = zb.lines.map(l => {
+    const spent = ZeroBudget.spentForLine(l.name);
+    const pctSpent = l.assigned > 0 ? Math.round((spent/l.assigned)*100) : 0;
+    const statusCls = pctSpent >= 100 ? 'partial' : 'assigned';
+    return `<div class="zb-row">
+      <span class="zb-row-name">${l.name}</span>
+      <input type="number" class="zb-row-input" value="${l.assigned}" onchange="ZeroBudget.updateAssigned(${l.id}, parseFloat(this.value)||0); renderZeroBudget();">
+      <span class="zb-row-status ${statusCls}">${fmtEuroShort(spent)}</span>
+      <button class="zb-row-del" onclick="ZeroBudget.deleteLine(${l.id}); renderZeroBudget();"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucune ligne — ajoute ton premier poste de budget</div>';
+}
+
+function addZeroLine() {
+  const name = prompt('Nom de la nouvelle ligne de budget :');
+  if (!name) return;
+  ZeroBudget.addLine(name);
+  renderZeroBudget();
+  earnXP(5, `Ligne "${name}" ajoutée au budget zéro`, '🎯');
+}
+
+function fmtEuroShort(n) { return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €'; }
+
+/* ══════════════════════════════════════════════════
+   PRÉVISION DE TRÉSORERIE — jour par jour, 30 jours
+   (façon Copilot/YNAB : projette le solde réel, pas
+   juste un chiffre statique de fin de mois)
+══════════════════════════════════════════════════ */
+function renderCashflowForecast() {
+  const fin = FinState.get();
+  const revenuMensuel  = fin.revenus.reduce((s,x)=>s+x.montant,0);
+  const chargesMensuel = fin.charges.reduce((s,x)=>s+x.montant,0);
+  const depensesMoyJour = fin.depenses.reduce((s,x)=>s+x.montant,0) / 30; // moyenne quotidienne observée
+
+  // Solde de départ estimé = revenus - charges déjà comptées ce mois (simplifié, base de travail)
+  let solde = revenuMensuel - chargesMensuel;
+  const days = [];
+  const today = new Date();
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today); d.setDate(d.getDate()+i);
+    // Le jour 1 du mois suivant : nouveau revenu arrive, charges reprélevées
+    if (d.getDate() === 1 && i > 0) solde += revenuMensuel - chargesMensuel;
+    // Dépense quotidienne moyenne lissée
+    solde -= depensesMoyJour;
+    days.push({ date: d, solde });
+  }
+
+  const minSolde = Math.min(...days.map(d=>d.solde));
+  const maxAbs = Math.max(...days.map(d=>Math.abs(d.solde)), 1);
+
+  const chartEl = document.getElementById('cf-chart');
+  chartEl.innerHTML = days.map((d, i) => {
+    const h = Math.max(2, (Math.abs(d.solde)/maxAbs) * 80);
+    const cls = d.solde >= 0 ? 'pos' : 'neg';
+    const isToday = i === 0;
+    return `<div class="cf-bar-col" title="${fmtDate(d.date.toISOString())}: ${fmtEuro(d.solde)}">
+      ${isToday ? '<div class="cf-today-marker"></div>' : ''}
+      <div class="cf-bar ${cls}" style="height:${h}px"></div>
+    </div>`;
+  }).join('');
+
+  const endBalance = days[days.length-1].solde;
+  _set('cf-end-balance', `Solde estimé dans 30j : ${fmtEuro(endBalance)}`);
+
+  const lowPointBox = document.getElementById('cf-low-point-box');
+  if (minSolde < 0) {
+    const lowDay = days.find(d => d.solde === minSolde);
+    lowPointBox.innerHTML = `<div class="cf-low-point">
+      <i class="ti ti-alert-triangle" style="color:var(--re);font-size:16px;flex-shrink:0"></i>
+      <span style="font-size:12px;color:#991B1B"><strong>Point bas estimé : ${fmtEuro(minSolde)}</strong> vers le ${fmtDate(lowDay.date.toISOString())} — anticipe en réduisant les dépenses variables avant cette date.</span>
+    </div>`;
+  } else {
+    lowPointBox.innerHTML = '';
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   ABONNEMENTS & RÈGLES DE CATÉGORISATION AUTO
+   (façon Rocket Money pour la détection, mais avec
+   des règles transparentes que TU contrôles)
+══════════════════════════════════════════════════ */
+const CategorizationRules = {
+  _key: 'aura_finance_rules_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    this._data = {
+      rules: [
+        { id:1, keyword:'carrefour', category:'alimentation' },
+        { id:2, keyword:'uber',      category:'transport' },
+        { id:3, keyword:'netflix',   category:'abonnement' },
+      ],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+  addRule(keyword, category) { const d=this.get(); d.rules.push({ id:d.rules.length?Math.max(...d.rules.map(x=>x.id))+1:1, keyword, category }); this.save(); },
+  deleteRule(id) { const d=this.get(); d.rules=d.rules.filter(x=>x.id!==id); this.save(); },
+
+  // Applique les règles à un libellé pour suggérer une catégorie
+  matchCategory(label) {
+    const d = this.get();
+    const lower = label.toLowerCase();
+    const match = d.rules.find(r => lower.includes(r.keyword.toLowerCase()));
+    return match?.category || null;
+  },
+};
+
+function renderAbonnements() {
+  const fin = FinState.get();
+  const abos = fin.charges.filter(c => c.cat === 'abonnement');
+  const totalMensuel = abos.reduce((s,x)=>s+x.montant,0);
+  _set('abo-total-mensuel', fmtEuro(totalMensuel)+'/mois');
+
+  // Détection "hausse silencieuse" : on simule une comparaison avec le mois précédent stocké
+  let history;
+  try { history = JSON.parse(localStorage.getItem('aura_abo_history_v1')||'{}'); } catch(_) { history = {}; }
+
+  const el = document.getElementById('abo-list2');
+  let alertCount = 0;
+  el.innerHTML = abos.map(a => {
+    const prevAmount = history[a.label];
+    const hasIncreased = prevAmount !== undefined && a.montant > prevAmount;
+    if (hasIncreased) alertCount++;
+    const trendHtml = hasIncreased
+      ? `<span class="abo-trend up"><i class="ti ti-trending-up" style="font-size:9px"></i> +${fmtEuroShort(a.montant-prevAmount)}</span>`
+      : `<span class="abo-trend flat">stable</span>`;
+    return `<div class="abo-card2">
+      <div class="abo-ic2" style="background:${a.color||'var(--pu-l)'}"><i class="ti ${a.ic||'ti-device-mobile'}" style="color:${a.icolor||'var(--pu)'};font-size:13px"></i></div>
+      <div><div class="abo-name2">${a.label}</div><div class="abo-sub2">Abonnement mensuel</div></div>
+      ${trendHtml}
+      <span class="abo-amount2">${fmtEuro(a.montant)}</span>
+      <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="navigate('abonnements')"><i class="ti ti-arrow-right"></i></button>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucun abonnement détecté</div>';
+
+  // Sauvegarder les montants actuels pour comparaison future
+  const newHistory = {};
+  abos.forEach(a => { newHistory[a.label] = a.montant; });
+  localStorage.setItem('aura_abo_history_v1', JSON.stringify(newHistory));
+
+  const insightEl = document.getElementById('abo-insight');
+  if (alertCount > 0) {
+    insightEl.innerHTML = `⚠ <strong>${alertCount} abonnement${alertCount>1?'s':''} en hausse</strong> détecté${alertCount>1?'s':''} depuis ta dernière visite. Vérifie si la hausse est justifiée ou si c'est le moment de renégocier.`;
+  } else if (abos.length >= 4) {
+    insightEl.innerHTML = `💡 Tu as <strong>${abos.length} abonnements actifs</strong> pour ${fmtEuro(totalMensuel)}/mois. C'est le moment idéal pour un audit : lesquels utilises-tu vraiment chaque semaine ?`;
+  } else {
+    insightEl.innerHTML = `✓ Tes abonnements semblent stables et maîtrisés.`;
+  }
+
+  checkAbonnementsAlert();
+  renderCategorizationRules();
+}
+
+function checkAbonnementsAlert() {
+  let history;
+  try { history = JSON.parse(localStorage.getItem('aura_abo_history_v1')||'{}'); } catch(_) { history = {}; }
+  const fin = FinState.get();
+  const abos = fin.charges.filter(c => c.cat === 'abonnement');
+  const hasIncrease = abos.some(a => history[a.label] !== undefined && a.montant > history[a.label]);
+  const pip = document.getElementById('abo-alert-pip');
+  if (pip) pip.style.display = hasIncrease ? 'inline' : 'none';
+}
+
+function renderCategorizationRules() {
+  const rules = CategorizationRules.get().rules;
+  const el = document.getElementById('rules-list');
+  el.innerHTML = rules.map(r => `
+    <div class="rule-row">
+      <span style="font-size:12px;color:var(--text);font-weight:600">"${r.keyword}"</span>
+      <span style="font-size:12px;color:var(--pu-d)">→ ${getCatLabel(r.category)}</span>
+      <button class="rule-arrow" style="background:none;border:none;cursor:pointer;color:var(--t3)" onclick="CategorizationRules.deleteRule(${r.id}); renderCategorizationRules();"><i class="ti ti-trash"></i></button>
+    </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucune règle — ajoute-en une</div>';
+}
+
+function addCategorizationRule() {
+  const keyword = prompt('Si le libellé de la dépense contient (ex: "carrefour") :');
+  if (!keyword) return;
+  const category = prompt('Alors la catégorie automatique sera (ex: alimentation, transport, loisirs...) :');
+  if (!category) return;
+  CategorizationRules.addRule(keyword.toLowerCase(), category.toLowerCase());
+  renderCategorizationRules();
+  earnXP(5, 'Règle de catégorisation créée', '⚙️');
+}
+
+
+function fmtDate(s) { if(!s) return ''; try { return new Date(s).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); } catch(_){ return s; } }
+function _set(id,val) { const e=document.getElementById(id); if(e) e.textContent=val; }
+
+/* ── Auto-init ── */
+if (document.readyState !== 'loading') initBudget();
+</script>

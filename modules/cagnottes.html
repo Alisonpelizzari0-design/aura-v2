@@ -1,0 +1,355 @@
+<!-- ============================================================
+     AURA — cagnottes.html  (fragment SPA)
+     Vue dédiée et enrichie des cagnottes — PARTAGE la même source
+     de données que budget.html (aura_finance_v1) pour rester synchro.
+     - Grille de cagnottes avec visualisation enrichie
+     - Détail par cagnotte : historique des virements, projection
+     - Création de nouvelle cagnotte avec objectif et date cible
+     - Suggestions de répartition d'un montant entre plusieurs cagnottes
+     ============================================================ -->
+
+<style>
+.cagn-hero {
+  background:linear-gradient(135deg,var(--pu-l) 0%,var(--pk-l) 100%);
+  border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+
+.cagn-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.cagn-big-card {
+  background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg);
+  padding:1.25rem; cursor:pointer; transition:all .15s; position:relative; overflow:hidden;
+}
+.cagn-big-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.08); }
+.cagn-big-card::before { content:''; position:absolute; top:-30px; right:-30px; width:100px; height:100px; border-radius:50%; opacity:.08; }
+.cagn-big-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.75rem; }
+.cagn-big-emoji { font-size:32px; }
+.cagn-big-pct-ring { position:relative; width:48px; height:48px; }
+.cagn-big-pct-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; }
+.cagn-big-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.cagn-big-vals { font-size:12px; color:var(--t2); margin-bottom:.75rem; }
+.cagn-big-bar { height:8px; background:var(--bd); border-radius:4px; overflow:hidden; margin-bottom:.5rem; }
+.cagn-big-fill { height:100%; border-radius:4px; transition:width .6s ease; }
+.cagn-big-hint { font-size:10.5px; color:var(--t3); }
+.cagn-big-actions { display:flex; gap:6px; margin-top:.875rem; }
+.cagn-big-btn { flex:1; font-size:11px; font-weight:700; padding:6px 8px; border-radius:var(--r-sm); border:1px solid; cursor:pointer; text-align:center; transition:all .12s; }
+.cagn-big-btn.add { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
+.cagn-big-btn.add:hover { background:var(--gr); color:#fff; }
+.cagn-big-btn.detail { border-color:var(--bd2); color:var(--t2); background:var(--bg); }
+.cagn-big-btn.detail:hover { border-color:var(--pu); color:var(--pu); }
+
+.add-cagn-big { border:1.5px dashed var(--bd2); border-radius:var(--r-lg); padding:1.25rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; min-height:200px; transition:all .15s; }
+.add-cagn-big:hover { border-color:var(--pu); background:var(--pu-l); border-style:solid; }
+.add-cagn-big i { font-size:26px; color:var(--t3); }
+.add-cagn-big span { font-size:12.5px; color:var(--t3); font-weight:700; }
+
+/* ── Répartition ── */
+.split-row { display:flex; align-items:center; gap:10px; margin-bottom:.625rem; }
+.split-row:last-child { margin-bottom:0; }
+.split-name { font-size:12px; color:var(--t2); width:130px; flex-shrink:0; }
+.split-input { flex:1; font-size:12px; padding:7px 10px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
+.split-pct { font-size:11px; color:var(--t3); width:40px; text-align:right; flex-shrink:0; }
+
+@media(max-width:768px) {
+  .cagn-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="cagn-hero">
+  <div style="font-size:42px">🐷</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--pu-d)">Total épargné dans tes cagnottes</div>
+    <div style="font-size:28px;font-weight:800;color:var(--pu-d)" id="cagn-total">0 €</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--pu-d)" id="cagn-count">0</div>
+      <div style="font-size:10px;color:var(--t2)">Projets actifs</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--gr)" id="cagn-monthly">0 €</div>
+      <div style="font-size:10px;color:var(--t2)">Virements / mois</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     GRILLE CAGNOTTES
+════════════════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="ti ti-target-arrow"></i> <span data-aura-edit="cagnottes.title.1" data-aura-edit-label="Titre : Mes projets d'épargne">Mes projets d'épargne</span></span>
+    <button class="btn-ghost" onclick="Cagnottes.openSplitModal()"><i class="ti ti-arrows-split"></i> Répartir un montant</button>
+  </div>
+  <div class="cagn-grid" id="cagn-grid"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL DÉTAIL CAGNOTTE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="cagn-detail-overlay" style="display:none" onclick="if(event.target===this)Cagnottes.closeDetail()">
+  <div class="modal-box" style="max-width:440px" onclick="event.stopPropagation()">
+    <div class="modal-title" id="cagn-detail-title"><i class="ti ti-pig-money"></i> Détail</div>
+    <div id="cagn-detail-body"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Cagnottes.closeDetail()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL NOUVELLE CAGNOTTE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="cagn-new-overlay" style="display:none" onclick="if(event.target===this)Cagnottes.closeNewModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plus"></i> Nouvelle cagnotte</div>
+    <div class="modal-field"><label class="modal-lbl">Nom du projet</label><input class="modal-input" id="cn-name" placeholder="Ex: Voyage Japon"></div>
+    <div class="modal-field"><label class="modal-lbl">Emoji</label><input class="modal-input" id="cn-emoji" placeholder="✈️" maxlength="4" style="font-size:20px"></div>
+    <div class="modal-field"><label class="modal-lbl">Objectif (€)</label><input class="modal-input" id="cn-target" type="number" min="0" placeholder="0"></div>
+    <div class="modal-field"><label class="modal-lbl">Déjà épargné (€)</label><input class="modal-input" id="cn-already" type="number" min="0" value="0"></div>
+    <div class="modal-field"><label class="modal-lbl">Virement mensuel prévu (€)</label><input class="modal-input" id="cn-monthly" type="number" min="0" placeholder="0"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Cagnottes.saveNew()">Créer la cagnotte</button>
+      <button class="modal-btn cancel" onclick="Cagnottes.closeNewModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL RÉPARTITION
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="cagn-split-overlay" style="display:none" onclick="if(event.target===this)Cagnottes.closeSplitModal()">
+  <div class="modal-box" style="max-width:440px" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-arrows-split"></i> Répartir un montant</div>
+    <div class="modal-field"><label class="modal-lbl">Montant total à répartir (€)</label><input class="modal-input" id="sp-total" type="number" placeholder="0" oninput="Cagnottes.updateSplitPreview()"></div>
+    <div style="margin-top:1rem" id="split-rows"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Cagnottes.applySplit()">Répartir et virer</button>
+      <button class="modal-btn cancel" onclick="Cagnottes.closeSplitModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'cagnottes') return;
+  Cagnottes.init();
+};
+
+const Cagnottes = {
+
+  /* ── Source partagée avec budget.html ── */
+  getFinanceData() {
+    try { return JSON.parse(localStorage.getItem('aura_finance_v1')||'{}'); }
+    catch(_) { return {}; }
+  },
+  saveFinanceData(fin) { localStorage.setItem('aura_finance_v1', JSON.stringify(fin)); },
+
+  init() {
+    this.render();
+  },
+
+  render() {
+    const fin = this.getFinanceData();
+    const cagnottes = fin.epargne || [];
+    const total = cagnottes.reduce((s,c)=>s+c.montant,0);
+    const monthly = cagnottes.reduce((s,c)=>s+(c.mensuel||0),0);
+
+    _set('cagn-total', fmtE(total));
+    _set('cagn-count', cagnottes.length);
+    _set('cagn-monthly', fmtE(monthly));
+
+    const el = document.getElementById('cagn-grid');
+    el.innerHTML = cagnottes.map(c => {
+      const pct = Math.min(100, Math.round((c.montant/c.cible)*100));
+      const reste = c.cible - c.montant;
+      const moisR = c.mensuel > 0 ? Math.ceil(reste / c.mensuel) : null;
+      const color1 = c.color?.[0] || '#7C3AED';
+      const color2 = c.color?.[1] || '#5B21B6';
+      const circ = 2*Math.PI*18;
+      const offset = circ - (pct/100)*circ;
+      return `<div class="cagn-big-card">
+        <div class="cagn-big-top">
+          <span class="cagn-big-emoji">${c.emoji}</span>
+          <div class="cagn-big-pct-ring">
+            <svg width="48" height="48" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="18" fill="none" stroke="var(--bg)" stroke-width="5"/>
+              <circle cx="24" cy="24" r="18" fill="none" stroke="${color1}" stroke-width="5" stroke-dasharray="${circ.toFixed(0)}" stroke-dashoffset="${offset.toFixed(0)}" stroke-linecap="round" transform="rotate(-90 24 24)"/>
+            </svg>
+            <div class="cagn-big-pct-text" style="color:${color1}">${pct}%</div>
+          </div>
+        </div>
+        <div class="cagn-big-name">${c.name}</div>
+        <div class="cagn-big-vals"><strong>${fmtE(c.montant)}</strong> / ${fmtE(c.cible)}</div>
+        <div class="cagn-big-bar"><div class="cagn-big-fill" style="width:${pct}%;background:linear-gradient(90deg,${color1},${color2})"></div></div>
+        <div class="cagn-big-hint">+${fmtE(c.mensuel||0)}/mois ${moisR ? `· encore ~${moisR} mois` : ''}</div>
+        <div class="cagn-big-actions">
+          <button class="cagn-big-btn add" onclick="Cagnottes.quickAdd(${c.id})">+ Virer</button>
+          <button class="cagn-big-btn detail" onclick="Cagnottes.openDetail(${c.id})">Détail</button>
+        </div>
+      </div>`;
+    }).join('') + `
+    <div class="add-cagn-big" onclick="Cagnottes.openNewModal()">
+      <i class="ti ti-plus"></i>
+      <span>Nouvelle cagnotte ✦</span>
+    </div>`;
+  },
+
+  quickAdd(id) {
+    const fin = this.getFinanceData();
+    const c = fin.epargne.find(x=>x.id===id);
+    if (!c) return;
+    const montant = parseFloat(prompt(`Combien virer vers "${c.name}" ?`));
+    if (!montant || isNaN(montant) || montant<=0) return;
+    c.montant += montant;
+    this.saveFinanceData(fin);
+    this.render();
+    earnXP(10, `+${fmtE(montant)} vers ${c.name}`, '✦');
+    AuraUI.showToast(`✦ +${fmtE(montant)} vers ${c.name}`);
+    if (c.db_id && window.SupaClient?.isLoggedIn() && window.AuraSync) {
+      AuraSync.saveCagnotte({ ...c, db_id:c.db_id }).catch(()=>{});
+    }
+  },
+
+  openDetail(id) {
+    const fin = this.getFinanceData();
+    const c = fin.epargne.find(x=>x.id===id);
+    if (!c) return;
+    const pct = Math.min(100, Math.round((c.montant/c.cible)*100));
+    const reste = c.cible - c.montant;
+    const moisR = c.mensuel > 0 ? Math.ceil(reste / c.mensuel) : '∞';
+    const dateProj = c.mensuel > 0 ? new Date(Date.now() + moisR*30*86400000).toLocaleDateString('fr-FR',{month:'long',year:'numeric'}) : '—';
+
+    document.getElementById('cagn-detail-title').innerHTML = `<i class="ti ti-pig-money"></i> ${c.emoji} ${c.name}`;
+    document.getElementById('cagn-detail-body').innerHTML = `
+      <div style="text-align:center;margin-bottom:1.25rem">
+        <div style="font-size:28px;font-weight:800;color:var(--pu-d)">${fmtE(c.montant)}</div>
+        <div style="font-size:12px;color:var(--t2)">sur un objectif de ${fmtE(c.cible)}</div>
+      </div>
+      <div style="height:10px;background:var(--bg);border-radius:5px;overflow:hidden;margin-bottom:1.25rem">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${c.color?.[0]||'#7C3AED'},${c.color?.[1]||'#5B21B6'});border-radius:5px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem;text-align:center">
+          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;font-weight:700">Reste à épargner</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text);margin-top:3px">${fmtE(Math.max(0,reste))}</div>
+        </div>
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:.75rem;text-align:center">
+          <div style="font-size:10px;color:var(--t3);text-transform:uppercase;font-weight:700">Virement mensuel</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text);margin-top:3px">${fmtE(c.mensuel||0)}</div>
+        </div>
+      </div>
+      <div style="margin-top:.875rem;padding:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);font-size:12px;color:var(--pu-d)">
+        ${moisR !== '∞' ? `📅 Objectif atteint vers <strong>${dateProj}</strong> (encore ${moisR} mois)` : '💡 Définis un virement mensuel pour estimer ta date d\'objectif.'}
+      </div>
+      <div style="margin-top:.875rem">
+        <label class="modal-lbl">Modifier le virement mensuel</label>
+        <input class="modal-input" id="cagn-edit-monthly" type="number" value="${c.mensuel||0}" style="margin-top:6px">
+        <button class="btn-pill pu" style="width:100%;justify-content:center;margin-top:.625rem" onclick="Cagnottes.updateMonthly(${c.id})">Mettre à jour</button>
+      </div>`;
+    document.getElementById('cagn-detail-overlay').style.display = 'flex';
+  },
+
+  updateMonthly(id) {
+    const fin = this.getFinanceData();
+    const c = fin.epargne.find(x=>x.id===id);
+    const val = parseFloat(document.getElementById('cagn-edit-monthly')?.value);
+    if (!c || isNaN(val)) return;
+    c.mensuel = val;
+    this.saveFinanceData(fin);
+    this.closeDetail();
+    this.render();
+    AuraUI.showToast('✓ Virement mensuel mis à jour');
+  },
+
+  closeDetail() { document.getElementById('cagn-detail-overlay').style.display = 'none'; },
+
+  openNewModal() {
+    ['cn-name','cn-emoji','cn-target','cn-already','cn-monthly'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+    document.getElementById('cn-already').value = '0';
+    document.getElementById('cagn-new-overlay').style.display = 'flex';
+  },
+  closeNewModal() { document.getElementById('cagn-new-overlay').style.display = 'none'; },
+
+  saveNew() {
+    const name = document.getElementById('cn-name')?.value?.trim();
+    const target = parseFloat(document.getElementById('cn-target')?.value);
+    if (!name || isNaN(target) || target<=0) { AuraUI.showToast('⚠ Remplis le nom et l\'objectif'); return; }
+    const fin = this.getFinanceData();
+    fin.epargne = fin.epargne || [];
+    const colors = [['#7C3AED','#5B21B6'],['#0D9488','#0F766E'],['#DB2777','#BE185D'],['#EA580C','#C2410C'],['#16A34A','#15803D']];
+    const newItem = {
+      id: fin.epargne.length ? Math.max(...fin.epargne.map(x=>x.id))+1 : 1,
+      emoji: document.getElementById('cn-emoji')?.value?.trim() || '💰',
+      name, cible: target,
+      montant: parseFloat(document.getElementById('cn-already')?.value)||0,
+      mensuel: parseFloat(document.getElementById('cn-monthly')?.value)||0,
+      color: colors[fin.epargne.length % colors.length],
+    };
+    fin.epargne.push(newItem);
+    this.saveFinanceData(fin);
+    this.closeNewModal();
+    this.render();
+    earnXP(15, `Cagnotte "${name}" créée`, '🐷');
+    AuraUI.showToast('✓ Nouvelle cagnotte créée');
+    if (window.SupaClient?.isLoggedIn() && window.AuraSync) {
+      AuraSync.saveCagnotte(newItem).then(res => { if(res?.id){ newItem.db_id=res.id; this.saveFinanceData(fin);} }).catch(()=>{});
+    }
+  },
+
+  /* ── Répartition d'un montant entre plusieurs cagnottes ── */
+  openSplitModal() {
+    const fin = this.getFinanceData();
+    const cagnottes = fin.epargne || [];
+    if (!cagnottes.length) { AuraUI.showToast('Crée au moins une cagnotte d\'abord'); return; }
+    document.getElementById('sp-total').value = '';
+    document.getElementById('split-rows').innerHTML = cagnottes.map(c => `
+      <div class="split-row">
+        <span class="split-name">${c.emoji} ${c.name}</span>
+        <input class="split-input" type="number" min="0" data-cagn-id="${c.id}" placeholder="0" oninput="Cagnottes.updateSplitPct()">
+        <span class="split-pct" id="split-pct-${c.id}">0%</span>
+      </div>`).join('');
+    document.getElementById('cagn-split-overlay').style.display = 'flex';
+  },
+  closeSplitModal() { document.getElementById('cagn-split-overlay').style.display = 'none'; },
+
+  updateSplitPreview() { this.updateSplitPct(); },
+
+  updateSplitPct() {
+    const total = parseFloat(document.getElementById('sp-total')?.value) || 0;
+    document.querySelectorAll('.split-input').forEach(inp => {
+      const val = parseFloat(inp.value) || 0;
+      const id = inp.dataset.cagnId;
+      const pctEl = document.getElementById('split-pct-'+id);
+      if (pctEl) pctEl.textContent = total > 0 ? Math.round((val/total)*100)+'%' : '0%';
+    });
+  },
+
+  applySplit() {
+    const fin = this.getFinanceData();
+    let count = 0, totalApplied = 0;
+    document.querySelectorAll('.split-input').forEach(inp => {
+      const val = parseFloat(inp.value);
+      const id = parseInt(inp.dataset.cagnId);
+      if (val > 0) {
+        const c = fin.epargne.find(x=>x.id===id);
+        if (c) { c.montant += val; count++; totalApplied += val; }
+      }
+    });
+    if (!count) { AuraUI.showToast('⚠ Renseigne au moins un montant'); return; }
+    this.saveFinanceData(fin);
+    this.closeSplitModal();
+    this.render();
+    earnXP(15, 'Répartition entre cagnottes', '✦');
+    AuraUI.showToast(`✓ ${fmtE(totalApplied)} réparti sur ${count} cagnotte${count>1?'s':''}`);
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0})+' €'; }
+
+if (document.readyState !== 'loading') Cagnottes.init();
+</script>

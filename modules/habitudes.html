@@ -1,0 +1,383 @@
+<!-- ============================================================
+     AURA — habitudes.html  (fragment SPA)
+     Tracker d'habitudes complet :
+     - Liste d'habitudes avec fréquence cible
+     - Grille hebdomadaire cochable (7 jours)
+     - Streaks calculés automatiquement
+     - Stats globales et meilleure série
+     - Création/suppression d'habitudes personnalisées
+     - Sync Supabase (tables: habitudes, habitudes_log, déjà existantes)
+     ============================================================ -->
+
+<style>
+.hab-hero {
+  background:linear-gradient(135deg,var(--gr-l) 0%,var(--go-l) 100%);
+  border:1px solid var(--gr-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+
+.habit-card { border:1px solid var(--bd); border-radius:var(--r-lg); padding:1rem; margin-bottom:.75rem; transition:all .12s; }
+.habit-card:last-child { margin-bottom:0; }
+.habit-card:hover { border-color:var(--gr-b); }
+.habit-card-top { display:flex; align-items:center; gap:10px; margin-bottom:.75rem; }
+.habit-icon-big { font-size:24px; width:36px; text-align:center; flex-shrink:0; }
+.habit-info { flex:1; min-width:0; }
+.habit-name { font-size:13px; font-weight:700; color:var(--text); }
+.habit-target { font-size:10.5px; color:var(--t3); margin-top:1px; }
+.habit-streak-val { font-size:16px; font-weight:800; color:var(--or); flex-shrink:0; }
+.habit-del-btn { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; flex-shrink:0; }
+.habit-del-btn:hover { color:var(--re); }
+
+.week-dots { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.week-dot-col { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.week-dot-lbl { font-size:9px; font-weight:700; color:var(--t3); text-transform:uppercase; }
+.week-dot {
+  width:28px; height:28px; border-radius:8px; border:1.5px solid var(--bd2); background:var(--bg);
+  cursor:pointer; transition:all .12s; display:flex; align-items:center; justify-content:center;
+}
+.week-dot:hover { border-color:var(--gr); }
+.week-dot.done { background:var(--gr); border-color:var(--gr); }
+.week-dot.done::after { content:'✓'; color:#fff; font-size:13px; font-weight:800; }
+.week-dot.today { border-color:var(--pu); border-width:2px; }
+.week-dot.future { opacity:.35; cursor:not-allowed; }
+
+.add-habit-card {
+  border:1.5px dashed var(--bd2); border-radius:var(--r-lg); padding:1rem;
+  display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+  transition:all .12s; color:var(--t3); font-size:12.5px; font-weight:600;
+}
+.add-habit-card:hover { border-color:var(--gr); background:var(--gr-l); color:var(--gr); border-style:solid; }
+
+.icon-picker { display:flex; gap:6px; flex-wrap:wrap; }
+.icon-pick-btn { width:36px; height:36px; border-radius:var(--r-md); border:1.5px solid var(--bd2); background:var(--white); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .12s; }
+.icon-pick-btn:hover, .icon-pick-btn.sel { border-color:var(--gr); background:var(--gr-l); }
+
+@media(max-width:768px) {
+  .week-dot { width:24px; height:24px; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="hab-hero">
+  <div style="font-size:42px">🔁</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#166534">Tes habitudes</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="hab-summary">0 sur 0 complétées aujourd'hui</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--or)" id="hab-best-streak">0</div>
+      <div style="font-size:10px;color:var(--t2)">Meilleur streak</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--gr)" id="hab-pct-week">0%</div>
+      <div style="font-size:10px;color:var(--t2)">Taux cette semaine</div>
+    </div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- ════════ COLONNE GAUCHE : Liste habitudes ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-repeat"></i> <span data-aura-edit="habitudes.title.1" data-aura-edit-label="Titre : Mes habitudes — cette semaine">Mes habitudes — cette semaine</span></span>
+      </div>
+      <div id="habits-list"></div>
+      <div class="add-habit-card" onclick="Habitudes.openAddModal()" style="margin-top:.75rem">
+        <i class="ti ti-plus" style="font-size:16px"></i> Ajouter une habitude
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════ COLONNE DROITE : Science + Stats ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-brain"></i> <span data-aura-edit="habitudes.title.2" data-aura-edit-label="Titre : Science des habitudes">Science des habitudes</span></span></div>
+      <div style="display:flex;flex-direction:column;gap:.75rem">
+        <div style="background:var(--pu-l);border-radius:var(--r-md);padding:.875rem;border:1px solid var(--pu-b)">
+          <div style="font-size:11px;font-weight:700;color:var(--pu-d)">La règle des 2 minutes · J. Clear</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5;margin-top:3px">Si ça prend moins de 2 minutes, fais-le maintenant. L'action crée l'élan.</div>
+        </div>
+        <div style="background:var(--or-l);border-radius:var(--r-md);padding:.875rem;border:1px solid #FED7AA">
+          <div style="font-size:11px;font-weight:700;color:#C2410C">L'empilement d'habitudes</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5;margin-top:3px">"Après mon café, je médite 10 min." Le cerveau suit les rails connus.</div>
+        </div>
+        <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.875rem;border:1px solid #BBF7D0">
+          <div style="font-size:11px;font-weight:700;color:#065F46">Le principe 1% · J. Clear</div>
+          <div style="font-size:11.5px;color:var(--t2);line-height:1.5;margin-top:3px">+1%/jour = 37× mieux en 1 an. La consistance crée l'identité.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-trophy"></i> <span data-aura-edit="habitudes.title.3" data-aura-edit-label="Titre : Tes meilleures séries">Tes meilleures séries</span></span></div>
+      <div id="best-streaks-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL AJOUT HABITUDE
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="hab-modal-overlay" style="display:none" onclick="if(event.target===this)Habitudes.closeAddModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plus"></i> Nouvelle habitude</div>
+    <div class="modal-field">
+      <label class="modal-lbl">Nom de l'habitude</label>
+      <input class="modal-input" id="hm-name" placeholder="Ex: Boire 1,5L d'eau">
+    </div>
+    <div class="modal-field">
+      <label class="modal-lbl">Icône</label>
+      <div class="icon-picker" id="hm-icon-picker"></div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-lbl">Objectif hebdomadaire</label>
+      <select class="modal-input" id="hm-target">
+        <option value="7">Tous les jours (7/7)</option>
+        <option value="5" selected>5 jours / semaine</option>
+        <option value="3">3 jours / semaine</option>
+        <option value="1">1 jour / semaine</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Habitudes.saveNewHabit()">Créer</button>
+      <button class="modal-btn cancel" onclick="Habitudes.closeAddModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'habitudes') return;
+  Habitudes.init();
+};
+
+const HabStore = {
+  _key: 'aura_habitudes_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    const today = new Date();
+    const ds = n => { const x=new Date(today); x.setDate(x.getDate()-n); return x.toISOString().slice(0,10); };
+    this._data = {
+      habits: [
+        { id:1, name:'Sport & mouvement', icon:'🏃', target:5, log:[] },
+        { id:2, name:'Lecture',           icon:'📖', target:5, log:[] },
+        { id:3, name:'Méditation',        icon:'🧘', target:5, log:[] },
+        { id:4, name:'Hydratation',       icon:'💧', target:7, log:[] },
+        { id:5, name:'Vérification budget',icon:'💰', target:3, log:[] },
+        { id:6, name:'Coucher avant 23h',  icon:'🌙', target:5, log:[] },
+      ],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  toggleLog(habitId, dateStr) {
+    const d = this.get();
+    const h = d.habits.find(x => x.id === habitId);
+    if (!h) return false;
+    const idx = h.log.indexOf(dateStr);
+    let nowDone;
+    if (idx >= 0) { h.log.splice(idx, 1); nowDone = false; }
+    else { h.log.push(dateStr); nowDone = true; }
+    this.save();
+    return nowDone;
+  },
+
+  addHabit(h) { const d=this.get(); h.id=d.habits.length?Math.max(...d.habits.map(x=>x.id))+1:1; h.log=[]; d.habits.push(h); this.save(); return h; },
+  deleteHabit(id) { const d=this.get(); d.habits=d.habits.filter(x=>x.id!==id); this.save(); },
+
+  computeStreak(habit) {
+    const dates = new Set(habit.log);
+    let streak = 0;
+    let cursor = new Date();
+    if (!dates.has(cursor.toISOString().slice(0,10))) cursor.setDate(cursor.getDate()-1);
+    while (dates.has(cursor.toISOString().slice(0,10))) {
+      streak++;
+      cursor.setDate(cursor.getDate()-1);
+    }
+    return streak;
+  },
+};
+
+const HAB_ICONS = ['🏃','📖','🧘','💧','💰','🌙','🥗','✍️','🎨','🚭','🧹','📱','💪','☀️','🌿','🎯'];
+
+const Habitudes = {
+  selectedIcon: '🏃',
+
+  init() {
+    this.renderHero();
+    this.renderList();
+    this.renderBestStreaks();
+    this.syncFromDB();
+  },
+
+  getWeekDays() {
+    const monday = new Date();
+    monday.setDate(monday.getDate() - ((monday.getDay()+6)%7));
+    return Array.from({length:7}, (_,i) => { const d=new Date(monday); d.setDate(d.getDate()+i); return d; });
+  },
+
+  renderHero() {
+    const d = HabStore.get();
+    const today = new Date().toISOString().slice(0,10);
+    const doneToday = d.habits.filter(h => h.log.includes(today)).length;
+    _set('hab-summary', `${doneToday} sur ${d.habits.length} complétées aujourd'hui`);
+
+    const bestStreak = Math.max(0, ...d.habits.map(h => HabStore.computeStreak(h)));
+    _set('hab-best-streak', bestStreak);
+
+    const week = this.getWeekDays().map(dt => dt.toISOString().slice(0,10)).filter(ds => ds <= today);
+    let totalPossible = 0, totalDone = 0;
+    d.habits.forEach(h => { totalPossible += week.length; totalDone += week.filter(ds => h.log.includes(ds)).length; });
+    _set('hab-pct-week', totalPossible ? Math.round((totalDone/totalPossible)*100)+'%' : '0%');
+  },
+
+  renderList() {
+    const d = HabStore.get();
+    const week = this.getWeekDays();
+    const today = new Date().toISOString().slice(0,10);
+    const DOWS = ['L','M','M','J','V','S','D'];
+    const el = document.getElementById('habits-list');
+
+    el.innerHTML = d.habits.map(h => {
+      const streak = HabStore.computeStreak(h);
+      const dotsHtml = week.map((dt, i) => {
+        const ds = dt.toISOString().slice(0,10);
+        const isFuture = ds > today;
+        const isToday = ds === today;
+        const isDone = h.log.includes(ds);
+        return `<div class="week-dot-col">
+          <span class="week-dot-lbl">${DOWS[i]}</span>
+          <div class="week-dot ${isDone?'done':''} ${isToday?'today':''} ${isFuture?'future':''}"
+               onclick="${isFuture?'':`Habitudes.toggleDay(${h.id},'${ds}')`}"></div>
+        </div>`;
+      }).join('');
+
+      return `<div class="habit-card">
+        <div class="habit-card-top">
+          <span class="habit-icon-big">${h.icon}</span>
+          <div class="habit-info">
+            <div class="habit-name">${h.name}</div>
+            <div class="habit-target">Objectif : ${h.target}/7 jours</div>
+          </div>
+          <span class="habit-streak-val">${streak}🔥</span>
+          <button class="habit-del-btn" onclick="Habitudes.deleteHabit(${h.id})"><i class="ti ti-trash"></i></button>
+        </div>
+        <div class="week-dots">${dotsHtml}</div>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucune habitude — ajoute la première !</div>';
+  },
+
+  toggleDay(habitId, dateStr) {
+    const nowDone = HabStore.toggleLog(habitId, dateStr);
+    const h = HabStore.get().habits.find(x=>x.id===habitId);
+    this.renderList();
+    this.renderHero();
+    this.renderBestStreaks();
+    if (nowDone) {
+      earnXP(10, `${h.name} validée`, h.icon);
+      this.syncToDB(habitId, dateStr, true);
+    } else {
+      this.syncToDB(habitId, dateStr, false);
+    }
+  },
+
+  renderBestStreaks() {
+    const d = HabStore.get();
+    const sorted = [...d.habits].map(h => ({ h, streak: HabStore.computeStreak(h) })).sort((a,b)=>b.streak-a.streak).slice(0,5);
+    const el = document.getElementById('best-streaks-list');
+    el.innerHTML = sorted.map(({h,streak}) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:1px solid var(--bd)">
+        <span style="font-size:16px">${h.icon}</span>
+        <span style="font-size:12px;color:var(--text);flex:1">${h.name}</span>
+        <span style="font-size:13px;font-weight:800;color:var(--or)">${streak}🔥</span>
+      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucune donnée encore</div>';
+  },
+
+  openAddModal() {
+    this.selectedIcon = HAB_ICONS[0];
+    document.getElementById('hm-icon-picker').innerHTML = HAB_ICONS.map(ic => `
+      <button class="icon-pick-btn ${ic===this.selectedIcon?'sel':''}" data-icon="${ic}" onclick="Habitudes.pickIcon('${ic}')">${ic}</button>`).join('');
+    document.getElementById('hm-name').value = '';
+    document.getElementById('hab-modal-overlay').style.display = 'flex';
+  },
+  closeAddModal() { document.getElementById('hab-modal-overlay').style.display = 'none'; },
+
+  pickIcon(ic) {
+    this.selectedIcon = ic;
+    document.querySelectorAll('.icon-pick-btn').forEach(b => b.classList.toggle('sel', b.dataset.icon===ic));
+  },
+
+  saveNewHabit() {
+    const name = document.getElementById('hm-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    const target = parseInt(document.getElementById('hm-target')?.value) || 5;
+    const h = HabStore.addHabit({ name, icon: this.selectedIcon, target });
+    this.closeAddModal();
+    this.renderList();
+    this.renderHero();
+    earnXP(5, 'Nouvelle habitude créée', '✓');
+    this.syncHabitDefToDB(h);
+    AuraUI.showToast('✓ Habitude créée');
+  },
+
+  deleteHabit(id) {
+    if (!confirm('Supprimer cette habitude et tout son historique ?')) return;
+    HabStore.deleteHabit(id);
+    this.renderList();
+    this.renderHero();
+    this.renderBestStreaks();
+    AuraUI.showToast('Habitude supprimée');
+  },
+
+  /* ── Sync Supabase ── */
+  async syncHabitDefToDB(h) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const res = await SupaClient.insert('habitudes', { user_id:SupaClient.userId(), label:h.name, icone:h.icon, cible_hebdo:h.target });
+      if (res?.id) { h.db_id = res.id; HabStore.save(); }
+    } catch(e) { console.warn('[Habitude def sync]', e.message); }
+  },
+
+  async syncToDB(habitId, dateStr, done) {
+    if (!window.AuraSync || !window.SupaClient?.isLoggedIn()) return;
+    const h = HabStore.get().habits.find(x=>x.id===habitId);
+    if (!h?.db_id) return;
+    try { await AuraSync.saveHabitudeLog(h.db_id, done); }
+    catch(e) { console.warn('[Habitude log sync]', e.message); }
+  },
+
+  async syncFromDB() {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await SupaClient.select('habitudes', `user_id=eq.${SupaClient.userId()}&actif=eq.true`);
+      if (!rows?.length) return;
+      const logs = await SupaClient.select('habitudes_log', `user_id=eq.${SupaClient.userId()}&done=eq.true`);
+      const d = HabStore.get();
+      d.habits = rows.map(r => ({
+        id: r.id, db_id: r.id, name: r.label, icon: r.icone, target: r.cible_hebdo,
+        log: logs.filter(l => l.habitude_id === r.id).map(l => l.date_log),
+      }));
+      HabStore.save();
+      this.renderList(); this.renderHero(); this.renderBestStreaks();
+    } catch(e) { console.warn('[Habitudes pull]', e.message); }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+
+if (document.readyState !== 'loading') Habitudes.init();
+</script>

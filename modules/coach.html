@@ -1,0 +1,640 @@
+<!-- ============================================================
+     AURA — coach.html  (fragment SPA)
+     Hub IA central — Coach Intentionnel AURA :
+     - Sélection du domaine (relié aux 8 sphères de spheres.html)
+     - Types d'accompagnement (déblocage, plan, LOA, patrimoine, rituel...)
+     - Session active avec réponse Gemini formatée
+     - Historique des sessions passées
+     - Bibliothèque de références (livres, méthodes)
+     - Sync Supabase (table: coach_sessions)
+     ============================================================ -->
+
+<style>
+/* ── Hero coach ── */
+.coach-hero {
+  background:linear-gradient(135deg,var(--pu-l) 0%,var(--pk-l) 100%);
+  border:1px solid var(--pu-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.coach-hero-av { width:54px; height:54px; border-radius:50%; background:var(--pu); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 8px 20px rgba(124,58,237,.3); }
+.coach-hero-av i { color:#fff; font-size:24px; }
+.coach-hero-stats { display:flex; gap:.75rem; margin-left:auto; flex-wrap:wrap; }
+.coach-hero-stat { text-align:center; background:rgba(255,255,255,.5); border-radius:var(--r-md); padding:.625rem .875rem; }
+.coach-hero-stat-val { font-size:18px; font-weight:800; color:var(--pu-d); }
+.coach-hero-stat-lbl { font-size:10px; color:var(--t2); }
+
+/* ── Sélecteur de domaine = sphères ── */
+.domain-grid { display:grid; grid-template-columns:repeat(9,1fr); gap:.5rem; }
+.domain-pill {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:.625rem .25rem; border-radius:var(--r-md); border:1.5px solid var(--bd);
+  background:var(--white); cursor:pointer; transition:all .15s;
+}
+.domain-pill:hover { transform:translateY(-2px); }
+.domain-pill.sel { box-shadow:0 0 0 2px var(--pu); }
+.domain-pill-icon { font-size:20px; }
+.domain-pill-name { font-size:9px; font-weight:700; text-align:center; line-height:1.2; color:var(--t2); }
+
+/* ── Types d'accompagnement ── */
+.coach-types-grid { display:flex; gap:8px; flex-wrap:wrap; }
+.coach-type-card {
+  flex:1; min-width:130px; padding:.75rem; border-radius:var(--r-md);
+  border:1.5px solid var(--pu-b); background:var(--white); cursor:pointer;
+  transition:all .15s; text-align:center;
+}
+.coach-type-card:hover { background:var(--pu-l); }
+.coach-type-card.sel { background:var(--pu); border-color:var(--pu); }
+.coach-type-card.sel .ctc-name, .coach-type-card.sel .ctc-desc { color:#fff; }
+.ctc-icon { font-size:20px; margin-bottom:3px; }
+.ctc-name { font-size:11.5px; font-weight:700; color:var(--text); }
+.ctc-desc { font-size:9.5px; color:var(--t3); margin-top:2px; line-height:1.3; }
+
+/* ── Réponse coach (override léger sur .coach-resp existant) ── */
+.coach-resp-active { display:block !important; }
+.coach-resp-actions { display:flex; gap:8px; margin-top:1rem; flex-wrap:wrap; }
+.coach-resp-action { font-size:11px; font-weight:700; padding:6px 13px; border-radius:20px; border:1px solid var(--pu-b); background:var(--white); color:var(--pu-d); cursor:pointer; transition:all .12s; }
+.coach-resp-action:hover { background:var(--pu); color:#fff; }
+
+/* ── Historique sessions ── */
+.session-item {
+  border:1px solid var(--bd); border-radius:var(--r-md); padding:.875rem;
+  cursor:pointer; transition:background .1s; margin-bottom:.625rem;
+}
+.session-item:last-child { margin-bottom:0; }
+.session-item:hover { background:var(--bg); }
+.session-header { display:flex; align-items:center; gap:8px; margin-bottom:.375rem; }
+.session-domain-icon { font-size:16px; }
+.session-meta { font-size:10px; color:var(--t3); margin-left:auto; }
+.session-preview { font-size:12px; color:var(--text); line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.session-type-tag { font-size:9px; font-weight:700; padding:1px 7px; border-radius:7px; background:var(--pu-l); color:var(--pu-d); }
+
+/* ── Bibliothèque ── */
+.lib-item {
+  background:var(--bg); border-radius:var(--r-md); padding:.875rem;
+  border:1px solid var(--bd); cursor:pointer; transition:background .1s; margin-bottom:.625rem;
+}
+.lib-item:last-child { margin-bottom:0; }
+.lib-item:hover { background:var(--white); border-color:var(--pu-b); }
+.lib-title { font-size:12px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.lib-text { font-size:11.5px; color:var(--t2); line-height:1.5; }
+
+@media(max-width:768px) {
+  .domain-grid { grid-template-columns:repeat(5,1fr); }
+  .coach-type-card { min-width:100px; }
+}
+
+/* ── Suggestion auto basée sur la sphère la plus faible ── */
+.coach-suggest-banner {
+  display:flex; align-items:center; gap:10px; padding:.875rem 1rem; border-radius:var(--r-md);
+  background:linear-gradient(135deg, var(--am-l), #fff); border:1px solid var(--am-b);
+  cursor:pointer; transition:all .15s; margin-bottom:1rem;
+}
+.coach-suggest-banner:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(245,158,11,.15); }
+.coach-suggest-icon { font-size:22px; flex-shrink:0; }
+.coach-suggest-text { flex:1; }
+.coach-suggest-title { font-size:12px; font-weight:700; color:#92400E; }
+.coach-suggest-sub { font-size:10.5px; color:var(--t2); margin-top:1px; }
+
+/* ── Suggestions de prompts prêts à l'emploi ── */
+.prompt-suggestions { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:.75rem; }
+.prompt-chip {
+  font-size:11px; font-weight:600; padding:6px 12px; border-radius:16px; border:1px solid var(--pu-b);
+  background:var(--white); color:var(--pu-d); cursor:pointer; transition:all .12s;
+}
+.prompt-chip:hover { background:var(--pu); color:#fff; }
+
+/* ── Conversation multi-tours ── */
+.conv-thread { display:flex; flex-direction:column; gap:.875rem; margin-bottom:1rem; max-height:420px; overflow-y:auto; }
+.conv-bubble { padding:.75rem 1rem; border-radius:var(--r-lg); font-size:13px; line-height:1.6; max-width:90%; }
+.conv-bubble.user { background:var(--bg); color:var(--text); align-self:flex-end; border-bottom-right-radius:4px; }
+.conv-bubble.coach { background:var(--pu-l); color:var(--text); align-self:flex-start; border-bottom-left-radius:4px; border:1px solid var(--pu-b); }
+.conv-bubble-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; opacity:.6; }
+
+/* ── Badges de progression coach ── */
+.coach-badges-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:.875rem; }
+.coach-badge {
+  display:flex; align-items:center; gap:5px; padding:5px 11px; border-radius:14px;
+  font-size:10.5px; font-weight:700; border:1px solid;
+}
+.coach-badge.earned { background:var(--go-l); border-color:var(--go-b); color:#92400E; }
+.coach-badge.locked { background:var(--bg); border-color:var(--bd); color:var(--t3); opacity:.55; }
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="coach-hero">
+  <div class="coach-hero-av"><i class="ti ti-sparkles"></i></div>
+  <div>
+    <div style="font-size:15px;font-weight:800;color:var(--pu-d)">Coach Intentionnel AURA ✦</div>
+    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Ton guide personnel — chaque session : +50 XP</div>
+  </div>
+  <div class="coach-hero-stats">
+    <div class="coach-hero-stat"><div class="coach-hero-stat-val" id="coach-stat-total">0</div><div class="coach-hero-stat-lbl">Sessions</div></div>
+    <div class="coach-hero-stat"><div class="coach-hero-stat-val" id="coach-stat-streak">0</div><div class="coach-hero-stat-lbl">Jours actifs</div></div>
+    <div class="coach-hero-stat"><div class="coach-hero-stat-val" id="coach-stat-fav">—</div><div class="coach-hero-stat-lbl">Domaine favori</div></div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- ════════ COLONNE PRINCIPALE : Session ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card hi">
+      <div id="coach-suggest-zone"></div>
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-circles"></i> <span data-aura-edit="coach.title.1" data-aura-edit-label="Titre : Domaine concerné">Domaine concerné</span></span>
+        <button class="btn-ghost" onclick="navigate('spheres')">Voir mes sphères →</button>
+      </div>
+      <div class="domain-grid" id="domain-grid"></div>
+    </div>
+
+    <div class="card hi">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-adjustments"></i> <span data-aura-edit="coach.title.2" data-aura-edit-label="Titre : Type d'accompagnement">Type d'accompagnement</span></span>
+      </div>
+      <div class="coach-types-grid" id="coach-types-grid"></div>
+    </div>
+
+    <div class="card hi">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-message-circle"></i> <span data-aura-edit="coach.title.3" data-aura-edit-label="Titre : Ton message">Ton message</span></span>
+      </div>
+      <div class="prompt-suggestions" id="prompt-suggestions"></div>
+      <textarea class="field-ta" id="coach-message" rows="3" placeholder="Décris ton état d'esprit, ta situation, ou pose ta question..." style="margin-bottom:.75rem"></textarea>
+      <button class="btn-primary" onclick="CoachHub.activate()">
+        <i class="ti ti-sparkles"></i> Activer le Coach — +50 XP
+      </button>
+
+      <div class="coach-resp" id="coach-resp-zone">
+        <div class="conv-thread" id="conv-thread"></div>
+        <div class="coach-resp-actions" id="coach-resp-actions" style="display:none">
+          <button class="coach-resp-action" onclick="CoachHub.continueSession()"><i class="ti ti-message-2"></i> Continuer la conversation</button>
+          <button class="coach-resp-action" onclick="CoachHub.saveAsNote()"><i class="ti ti-bookmark"></i> Sauver dans ma sphère</button>
+          <button class="coach-resp-action" onclick="CoachHub.newSession()"><i class="ti ti-refresh"></i> Nouvelle session</button>
+        </div>
+      </div>
+
+      <div class="coach-badges-row" id="coach-badges-row"></div>
+    </div>
+
+  </div>
+
+  <!-- ════════ COLONNE LATÉRALE : Historique + Biblio ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-history"></i> <span data-aura-edit="coach.title.4" data-aura-edit-label="Titre : Sessions récentes">Sessions récentes</span></span>
+        <button class="btn-ghost" onclick="CoachHub.clearHistory()">Effacer</button>
+      </div>
+      <div id="session-history"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-books"></i> <span data-aura-edit="coach.title.5" data-aura-edit-label="Titre : Bibliothèque du coach">Bibliothèque du coach</span></span>
+      </div>
+      <div id="coach-library"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+window.initModule = function(name) {
+  if (name !== 'coach') return;
+  CoachHub.init();
+};
+
+/* ══════════════════════════════════════════════════
+   DOMAINES = Sphères (cohérent avec spheres.html)
+══════════════════════════════════════════════════ */
+const COACH_DOMAINS = [
+  { key:'global',   icon:'🌀', name:'Global'   },
+  { key:'famille',  icon:'👨‍👩‍👧', name:'Famille'  },
+  { key:'maison',   icon:'🏡', name:'Maison'   },
+  { key:'travail',  icon:'💼', name:'Travail'  },
+  { key:'finance',  icon:'💰', name:'Finance'  },
+  { key:'sante',    icon:'🌿', name:'Santé'    },
+  { key:'creation', icon:'🚀', name:'Création' },
+  { key:'dev',      icon:'🌱', name:'Dev. perso'},
+  { key:'vision',   icon:'✨', name:'Vision'   },
+];
+
+const COACH_TYPES = [
+  { key:'deblocage', icon:'🔓', name:'Déblocage',     desc:'Lever un frein ou une peur' },
+  { key:'plan',      icon:'⚡', name:'Plan d\'action', desc:'Structurer mes prochains pas' },
+  { key:'loa',       icon:'🌙', name:'LOA & Ancrage',  desc:'Visualisation, manifestation' },
+  { key:'patrimo',   icon:'🏦', name:'Patrimoine',     desc:'Stratégie financière' },
+  { key:'rituel',    icon:'☀️', name:'Rituel',         desc:'Pratique quotidienne' },
+  { key:'mindset',   icon:'🧠', name:'Mindset',        desc:'Travailler les croyances' },
+];
+
+/* ══════════════════════════════════════════════════
+   STORE — Historique des sessions
+══════════════════════════════════════════════════ */
+const CoachStore = {
+  _key: 'aura_coach_sessions_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try {
+      const r = localStorage.getItem(this._key);
+      if (r) { this._data = JSON.parse(r); return this._data; }
+    } catch(_) {}
+    this._data = { sessions: [] };
+    this.save();
+    return this._data;
+  },
+
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  addSession(s) {
+    const d = this.get();
+    s.id   = d.sessions.length ? Math.max(...d.sessions.map(x=>x.id))+1 : 1;
+    s.date = new Date().toISOString();
+    d.sessions.unshift(s);
+    d.sessions = d.sessions.slice(0, 50);
+    this.save();
+    return s;
+  },
+
+  clear() { this._data = { sessions: [] }; this.save(); },
+
+  stats() {
+    const d = this.get();
+    const total = d.sessions.length;
+    const dates = new Set(d.sessions.map(s => s.date.slice(0,10)));
+    const domainCounts = {};
+    d.sessions.forEach(s => { domainCounts[s.domain] = (domainCounts[s.domain]||0)+1; });
+    const favDomain = Object.entries(domainCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+    return { total, activeDays: dates.size, favDomain };
+  },
+};
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const CoachHub = {
+  selectedDomain: 'global',
+  selectedType: 'deblocage',
+  lastResponse: null,
+  conversation: [], // historique multi-tours de la session active
+
+  init() {
+    this.renderDomains();
+    this.renderTypes();
+    this.renderHistory();
+    this.renderLibrary();
+    this.renderStats();
+    this.renderSuggestion();
+    this.renderPromptSuggestions();
+    this.renderBadges();
+    this.syncFromDB();
+  },
+
+  renderDomains() {
+    const el = document.getElementById('domain-grid');
+    el.innerHTML = COACH_DOMAINS.map(d => `
+      <div class="domain-pill ${this.selectedDomain===d.key?'sel':''}" onclick="CoachHub.selectDomain('${d.key}')">
+        <span class="domain-pill-icon">${d.icon}</span>
+        <span class="domain-pill-name">${d.name}</span>
+      </div>`).join('');
+  },
+
+  selectDomain(key) {
+    this.selectedDomain = key;
+    document.querySelectorAll('.domain-pill').forEach((el,i) => el.classList.toggle('sel', COACH_DOMAINS[i].key===key));
+    this.renderPromptSuggestions();
+  },
+
+  renderTypes() {
+    const el = document.getElementById('coach-types-grid');
+    el.innerHTML = COACH_TYPES.map(t => `
+      <div class="coach-type-card ${this.selectedType===t.key?'sel':''}" onclick="CoachHub.selectType('${t.key}')">
+        <div class="ctc-icon">${t.icon}</div>
+        <div class="ctc-name">${t.name}</div>
+        <div class="ctc-desc">${t.desc}</div>
+      </div>`).join('');
+  },
+
+  selectType(key) {
+    this.selectedType = key;
+    document.querySelectorAll('.coach-type-card').forEach((el,i) => el.classList.toggle('sel', COACH_TYPES[i].key===key));
+    this.renderPromptSuggestions();
+  },
+
+  renderStats() {
+    const s = CoachStore.stats();
+    _set('coach-stat-total', s.total);
+    _set('coach-stat-streak', s.activeDays);
+    const domainDef = COACH_DOMAINS.find(d=>d.key===s.favDomain);
+    _set('coach-stat-fav', domainDef ? `${domainDef.icon} ${domainDef.name}` : '—');
+  },
+
+  /* ── Activation session ── */
+  async activate() {
+    const message = document.getElementById('coach-message')?.value?.trim();
+    const domainDef = COACH_DOMAINS.find(d=>d.key===this.selectedDomain);
+    const typeDef    = COACH_TYPES.find(t=>t.key===this.selectedType);
+
+    const respZone = document.getElementById('coach-resp-zone');
+    respZone.classList.add('coach-resp-active');
+    document.getElementById('coach-resp-actions').style.display = 'none';
+
+    // Ajoute le message de l'utilisatrice au thread visuel avant la réponse
+    const userMsg = message || `Accompagne-moi sur le thème : ${domainDef.name}, avec une approche de type ${typeDef.name}.`;
+    this.conversation.push({ role:'user', text: userMsg });
+    this.renderConversationThread();
+
+    // Crée une bulle temporaire "en cours" pour la réponse à venir
+    const thread = document.getElementById('conv-thread');
+    const loadingBubble = document.createElement('div');
+    loadingBubble.className = 'conv-bubble coach';
+    loadingBubble.id = 'conv-loading-bubble';
+    loadingBubble.innerHTML = '<div class="conv-bubble-label">Coach AURA</div><span style="color:#7C3AED">✦ Guide d\'alignement en activation...</span>';
+    thread.appendChild(loadingBubble);
+    thread.scrollTop = thread.scrollHeight;
+
+    await AuraCoach.ask({
+      domain: domainDef.name,
+      type: typeDef.name,
+      message: userMsg,
+      history: this.conversation.slice(0, -1), // tout sauf le message qu'on vient d'ajouter (déjà dans le prompt)
+      containerId: null, // on gère nous-mêmes l'affichage via le thread, pas via un containerId unique
+      onDone: (text) => {
+        document.getElementById('conv-loading-bubble')?.remove();
+        this.conversation.push({ role:'coach', text });
+        this.renderConversationThread();
+
+        this.lastResponse = text;
+        document.getElementById('coach-resp-actions').style.display = 'flex';
+        CoachStore.addSession({
+          domain: this.selectedDomain,
+          domainName: domainDef.name,
+          type: this.selectedType,
+          typeName: typeDef.name,
+          message: message || '',
+          response: text,
+        });
+        this.renderHistory();
+        this.renderStats();
+        this.renderBadges();
+        this.syncSessionToDB({ domain:this.selectedDomain, type:this.selectedType, message, response:text });
+      },
+    });
+  },
+
+  /* ── Affiche le thread conversationnel sous forme de bulles ── */
+  renderConversationThread() {
+    const thread = document.getElementById('conv-thread');
+    if (!thread) return;
+    thread.innerHTML = this.conversation.map(m => `
+      <div class="conv-bubble ${m.role==='user'?'user':'coach'}">
+        <div class="conv-bubble-label">${m.role==='user' ? (AuraStore.get().prefs?.name||'Toi') : 'Coach AURA'}</div>
+        ${m.text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}
+      </div>`).join('');
+    thread.scrollTop = thread.scrollHeight;
+  },
+
+  continueSession() {
+    document.getElementById('coach-message').value = '';
+    document.getElementById('coach-message').placeholder = 'Continue la conversation...';
+    document.getElementById('coach-message').focus();
+    AuraUI.showToast('Écris ta suite — le contexte de la conversation est conservé');
+  },
+
+  newSession() {
+    document.getElementById('coach-message').value = '';
+    document.getElementById('coach-resp-zone').classList.remove('coach-resp-active');
+    document.getElementById('conv-thread').innerHTML = '';
+    document.getElementById('coach-resp-actions').style.display = 'none';
+    this.conversation = [];
+  },
+
+  saveAsNote() {
+    if (!this.lastResponse) return;
+    // Sauvegarder dans le journal de la sphère correspondante (spheres.html localStorage)
+    try {
+      const raw = localStorage.getItem('aura_spheres_v1');
+      if (raw && this.selectedDomain !== 'global') {
+        const d = JSON.parse(raw);
+        if (!d.history[this.selectedDomain]) d.history[this.selectedDomain] = [];
+        const shortText = this.lastResponse.slice(0,180).replace(/\n/g,' ') + (this.lastResponse.length>180?'...':'');
+        d.history[this.selectedDomain].unshift({ date:new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), text:`💬 Coach: ${shortText}`, score:d.scores?.[this.selectedDomain]||50 });
+        localStorage.setItem('aura_spheres_v1', JSON.stringify(d));
+        AuraUI.showToast('✓ Sauvé dans le journal de ta sphère');
+        earnXP(5,'Conseil sauvegardé','📌');
+      } else {
+        AuraUI.showToast('Sélectionne une sphère spécifique pour sauvegarder');
+      }
+    } catch(e) { console.warn(e); }
+  },
+
+  /* ── Historique ── */
+  renderHistory() {
+    const d  = CoachStore.get();
+    const el = document.getElementById('session-history');
+    if (!d.sessions.length) { el.innerHTML = '<div style="text-align:center;padding:1.25rem;color:var(--t3);font-size:12px;font-style:italic">Aucune session encore — active ton premier accompagnement ✦</div>'; return; }
+    el.innerHTML = d.sessions.slice(0,8).map(s => {
+      const domainDef = COACH_DOMAINS.find(x=>x.key===s.domain) || COACH_DOMAINS[0];
+      const dateStr = new Date(s.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div class="session-item" onclick="CoachHub.viewSession(${s.id})">
+        <div class="session-header">
+          <span class="session-domain-icon">${domainDef.icon}</span>
+          <span class="session-type-tag">${s.typeName}</span>
+          <span class="session-meta">${dateStr}</span>
+        </div>
+        <div class="session-preview">${s.response.replace(/\n/g,' ')}</div>
+      </div>`;
+    }).join('');
+  },
+
+  viewSession(id) {
+    const s = CoachStore.get().sessions.find(x=>x.id===id);
+    if (!s) return;
+    document.getElementById('coach-resp-zone').classList.add('coach-resp-active');
+    this.conversation = [{ role:'coach', text: s.response }];
+    this.renderConversationThread();
+    document.getElementById('coach-resp-actions').style.display = 'flex';
+    this.lastResponse = s.response;
+    this.selectedDomain = s.domain;
+    this.selectedType   = s.type;
+    this.renderDomains();
+    this.renderTypes();
+    this.renderPromptSuggestions();
+    window.scrollTo({top:0,behavior:'smooth'});
+  },
+
+  clearHistory() {
+    if (!confirm('Effacer tout l\'historique de tes sessions ?')) return;
+    CoachStore.clear();
+    this.renderHistory();
+    this.renderStats();
+    AuraUI.showToast('Historique effacé');
+  },
+
+  /* ── Bibliothèque de références ── */
+  /* ── Suggestion auto : lit les vrais scores de spheres.html et propose la sphère la plus faible ── */
+  renderSuggestion() {
+    const zone = document.getElementById('coach-suggest-zone');
+    if (!zone) return;
+    let weakest = null;
+    try {
+      const sphData = JSON.parse(localStorage.getItem('aura_spheres_v1') || '{}');
+      if (sphData.scores) {
+        const entries = Object.entries(sphData.scores);
+        if (entries.length) {
+          entries.sort((a,b) => a[1]-b[1]);
+          weakest = { key: entries[0][0], score: entries[0][1] };
+        }
+      }
+    } catch(_) {}
+
+    if (!weakest || weakest.key === this.selectedDomain) { zone.innerHTML = ''; return; }
+    const domainDef = COACH_DOMAINS.find(d => d.key === weakest.key);
+    if (!domainDef) { zone.innerHTML = ''; return; }
+
+    zone.innerHTML = `
+      <div class="coach-suggest-banner" onclick="CoachHub.applySuggestion('${weakest.key}')">
+        <span class="coach-suggest-icon">${domainDef.icon}</span>
+        <div class="coach-suggest-text">
+          <div class="coach-suggest-title">Ta sphère "${domainDef.name}" est à ${weakest.score}/100 — la plus basse actuellement</div>
+          <div class="coach-suggest-sub">Clique pour démarrer une session de déblocage ciblée sur ce domaine</div>
+        </div>
+        <i class="ti ti-arrow-right" style="color:#92400E;flex-shrink:0"></i>
+      </div>`;
+  },
+
+  applySuggestion(key) {
+    this.selectDomain(key);
+    this.selectType('deblocage');
+    document.getElementById('coach-suggest-zone').innerHTML = '';
+    document.getElementById('coach-message')?.focus();
+    AuraUI.showToast('Domaine et type pré-sélectionnés — écris ton message quand tu es prête');
+  },
+
+  /* ── Suggestions de prompts prêts à l'emploi selon domaine + type ── */
+  renderPromptSuggestions() {
+    const el = document.getElementById('prompt-suggestions');
+    if (!el) return;
+    const domainDef = COACH_DOMAINS.find(d=>d.key===this.selectedDomain);
+    const typeDef = COACH_TYPES.find(t=>t.key===this.selectedType);
+
+    const PROMPT_BANK = {
+      deblocage: [
+        `Pourquoi je n'arrive pas à avancer sur ${domainDef.name.toLowerCase()} ?`,
+        `Quelle peur me freine vraiment ici ?`,
+      ],
+      plan: [
+        `Donne-moi 3 actions concrètes pour cette semaine sur ${domainDef.name.toLowerCase()}`,
+        `Comment prioriser mes prochaines étapes ?`,
+      ],
+      loa: [
+        `Aide-moi à visualiser ma réussite dans ce domaine`,
+        `Quelle affirmation puissante pour cette sphère ?`,
+      ],
+      patrimo: [
+        `Comment optimiser ma situation financière actuelle ?`,
+        `Quelle stratégie patrimoniale pour mes objectifs ?`,
+      ],
+      rituel: [
+        `Propose-moi un petit rituel quotidien pour ce domaine`,
+        `Comment ancrer une habitude positive ici ?`,
+      ],
+      mindset: [
+        `Quelle croyance limitante dois-je travailler ?`,
+        `Comment reformuler ma pensée sur ce sujet ?`,
+      ],
+    };
+
+    const prompts = PROMPT_BANK[this.selectedType] || PROMPT_BANK.deblocage;
+    el.innerHTML = prompts.map(p => `
+      <button class="prompt-chip" onclick="CoachHub.usePromptSuggestion('${p.replace(/'/g,"\\'")}')">${p}</button>`).join('');
+  },
+
+  usePromptSuggestion(text) {
+    const ta = document.getElementById('coach-message');
+    if (ta) { ta.value = text; ta.focus(); }
+  },
+
+  /* ── Badges de progression liés à l'usage régulier du coach ── */
+  renderBadges() {
+    const el = document.getElementById('coach-badges-row');
+    if (!el) return;
+    const stats = CoachStore.stats();
+    const sessions = CoachStore.get().sessions;
+    const uniqueDomains = new Set(sessions.map(s => s.domain)).size;
+
+    const BADGES = [
+      { key:'first',    icon:'🌱', name:'Première session',  cond: stats.total >= 1 },
+      { key:'regular',  icon:'🔥', name:'5 sessions',         cond: stats.total >= 5 },
+      { key:'devoted',  icon:'💎', name:'20 sessions',        cond: stats.total >= 20 },
+      { key:'explorer', icon:'🧭', name:'4 domaines explorés', cond: uniqueDomains >= 4 },
+      { key:'complete', icon:'👑', name:'Tous les domaines',  cond: uniqueDomains >= 8 },
+    ];
+
+    el.innerHTML = BADGES.map(b => `
+      <div class="coach-badge ${b.cond?'earned':'locked'}" title="${b.name}">${b.icon} ${b.name}</div>`).join('');
+  },
+
+  renderLibrary() {
+    const lib = [
+      { title:'📘 Atomic Habits — J. Clear',           text:'Les systèmes battent les objectifs. L\'identité crée le comportement. "Je suis quelqu\'un qui..." est plus puissant que "Je veux...".' },
+      { title:'💰 La semaine de 4 heures — T. Ferriss', text:'Automatise, délègue, élimine. Le temps est la seule ressource non renouvelable.' },
+      { title:'🧠 Psychology of Money — M. Housel',     text:'L\'argent est plus une question de comportement que de mathématiques. La patience est le superpouvoir le plus sous-estimé.' },
+      { title:'✨ The Secret — R. Byrne',                text:'La loi d\'attraction : ce que tu penses, tu l\'attires. La gratitude est la fréquence de l\'abondance.' },
+      { title:'🌿 Deep Work — C. Newport',               text:'La concentration profonde est une compétence rare et précieuse, à cultiver délibérément chaque jour.' },
+      { title:'🪞 Le pouvoir du moment présent — E. Tolle', text:'La souffrance vient de la résistance au moment présent, jamais du moment lui-même.' },
+    ];
+    document.getElementById('coach-library').innerHTML = lib.map(l => `
+      <div class="lib-item" onclick="earnXP(15,'Référence lue','📖')">
+        <div class="lib-title">${l.title}</div>
+        <div class="lib-text">${l.text}</div>
+      </div>`).join('');
+  },
+
+  /* ── Sync Supabase ── */
+  async syncSessionToDB({domain, type, message, response}) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      await SupaClient.insert('coach_sessions', {
+        user_id: SupaClient.userId(),
+        domain, type,
+        message: message || '',
+        response,
+      });
+    } catch(e) { console.warn('[Coach session sync]', e.message); }
+  },
+
+  async syncFromDB() {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const rows = await SupaClient.select('coach_sessions', `user_id=eq.${SupaClient.userId()}`, '&order=created_at.desc&limit=50');
+      if (rows?.length) {
+        const d = CoachStore.get();
+        d.sessions = rows.map(r => ({
+          id: r.id, domain: r.domain,
+          domainName: COACH_DOMAINS.find(x=>x.key===r.domain)?.name || r.domain,
+          type: r.type, typeName: COACH_TYPES.find(x=>x.key===r.type)?.name || r.type,
+          message: r.message, response: r.response, date: r.created_at,
+        }));
+        CoachStore.save();
+        this.renderHistory();
+        this.renderStats();
+      }
+    } catch(e) { console.warn('[Coach sync]', e.message); }
+  },
+};
+
+/* ── Helpers ── */
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+
+if (document.readyState !== 'loading') CoachHub.init();
+</script>

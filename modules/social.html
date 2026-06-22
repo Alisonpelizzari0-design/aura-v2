@@ -1,0 +1,307 @@
+<!-- ============================================================
+     AURA — social.html  (fragment SPA)
+     Rubrique pratique "Social" — relations & proches :
+     - Anniversaires avec compte à rebours
+     - Idées cadeaux par personne
+     - Derniers contacts / rappels d'appel
+     - Suggestions IA pour entretenir les liens
+     ============================================================ -->
+
+<style>
+.soc-hero {
+  background:linear-gradient(135deg,var(--pk-l) 0%,var(--or-l) 100%);
+  border:1px solid var(--pk-b); border-radius:var(--r-xl); padding:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+
+.contact-card { background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg); padding:1rem; transition:all .12s; margin-bottom:.75rem; }
+.contact-card:last-child { margin-bottom:0; }
+.contact-card:hover { border-color:var(--pk-b); }
+.contact-top { display:flex; align-items:center; gap:10px; }
+.contact-avatar { width:42px; height:42px; border-radius:50%; background:var(--pk-l); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.contact-name { font-size:13px; font-weight:700; color:var(--text); }
+.contact-relation { font-size:10.5px; color:var(--t3); margin-top:1px; }
+.contact-countdown { font-size:13px; font-weight:800; flex-shrink:0; }
+.contact-countdown.today { color:var(--re); }
+.contact-countdown.soon { color:var(--am); }
+.contact-countdown.later { color:var(--t3); }
+.contact-gifts { margin-top:.75rem; padding-top:.75rem; border-top:1px solid var(--bd); }
+.gift-tag { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; padding:3px 9px; border-radius:10px; background:var(--bg); color:var(--t2); margin:0 4px 4px 0; }
+.gift-tag button { background:none; border:none; color:var(--t3); cursor:pointer; font-size:11px; padding:0; }
+.add-gift-input { display:flex; gap:6px; margin-top:.5rem; }
+.add-gift-input input { flex:1; font-size:11.5px; padding:6px 10px; border-radius:var(--r-sm); border:1px solid var(--bd2); background:var(--bg); outline:none; }
+
+.call-reminder-row { display:flex; align-items:center; gap:10px; padding:.625rem; border-radius:var(--r-md); border:1px solid var(--bd); margin-bottom:.5rem; }
+.call-reminder-row:last-child { margin-bottom:0; }
+.call-days-ago { font-size:11px; font-weight:700; padding:2px 9px; border-radius:9px; }
+.call-days-ago.urgent { background:var(--re-l); color:var(--re); }
+.call-days-ago.ok { background:var(--gr-l); color:var(--gr); }
+
+@media(max-width:768px) {
+  .contact-top { flex-wrap:wrap; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="soc-hero">
+  <div style="font-size:42px">👥</div>
+  <div style="flex:1;min-width:200px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#9D174D">Tes relations & proches</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="soc-summary">0 anniversaire à venir ce mois</div>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--pk)" id="soc-stat-contacts">0</div>
+      <div style="font-size:10px;color:var(--t2)">Contacts suivis</div>
+    </div>
+    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
+      <div style="font-size:18px;font-weight:800;color:var(--re)" id="soc-stat-overdue">0</div>
+      <div style="font-size:10px;color:var(--t2)">Appels en retard</div>
+    </div>
+  </div>
+</div>
+
+<div class="g2">
+
+  <!-- ════════ COLONNE GAUCHE : Anniversaires ════════ -->
+  <div class="card hi">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-cake"></i> <span data-aura-edit="social.title.1" data-aura-edit-label="Titre : Anniversaires & proches">Anniversaires & proches</span></span>
+      <button class="btn-pill pu" onclick="Social.openAddContact()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter</button>
+    </div>
+    <div id="contacts-list"></div>
+  </div>
+
+  <!-- ════════ COLONNE DROITE : Rappels d'appel + IA ════════ -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-phone"></i> <span data-aura-edit="social.title.2" data-aura-edit-label="Titre : Derniers contacts">Derniers contacts</span></span>
+      </div>
+      <div id="call-reminders-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title"><i class="ti ti-sparkles"></i> <span data-aura-edit="social.title.3" data-aura-edit-label="Titre : Suggestions IA">Suggestions IA</span></span></div>
+      <button class="btn-pill pu" style="width:100%;justify-content:center" onclick="Social.suggestIA()"><i class="ti ti-sparkles" style="font-size:12px"></i> Idée pour entretenir un lien</button>
+      <div id="soc-ia-resp" style="display:none;margin-top:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:1rem;font-size:12px;color:var(--text);line-height:1.7"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL AJOUT CONTACT
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="soc-modal-overlay" style="display:none" onclick="if(event.target===this)Social.closeAddContact()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-plus"></i> Nouveau contact</div>
+    <div class="modal-field"><label class="modal-lbl">Nom</label><input class="modal-input" id="sm-name" placeholder="Ex: Marie"></div>
+    <div class="modal-field"><label class="modal-lbl">Relation</label>
+      <select class="modal-input" id="sm-relation">
+        <option>Famille</option><option>Ami(e) proche</option><option>Ami(e)</option><option>Collègue</option><option>Autre</option>
+      </select>
+    </div>
+    <div class="modal-field"><label class="modal-lbl">Date d'anniversaire</label><input class="modal-input" id="sm-birthday" type="date"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Social.saveContact()">Ajouter</button>
+      <button class="modal-btn cancel" onclick="Social.closeAddContact()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'social') return;
+  Social.init();
+};
+
+const SocStore = {
+  _key: 'aura_social_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    const today = new Date();
+    const inDays = n => { const x=new Date(today); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); };
+    const agoMonth = (y,m,d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    this._data = {
+      contacts: [],
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+
+  addContact(c) { const d=this.get(); c.id=d.contacts.length?Math.max(...d.contacts.map(x=>x.id))+1:1; c.gifts=[]; c.lastContact=0; d.contacts.push(c); this.save(); return c; },
+  deleteContact(id) { const d=this.get(); d.contacts=d.contacts.filter(x=>x.id!==id); this.save(); },
+
+  daysUntilBirthday(birthdayStr) {
+    const bday = new Date(birthdayStr);
+    const today = new Date(); today.setHours(0,0,0,0);
+    let next = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+    if (next < today) next = new Date(today.getFullYear()+1, bday.getMonth(), bday.getDate());
+    return Math.ceil((next - today) / 86400000);
+  },
+};
+
+const Social = {
+
+  init() {
+    this.renderHero();
+    this.renderContacts();
+    this.renderCallReminders();
+  },
+
+  renderHero() {
+    const d = SocStore.get();
+    const thisMonth = new Date().getMonth();
+    const upcomingThisMonth = d.contacts.filter(c => new Date(c.birthday).getMonth() === thisMonth).length;
+    _set('soc-summary', `${upcomingThisMonth} anniversaire${upcomingThisMonth!==1?'s':''} ce mois-ci`);
+    _set('soc-stat-contacts', d.contacts.length);
+    const overdue = d.contacts.filter(c => c.lastContact <= -21).length;
+    _set('soc-stat-overdue', overdue);
+  },
+
+  renderContacts() {
+    const d = SocStore.get();
+    const sorted = [...d.contacts].sort((a,b) => SocStore.daysUntilBirthday(a.birthday) - SocStore.daysUntilBirthday(b.birthday));
+    const el = document.getElementById('contacts-list');
+
+    el.innerHTML = sorted.map(c => {
+      const days = SocStore.daysUntilBirthday(c.birthday);
+      const cls = days===0 ? 'today' : days<=14 ? 'soon' : 'later';
+      const label = days===0 ? '🎉 Aujourd\'hui !' : days===1 ? 'Demain' : `J-${days}`;
+      const initial = c.name.charAt(0).toUpperCase();
+
+      return `<div class="contact-card">
+        <div class="contact-top">
+          <div class="contact-avatar">${initial}</div>
+          <div style="flex:1">
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-relation">${c.relation} · 🎂 ${new Date(c.birthday).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</div>
+          </div>
+          <span class="contact-countdown ${cls}">${label}</span>
+          <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="Social.deleteContact(${c.id})"><i class="ti ti-trash"></i></button>
+        </div>
+        <div class="contact-gifts">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3);margin-bottom:.375rem">Idées cadeaux</div>
+          <div>${(c.gifts||[]).map((g,i) => `<span class="gift-tag">${g} <button onclick="Social.removeGift(${c.id},${i})">✕</button></span>`).join('') || '<span style="font-size:11px;color:var(--t3);font-style:italic">Aucune idée encore</span>'}</div>
+          <div class="add-gift-input">
+            <input type="text" placeholder="Ajouter une idée..." onkeydown="if(event.key==='Enter')Social.addGift(${c.id},this)">
+            <button style="font-size:11px;padding:6px 12px;border-radius:var(--r-sm);border:1px solid var(--pu);background:var(--pu-l);color:var(--pu-d);cursor:pointer;font-weight:700" onclick="Social.addGift(${c.id},this.previousElementSibling)">+</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Aucun contact — ajoute ton premier proche !</div>';
+  },
+
+  addGift(contactId, inputEl) {
+    const val = inputEl.value?.trim();
+    if (!val) return;
+    const d = SocStore.get();
+    const c = d.contacts.find(x=>x.id===contactId);
+    if (!c) return;
+    c.gifts = c.gifts || [];
+    c.gifts.push(val);
+    SocStore.save();
+    this.renderContacts();
+    earnXP(3, 'Idée cadeau ajoutée', '🎁');
+  },
+
+  removeGift(contactId, idx) {
+    const d = SocStore.get();
+    const c = d.contacts.find(x=>x.id===contactId);
+    if (!c) return;
+    c.gifts.splice(idx, 1);
+    SocStore.save();
+    this.renderContacts();
+  },
+
+  deleteContact(id) {
+    if (!confirm('Supprimer ce contact ?')) return;
+    SocStore.deleteContact(id);
+    this.renderContacts();
+    this.renderHero();
+  },
+
+  openAddContact() {
+    document.getElementById('sm-name').value = '';
+    document.getElementById('sm-birthday').value = '';
+    document.getElementById('soc-modal-overlay').style.display = 'flex';
+  },
+  closeAddContact() { document.getElementById('soc-modal-overlay').style.display = 'none'; },
+
+  saveContact() {
+    const name = document.getElementById('sm-name')?.value?.trim();
+    const birthday = document.getElementById('sm-birthday')?.value;
+    if (!name || !birthday) { AuraUI.showToast('⚠ Remplis le nom et la date'); return; }
+    SocStore.addContact({ name, relation: document.getElementById('sm-relation')?.value||'Autre', birthday });
+    this.closeAddContact();
+    this.renderContacts();
+    this.renderHero();
+    earnXP(10, `${name} ajouté(e)`, '👥');
+    AuraUI.showToast('✓ Contact ajouté');
+  },
+
+  /* ── Rappels d'appel ── */
+  renderCallReminders() {
+    const d = SocStore.get();
+    const sorted = [...d.contacts].sort((a,b)=>a.lastContact-b.lastContact);
+    const el = document.getElementById('call-reminders-list');
+    el.innerHTML = sorted.map(c => {
+      const daysAgo = Math.abs(c.lastContact);
+      const urgent = daysAgo >= 21;
+      return `<div class="call-reminder-row">
+        <span style="font-size:16px">${urgent?'📵':'📞'}</span>
+        <span style="font-size:12px;color:var(--text);flex:1">${c.name}</span>
+        <span class="call-days-ago ${urgent?'urgent':'ok'}">${daysAgo}j</span>
+        <button style="background:none;border:none;color:var(--gr);cursor:pointer;font-size:13px" onclick="Social.markContacted(${c.id})" title="Marquer comme contacté"><i class="ti ti-check"></i></button>
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun contact suivi</div>';
+  },
+
+  markContacted(id) {
+    const d = SocStore.get();
+    const c = d.contacts.find(x=>x.id===id);
+    if (!c) return;
+    c.lastContact = 0;
+    SocStore.save();
+    this.renderCallReminders();
+    this.renderHero();
+    earnXP(5, `${c.name} contacté(e)`, '📞');
+    AuraUI.showToast(`✓ Marqué comme contacté(e)`);
+  },
+
+  /* ── IA ── */
+  async suggestIA() {
+    const key = AuraStore.getGeminiKey();
+    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('soc-ia-resp'); document.getElementById('soc-ia-resp').style.display='block'; return; }
+    const d = SocStore.get();
+    const overdue = d.contacts.filter(c=>c.lastContact<=-14).sort((a,b)=>a.lastContact-b.lastContact)[0];
+    const resp = document.getElementById('soc-ia-resp');
+    resp.style.display='block';
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Réflexion en cours...</span>';
+    try {
+      AURA_GEMINI.API_KEY = key;
+      const text = await AURA_GEMINI.call({
+        system: 'Tu es un coach relationnel chaleureux et concret.',
+        prompt: overdue
+          ? `Je n'ai pas contacté ${overdue.name} (${overdue.relation}) depuis ${Math.abs(overdue.lastContact)} jours. Donne-moi une idée concrète et simple pour reprendre contact de façon naturelle et chaleureuse.`
+          : 'Donne-moi une idée générale et inspirante pour entretenir mes relations proches cette semaine.',
+        maxTokens: 250,
+      });
+      resp.innerHTML = text.replace(/\n/g,'<br>');
+      earnXP(10,'Suggestion relationnelle IA','✨');
+    } catch(e) { resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>'; }
+  },
+};
+
+function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+
+if (document.readyState !== 'loading') Social.init();
+</script>

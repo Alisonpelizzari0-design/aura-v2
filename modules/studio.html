@@ -1,0 +1,731 @@
+<!-- ============================================================
+     AURA — studio.html  (fragment SPA)
+     Studio de personnalisation — éditeur visuel complet :
+     - Thème : couleurs, police, mode (clair/sombre/cosmique)
+     - Navigation : réordonner, masquer, renommer les modules sidebar
+     - Effets cosmiques : particules, aurores, intensité
+     - Contenu : éditer les textes statiques (ancre, affirmations)
+     Persistance : localStorage (aura_studio_v1) + Supabase si connecté
+     Application immédiate sur tout le shell (index.html) via CSS vars
+     ============================================================ -->
+
+<style>
+/* ── Hero Studio — esthétique cosmique propre à cet écran ── */
+.studio-hero {
+  position:relative; border-radius:var(--r-xl); padding:1.75rem;
+  background:radial-gradient(ellipse at top right, #2D1B69 0%, #1A1040 45%, #0F0B26 100%);
+  overflow:hidden; color:#fff;
+}
+.studio-hero::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:
+    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.8), transparent),
+    radial-gradient(2px 2px at 60% 15%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 80% 60%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 35% 70%, rgba(255,255,255,.5), transparent),
+    radial-gradient(2px 2px at 90% 25%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 50% 45%, rgba(255,255,255,.4), transparent);
+  background-size:100% 100%;
+  animation:studioTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes studioTwinkle { 0%{opacity:.5} 100%{opacity:1} }
+.studio-hero-content { position:relative; z-index:1; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.studio-hero-icon {
+  width:54px; height:54px; border-radius:50%;
+  background:linear-gradient(135deg,#A78BFA,#7C3AED);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  box-shadow:0 0 30px rgba(167,139,250,.6);
+}
+.studio-hero-icon i { font-size:24px; color:#fff; }
+.studio-hero-title { font-size:18px; font-weight:800; }
+.studio-hero-sub   { font-size:12px; color:#C4B5FD; margin-top:2px; }
+
+/* ── Tabs ── */
+.studio-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+.studio-tab  { font-size:12px; font-weight:600; padding:8px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .15s; flex-shrink:0; display:flex; align-items:center; gap:6px; }
+.studio-tab:hover  { background:var(--bg); }
+.studio-tab.active { border-color:#7C3AED; color:#7C3AED; background:var(--pu-l); }
+.studio-panel { display:none; flex-direction:column; gap:1.25rem; }
+.studio-panel.on { display:flex; }
+
+/* ── Palettes de couleurs ── */
+.palette-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; }
+.palette-card {
+  border-radius:var(--r-lg); padding:1rem; cursor:pointer; border:2px solid transparent;
+  transition:all .15s; text-align:center;
+}
+.palette-card:hover { transform:translateY(-2px); }
+.palette-card.active { border-color:var(--text); box-shadow:0 0 0 3px rgba(0,0,0,.06); }
+.palette-preview { height:36px; border-radius:8px; margin-bottom:.625rem; display:flex; overflow:hidden; }
+.palette-preview-seg { flex:1; }
+.palette-name { font-size:11.5px; font-weight:700; color:var(--text); }
+
+/* ── Mode shell ── */
+.mode-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.875rem; }
+.mode-card {
+  border-radius:var(--r-lg); padding:1.25rem 1rem; cursor:pointer; border:2px solid var(--bd);
+  text-align:center; transition:all .15s; position:relative; overflow:hidden;
+}
+.mode-card:hover { transform:translateY(-2px); }
+.mode-card.active { border-color:#7C3AED; box-shadow:0 0 0 3px rgba(124,58,237,.15); }
+.mode-card-icon { font-size:28px; margin-bottom:.5rem; }
+.mode-card-name { font-size:12.5px; font-weight:700; color:var(--text); }
+.mode-card-desc { font-size:10.5px; color:var(--t3); margin-top:3px; line-height:1.3; }
+.mode-card.cosmic { background:linear-gradient(135deg,#1A1040,#2D1B69); }
+.mode-card.cosmic .mode-card-name, .mode-card.cosmic .mode-card-desc { color:#E9D5FF; }
+.mode-card.dark { background:#13121C; }
+.mode-card.dark .mode-card-name { color:#EDEAF6; } .mode-card.dark .mode-card-desc { color:#A3A0B8; }
+.mode-card.light { background:#F8F7FF; }
+
+/* ── Police ── */
+.font-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; }
+.font-card { border-radius:var(--r-md); padding:1rem; cursor:pointer; border:2px solid var(--bd); text-align:center; transition:all .15s; }
+.font-card:hover { background:var(--bg); }
+.font-card.active { border-color:#7C3AED; background:var(--pu-l); }
+.font-preview { font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.font-name { font-size:11px; color:var(--t2); font-weight:600; }
+
+/* ── Effets cosmiques ── */
+.effect-row { display:flex; align-items:center; justify-content:space-between; padding:.875rem 0; border-bottom:1px solid var(--bd); }
+.effect-row:last-child { border-bottom:none; }
+.effect-info { display:flex; align-items:center; gap:10px; }
+.effect-icon { width:36px; height:36px; border-radius:9px; background:var(--pu-l); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.effect-icon i { color:#7C3AED; font-size:16px; }
+.effect-name { font-size:12.5px; font-weight:700; color:var(--text); }
+.effect-desc { font-size:11px; color:var(--t3); margin-top:1px; }
+.intensity-slider { display:flex; align-items:center; gap:8px; margin-top:.625rem; }
+
+/* ── Navigation — liste réordonnable ── */
+.nav-edit-list { display:flex; flex-direction:column; gap:.5rem; }
+.nav-edit-item {
+  display:flex; align-items:center; gap:10px; padding:.625rem .75rem;
+  border-radius:var(--r-md); border:1px solid var(--bd); background:var(--white);
+  cursor:grab; transition:all .12s;
+}
+.nav-edit-item.dragging { opacity:.4; }
+.nav-edit-item.drag-over { border-color:#7C3AED; background:var(--pu-l); }
+.nav-edit-handle { color:var(--t3); font-size:15px; flex-shrink:0; cursor:grab; }
+.nav-edit-icon { font-size:16px; flex-shrink:0; width:24px; text-align:center; }
+.nav-edit-name-input { flex:1; font-size:12.5px; font-weight:600; color:var(--text); background:none; border:none; outline:none; padding:2px 4px; border-radius:4px; }
+.nav-edit-name-input:focus { background:var(--bg); }
+.nav-edit-key { font-size:9px; color:var(--t3); font-family:monospace; }
+.nav-edit-visibility { background:none; border:none; cursor:pointer; color:var(--t2); font-size:16px; flex-shrink:0; }
+.nav-edit-visibility.hidden { color:var(--t3); opacity:.4; }
+.nav-edit-item.is-hidden { opacity:.5; }
+
+/* ── Contenu éditable ── */
+.content-edit-card { border:1px solid var(--bd); border-radius:var(--r-md); padding:1rem; margin-bottom:.875rem; }
+.content-edit-card:last-child { margin-bottom:0; }
+.content-edit-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--t2); margin-bottom:.5rem; }
+
+/* ── Bouton appliquer flottant ── */
+.studio-apply-bar {
+  position:sticky; bottom:1rem; display:flex; gap:10px; justify-content:flex-end;
+  background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg);
+  padding:.875rem 1.25rem; box-shadow:0 8px 30px rgba(0,0,0,.1); z-index:30;
+}
+
+@media(max-width:768px) {
+  .palette-grid, .mode-grid, .font-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════ -->
+<div class="studio-hero">
+  <div class="studio-hero-content">
+    <div class="studio-hero-icon"><i class="ti ti-wand"></i></div>
+    <div>
+      <div class="studio-hero-title">Studio de personnalisation ✦</div>
+      <div class="studio-hero-sub">Façonne ton AURA à ton image — thème, navigation, contenu</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TABS
+════════════════════════════════════════════════════ -->
+<div class="studio-tabs">
+  <button class="studio-tab active" onclick="Studio.showTab('theme')"><i class="ti ti-palette" style="font-size:13px"></i> Thème & Couleurs</button>
+  <button class="studio-tab" onclick="Studio.showTab('cosmos')"><i class="ti ti-sparkles" style="font-size:13px"></i> Effets cosmiques</button>
+  <button class="studio-tab" onclick="Studio.showTab('navigation')"><i class="ti ti-layout-sidebar" style="font-size:13px"></i> Navigation</button>
+  <button class="studio-tab" onclick="Studio.showTab('contenu')"><i class="ti ti-text-caption" style="font-size:13px"></i> Contenu</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : THÈME
+════════════════════════════════════════════════════ -->
+<div class="studio-panel on" id="studio-panel-theme">
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-moon-stars"></i> <span data-aura-edit="studio.title.1" data-aura-edit-label="Titre : Mode d'affichage">Mode d'affichage</span></span></div>
+    <div class="mode-grid" id="mode-grid">
+      <div class="mode-card light" data-mode="light" onclick="Studio.setMode('light')">
+        <div class="mode-card-icon">☀️</div>
+        <div class="mode-card-name">Clair</div>
+        <div class="mode-card-desc">Lumineux et aéré</div>
+      </div>
+      <div class="mode-card dark" data-mode="dark" onclick="Studio.setMode('dark')">
+        <div class="mode-card-icon">🌙</div>
+        <div class="mode-card-name">Sombre</div>
+        <div class="mode-card-desc">Doux pour les yeux</div>
+      </div>
+      <div class="mode-card cosmic" data-mode="cosmic" onclick="Studio.setMode('cosmic')">
+        <div class="mode-card-icon">🌌</div>
+        <div class="mode-card-name">Cosmique ✦</div>
+        <div class="mode-card-desc">Galaxies & aurores</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-color-swatch"></i> <span data-aura-edit="studio.title.2" data-aura-edit-label="Titre : Palette de couleurs">Palette de couleurs</span></span></div>
+    <div class="palette-grid" id="palette-grid"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-typography"></i> <span data-aura-edit="studio.title.3" data-aura-edit-label="Titre : Police d'écriture">Police d'écriture</span></span></div>
+    <div class="font-grid" id="font-grid"></div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : EFFETS COSMIQUES
+════════════════════════════════════════════════════ -->
+<div class="studio-panel" id="studio-panel-cosmos">
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-sparkles"></i> <span data-aura-edit="studio.title.4" data-aura-edit-label="Titre : Effets visuels">Effets visuels</span></span></div>
+
+    <div class="effect-row">
+      <div class="effect-info">
+        <div class="effect-icon"><i class="ti ti-stars"></i></div>
+        <div><div class="effect-name">Particules étoilées</div><div class="effect-desc">Petites étoiles scintillantes en fond</div></div>
+      </div>
+      <button class="toggle on" id="fx-particles" onclick="Studio.toggleEffect('particles',this)"></button>
+    </div>
+
+    <div class="effect-row">
+      <div class="effect-info">
+        <div class="effect-icon"><i class="ti ti-cloud"></i></div>
+        <div><div class="effect-name">Aurores en fond</div><div class="effect-desc">Voiles colorés mouvants façon aurore boréale</div></div>
+      </div>
+      <button class="toggle on" id="fx-aurora" onclick="Studio.toggleEffect('aurora',this)"></button>
+    </div>
+
+    <div class="effect-row">
+      <div class="effect-info">
+        <div class="effect-icon"><i class="ti ti-confetti"></i></div>
+        <div><div class="effect-name">Confettis de victoire</div><div class="effect-desc">Célébration animée lors d'un passage de niveau</div></div>
+      </div>
+      <button class="toggle on" id="fx-confetti" onclick="Studio.toggleEffect('confetti',this)"></button>
+    </div>
+
+    <div class="effect-row">
+      <div class="effect-info">
+        <div class="effect-icon"><i class="ti ti-wave-sine"></i></div>
+        <div><div class="effect-name">Transitions douces</div><div class="effect-desc">Animations fluides entre les modules</div></div>
+      </div>
+      <button class="toggle on" id="fx-transitions" onclick="Studio.toggleEffect('transitions',this)"></button>
+    </div>
+
+    <div style="margin-top:1.25rem">
+      <label class="field-lbl">Intensité globale des effets</label>
+      <div class="intensity-slider">
+        <span style="font-size:11px;color:var(--t3)">Sobre</span>
+        <input type="range" min="0" max="100" value="60" id="fx-intensity" oninput="Studio.setIntensity(this.value)">
+        <span style="font-size:11px;color:var(--t3)">Intense</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="background:linear-gradient(135deg,#1A1040,#2D1B69);border:none;color:#fff" id="cosmos-preview-box">
+    <div style="font-size:12px;font-weight:700;color:#C4B5FD;margin-bottom:.5rem">✦ Aperçu en direct</div>
+    <div style="font-size:13px;color:#E9D5FF;line-height:1.6">Les effets s'appliquent immédiatement sur toute l'application. Navigue vers le Dashboard pour voir le résultat complet dans ton univers cosmique.</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : NAVIGATION
+════════════════════════════════════════════════════ -->
+<div class="studio-panel" id="studio-panel-navigation">
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-adjustments-horizontal"></i> <span data-aura-edit="studio.title.5" data-aura-edit-label="Titre : Mode de navigation rapide">Mode de navigation rapide</span></span></div>
+    <div class="mode-grid" style="grid-template-columns:1fr 1fr">
+      <div class="mode-card" data-quicknav="essentiel" onclick="Studio.applyQuickNav('essentiel')" style="background:var(--pu-l);border-color:var(--pu-b)">
+        <div class="mode-card-icon">✨</div>
+        <div class="mode-card-name">Essentiel</div>
+        <div class="mode-card-desc">Affiche uniquement tes priorités définies à l'inscription</div>
+      </div>
+      <div class="mode-card" data-quicknav="complet" onclick="Studio.applyQuickNav('complet')">
+        <div class="mode-card-icon">📚</div>
+        <div class="mode-card-name">Complet</div>
+        <div class="mode-card-desc">Affiche tous les modules disponibles</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-layout-sidebar"></i> <span data-aura-edit="studio.title.6" data-aura-edit-label="Titre : Réorganise ta sidebar en détail">Réorganise ta sidebar en détail</span></span>
+      <button class="btn-ghost" onclick="Studio.resetNav()">Réinitialiser l'ordre</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--t2);margin-bottom:1rem;line-height:1.5">
+      Glisse-dépose pour réordonner, clique sur 👁 pour masquer un module de la sidebar, modifie le nom directement dans le champ.
+    </div>
+    <div class="nav-edit-list" id="nav-edit-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     PANEL : CONTENU
+════════════════════════════════════════════════════ -->
+<div class="studio-panel" id="studio-panel-contenu">
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-text-caption"></i> <span data-aura-edit="studio.title.7" data-aura-edit-label="Titre : Textes personnalisés">Textes personnalisés</span></span></div>
+
+    <div class="content-edit-card">
+      <div class="content-edit-label">Nom affiché dans AURA</div>
+      <input class="field-input" id="ce-name" placeholder="Mon AURA">
+    </div>
+
+    <div class="content-edit-card">
+      <div class="content-edit-label">Affirmation personnelle par défaut</div>
+      <textarea class="field-ta" id="ce-affirmation" rows="2" style="margin-bottom:0" placeholder="Je suis alignée et en expansion"></textarea>
+    </div>
+
+    <div class="content-edit-card">
+      <div class="content-edit-label">Tagline de l'app (sous le logo AURA)</div>
+      <input class="field-input" id="ce-tagline" placeholder="Life Architecture OS">
+    </div>
+
+    <button class="btn-primary" onclick="Studio.saveContent()">
+      <i class="ti ti-check"></i> Enregistrer les textes
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     BARRE D'APPLICATION
+════════════════════════════════════════════════════ -->
+<div class="studio-apply-bar">
+  <button class="btn-pill" onclick="Studio.resetAll()" style="border-color:var(--re);color:var(--re)"><i class="ti ti-refresh"></i> Tout réinitialiser</button>
+  <button class="btn-primary" style="width:auto;padding:10px 22px" onclick="Studio.applyAll()"><i class="ti ti-sparkles"></i> Appliquer mes changements</button>
+</div>
+
+<script>
+window.initModule = function(name) {
+  if (name !== 'studio') return;
+  Studio.init();
+};
+
+/* ══════════════════════════════════════════════════
+   STORE — Configuration du Studio
+══════════════════════════════════════════════════ */
+const StudioStore = {
+  _key: 'aura_studio_v1',
+  _data: null,
+
+  get() {
+    if (this._data) return this._data;
+    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
+    this._data = {
+      mode: 'light',
+      palette: 'violet',
+      font: 'system',
+      effects: { particles:true, aurora:true, confetti:true, transitions:true },
+      intensity: 60,
+      navOrder: [],   // liste de keys dans l'ordre voulu
+      navHidden: [],  // keys masquées
+      navLabels: {},  // overrides de labels { key: 'Nouveau nom' }
+    };
+    this.save();
+    return this._data;
+  },
+  save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
+};
+
+/* ══════════════════════════════════════════════════
+   PALETTES DE COULEURS
+══════════════════════════════════════════════════ */
+const PALETTES = {
+  violet: { name:'Violet AURA', pu:'#7C3AED', puL:'#F5F3FF', puB:'#DDD6FE', segs:['#7C3AED','#A78BFA','#DDD6FE'] },
+  teal:   { name:'Teal Zen',    pu:'#0D9488', puL:'#F0FDFA', puB:'#99F6E4', segs:['#0D9488','#2DD4BF','#99F6E4'] },
+  rose:   { name:'Rose Doux',   pu:'#DB2777', puL:'#FDF2F8', puB:'#F9A8D4', segs:['#DB2777','#F472B6','#F9A8D4'] },
+  ambre:  { name:'Ambre Chaud', pu:'#EA580C', puL:'#FFF7ED', puB:'#FED7AA', segs:['#EA580C','#FB923C','#FED7AA'] },
+  ocean:  { name:'Océan Bleu',  pu:'#2563EB', puL:'#EFF6FF', puB:'#BFDBFE', segs:['#2563EB','#60A5FA','#BFDBFE'] },
+  foret:  { name:'Forêt',       pu:'#16A34A', puL:'#F0FDF4', puB:'#BBF7D0', segs:['#16A34A','#4ADE80','#BBF7D0'] },
+  cosmos: { name:'Cosmos',      pu:'#9333EA', puL:'#F5F3FF', puB:'#C4B5FD', segs:['#312E81','#6D28D9','#A78BFA'] },
+  or:     { name:'Or Royal',    pu:'#C9A84C', puL:'#FEFCE8', puB:'#FDE68A', segs:['#C9A84C','#FBBF24','#FDE68A'] },
+};
+
+const FONTS = {
+  system: { name:'Système',  css:'-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' },
+  serif:  { name:'Élégante', css:'"Georgia","Times New Roman",serif' },
+  rounded:{ name:'Douce',    css:'"Quicksand","Comfortaa",sans-serif' },
+};
+
+/* ══════════════════════════════════════════════════
+   MODULES — liste de référence pour l'éditeur nav
+══════════════════════════════════════════════════ */
+const NAV_MODULES_REF = [
+  { key:'dashboard',   icon:'☀️', name:'Ancre du jour' },
+  { key:'spheres',     icon:'🎯', name:'8 Sphères de vie' },
+  { key:'visionboard', icon:'🌌', name:'Vision Board' },
+  { key:'rituel',      icon:'🌅', name:'Rituel du matin' },
+  { key:'habitudes',   icon:'🔁', name:'Habitudes' },
+  { key:'budget',      icon:'📊', name:'Budget & Épargne' },
+  { key:'patrimoine',  icon:'🏦', name:'Patrimoine' },
+  { key:'cagnottes',   icon:'🐷', name:'Cagnottes' },
+  { key:'charges',     icon:'🧾', name:'Charges fixes' },
+  { key:'agenda',      icon:'📅', name:'Agenda' },
+  { key:'cuisine',     icon:'🍽️', name:'Cuisine' },
+  { key:'maison',      icon:'🏡', name:'Maison' },
+  { key:'sante',       icon:'🌿', name:'Santé' },
+  { key:'social',      icon:'👥', name:'Social' },
+  { key:'voyages',     icon:'✈️', name:'Voyages' },
+  { key:'abonnements', icon:'💳', name:'Abonnements' },
+  { key:'coach',       icon:'✨', name:'Coach IA' },
+  { key:'xp',          icon:'🏆', name:'XP & Badges' },
+];
+
+/* ══════════════════════════════════════════════════
+   ENGINE
+══════════════════════════════════════════════════ */
+const Studio = {
+  draggedKey: null,
+
+  init() {
+    const d = StudioStore.get();
+    this.renderModeGrid(d.mode);
+    this.renderPalettes(d.palette);
+    this.renderFonts(d.font);
+    this.renderEffects(d.effects, d.intensity);
+    this.renderNavList(d);
+    this.renderContent();
+  },
+
+  showTab(tab) {
+    document.querySelectorAll('.studio-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.studio-panel').forEach(p=>p.classList.remove('on'));
+    const tabs = ['theme','cosmos','navigation','contenu'];
+    document.querySelectorAll('.studio-tab')[tabs.indexOf(tab)]?.classList.add('active');
+    document.getElementById('studio-panel-'+tab)?.classList.add('on');
+  },
+
+  /* ── Mode ── */
+  renderModeGrid(active) {
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.toggle('active', c.dataset.mode===active));
+  },
+  setMode(mode) {
+    StudioStore.get().mode = mode;
+    StudioStore.save();
+    this.renderModeGrid(mode);
+    AuraUI.showToast(`Mode "${mode}" sélectionné — clique Appliquer`);
+  },
+
+  /* ── Palettes ── */
+  renderPalettes(active) {
+    const el = document.getElementById('palette-grid');
+    el.innerHTML = Object.entries(PALETTES).map(([key,p]) => `
+      <div class="palette-card ${key===active?'active':''}" data-palette="${key}" onclick="Studio.setPalette('${key}')">
+        <div class="palette-preview">${p.segs.map(c=>`<div class="palette-preview-seg" style="background:${c}"></div>`).join('')}</div>
+        <div class="palette-name">${p.name}</div>
+      </div>`).join('');
+  },
+  setPalette(key) {
+    StudioStore.get().palette = key;
+    StudioStore.save();
+    document.querySelectorAll('.palette-card').forEach(c => c.classList.toggle('active', c.dataset.palette===key));
+    AuraUI.showToast(`Palette "${PALETTES[key].name}" sélectionnée`);
+  },
+
+  /* ── Police ── */
+  renderFonts(active) {
+    const el = document.getElementById('font-grid');
+    el.innerHTML = Object.entries(FONTS).map(([key,f]) => `
+      <div class="font-card ${key===active?'active':''}" data-font="${key}" onclick="Studio.setFont('${key}')">
+        <div class="font-preview" style="font-family:${f.css}">Aa</div>
+        <div class="font-name">${f.name}</div>
+      </div>`).join('');
+  },
+  setFont(key) {
+    StudioStore.get().font = key;
+    StudioStore.save();
+    document.querySelectorAll('.font-card').forEach(c => c.classList.toggle('active', c.dataset.font===key));
+  },
+
+  /* ── Effets ── */
+  renderEffects(effects, intensity) {
+    ['particles','aurora','confetti','transitions'].forEach(k => {
+      const btn = document.getElementById('fx-'+k);
+      if (btn) { btn.classList.toggle('on', !!effects[k]); btn.classList.toggle('off', !effects[k]); }
+    });
+    const slider = document.getElementById('fx-intensity');
+    if (slider) slider.value = intensity;
+  },
+  toggleEffect(key, btn) {
+    const d = StudioStore.get();
+    d.effects[key] = !d.effects[key];
+    StudioStore.save();
+    btn.classList.toggle('on');
+    btn.classList.toggle('off');
+  },
+  setIntensity(val) {
+    StudioStore.get().intensity = parseInt(val);
+    StudioStore.save();
+  },
+
+  /* ── Navigation — édition + drag&drop ── */
+  renderNavList(d) {
+    let order = d.navOrder.length ? d.navOrder : NAV_MODULES_REF.map(m=>m.key);
+    // S'assurer que tous les modules sont présents (au cas où de nouveaux ont été ajoutés depuis)
+    NAV_MODULES_REF.forEach(m => { if (!order.includes(m.key)) order.push(m.key); });
+
+    const el = document.getElementById('nav-edit-list');
+    el.innerHTML = order.map(key => {
+      const ref = NAV_MODULES_REF.find(m=>m.key===key);
+      if (!ref) return '';
+      const isHidden = d.navHidden.includes(key);
+      const label = d.navLabels[key] || ref.name;
+      return `<div class="nav-edit-item ${isHidden?'is-hidden':''}" draggable="true" data-key="${key}"
+                ondragstart="Studio.onDragStart(event,'${key}')" ondragover="Studio.onDragOver(event,this)"
+                ondrop="Studio.onDrop(event,'${key}')" ondragend="Studio.onDragEnd(event)">
+        <i class="ti ti-grip-vertical nav-edit-handle"></i>
+        <span class="nav-edit-icon">${ref.icon}</span>
+        <input class="nav-edit-name-input" value="${label}" onchange="Studio.renameModule('${key}',this.value)">
+        <span class="nav-edit-key">${key}</span>
+        <button class="nav-edit-visibility ${isHidden?'hidden':''}" onclick="Studio.toggleVisibility('${key}')" title="${isHidden?'Afficher':'Masquer'}">
+          <i class="ti ${isHidden?'ti-eye-off':'ti-eye'}"></i>
+        </button>
+      </div>`;
+    }).join('');
+  },
+
+  onDragStart(e, key) { this.draggedKey = key; e.target.classList.add('dragging'); },
+  onDragOver(e, el) { e.preventDefault(); el.classList.add('drag-over'); },
+  onDragEnd(e) {
+    document.querySelectorAll('.nav-edit-item').forEach(el => el.classList.remove('dragging','drag-over'));
+  },
+  onDrop(e, targetKey) {
+    e.preventDefault();
+    if (!this.draggedKey || this.draggedKey===targetKey) return;
+    const d = StudioStore.get();
+    let order = d.navOrder.length ? [...d.navOrder] : NAV_MODULES_REF.map(m=>m.key);
+    const fromIdx = order.indexOf(this.draggedKey);
+    const toIdx   = order.indexOf(targetKey);
+    order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, this.draggedKey);
+    d.navOrder = order;
+    StudioStore.save();
+    this.renderNavList(d);
+    AuraUI.showToast('Ordre mis à jour');
+  },
+
+  toggleVisibility(key) {
+    const d = StudioStore.get();
+    if (d.navHidden.includes(key)) d.navHidden = d.navHidden.filter(k=>k!==key);
+    else d.navHidden.push(key);
+    StudioStore.save();
+    this.renderNavList(d);
+  },
+
+  renameModule(key, newName) {
+    const d = StudioStore.get();
+    d.navLabels[key] = newName.trim() || NAV_MODULES_REF.find(m=>m.key===key)?.name;
+    StudioStore.save();
+  },
+
+  resetNav() {
+    if (!confirm('Réinitialiser l\'ordre et les noms de la navigation ?')) return;
+    const d = StudioStore.get();
+    d.navOrder = []; d.navHidden = []; d.navLabels = {};
+    StudioStore.save();
+    this.renderNavList(d);
+    AuraUI.showToast('Navigation réinitialisée');
+  },
+
+  /* ── Mode rapide essentiel/complet ── */
+  applyQuickNav(mode) {
+    document.querySelectorAll('[data-quicknav]').forEach(c => {
+      c.style.background = c.dataset.quicknav === mode ? 'var(--pu-l)' : '';
+      c.style.borderColor = c.dataset.quicknav === mode ? 'var(--pu-b)' : '';
+    });
+
+    const d = StudioStore.get();
+    const ALL_MODULES = ['dashboard','spheres','visionboard','rituel','habitudes','budget','patrimoine','cagnottes','charges','agenda','cuisine','maison','sante','social','voyages','abonnements','coach','xp'];
+
+    if (mode === 'complet') {
+      d.navHidden = [];
+      StudioStore.save();
+      this.renderNavList(d);
+      this.applyAll();
+      AuraUI.showToast('✓ Tous les modules sont maintenant visibles');
+      return;
+    }
+
+    // Mode essentiel : réutilise les priorités de l'onboarding si elles existent
+    let priorities = [];
+    try {
+      const onb = JSON.parse(localStorage.getItem('aura_onboarding_priorities')||'null');
+      if (onb?.length) priorities = onb;
+    } catch(_) {}
+
+    if (!priorities.length) {
+      // Pas de priorités connues → on demande rapidement
+      const picked = prompt('Quels modules sont tes priorités ? (séparés par virgule)\nExemples : budget, rituel, habitudes, sante, cuisine, maison, agenda, coach, social, voyages, patrimoine, spheres', 'budget, rituel, habitudes');
+      if (!picked) return;
+      priorities = picked.split(',').map(s=>s.trim().toLowerCase()).filter(k => ALL_MODULES.includes(k));
+    }
+
+    const ALWAYS_VISIBLE = ['dashboard','coach','xp'];
+    const toShow = new Set([...ALWAYS_VISIBLE, ...priorities]);
+    d.navHidden = ALL_MODULES.filter(m => !toShow.has(m));
+    StudioStore.save();
+    this.renderNavList(d);
+    this.applyAll();
+    AuraUI.showToast('✓ Mode essentiel activé — le reste reste accessible via le Studio');
+  },
+
+  /* ── Contenu ── */
+  renderContent() {
+    const d = AuraStore.get();
+    _val('ce-name', d.prefs?.name || 'Mon AURA');
+    _val('ce-affirmation', d.prefs?.affirmation || '');
+    _val('ce-tagline', d.prefs?.tagline || 'Life Architecture OS');
+  },
+  saveContent() {
+    AuraStore.set('prefs.name', document.getElementById('ce-name')?.value || 'Mon AURA');
+    AuraStore.set('prefs.affirmation', document.getElementById('ce-affirmation')?.value || '');
+    AuraStore.set('prefs.tagline', document.getElementById('ce-tagline')?.value || 'Life Architecture OS');
+    AuraUI.updateXPDisplays();
+    const tagEl = document.querySelector('.sb-logo-tag');
+    if (tagEl) tagEl.textContent = document.getElementById('ce-tagline')?.value || 'Life Architecture OS';
+    earnXP(5, 'Contenu personnalisé', '✏️');
+    AuraUI.showToast('✓ Textes enregistrés');
+  },
+
+  /* ── Application globale du thème ── */
+  applyAll() {
+    const d = StudioStore.get();
+    const palette = PALETTES[d.palette] || PALETTES.violet;
+    const root = document.documentElement;
+
+    // Couleurs
+    root.style.setProperty('--pu', palette.pu);
+    root.style.setProperty('--pu-l', palette.puL);
+    root.style.setProperty('--pu-b', palette.puB);
+
+    // Police
+    const font = FONTS[d.font] || FONTS.system;
+    root.style.setProperty('--font', font.css);
+
+    // Mode
+    if (d.mode === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+    } else if (d.mode === 'cosmic') {
+      root.setAttribute('data-theme', 'dark');
+      this.injectCosmicLayer(d.effects, d.intensity);
+    } else {
+      root.removeAttribute('data-theme');
+      this.removeCosmicLayer();
+    }
+
+    AuraStore.set('prefs.theme', d.mode==='cosmic' ? 'dark' : d.mode);
+    AuraStore.set('prefs.studioApplied', true);
+
+    // Navigation : appliquer ordre/visibilité/labels sur la sidebar réelle
+    this.applyNavToSidebar(d);
+
+    earnXP(15, 'Thème AURA personnalisé', '🎨');
+    AuraUI.showToast('✦ Ton univers AURA a été transformé !');
+  },
+
+  applyNavToSidebar(d) {
+    let order = d.navOrder.length ? d.navOrder : NAV_MODULES_REF.map(m=>m.key);
+    const navContainer = document.querySelectorAll('.nav-item');
+    const itemsByKey = {};
+    navContainer.forEach(el => { itemsByKey[el.dataset.module] = el; });
+
+    order.forEach(key => {
+      const el = itemsByKey[key];
+      if (!el) return;
+      el.style.display = d.navHidden.includes(key) ? 'none' : '';
+      if (d.navLabels[key]) {
+        const span = el.querySelector('span:not(.nav-pip)');
+        // On modifie le texte du bouton après l'icône, en gardant les pips
+        const icon = el.querySelector('i');
+        const pip  = el.querySelector('.nav-pip');
+        el.innerHTML = '';
+        if (icon) el.appendChild(icon);
+        el.appendChild(document.createTextNode(' ' + d.navLabels[key]));
+        if (pip) el.appendChild(pip);
+      }
+      el.parentElement.appendChild(el); // réordonne dans le DOM
+    });
+
+    // Met à jour la carte "Explorer plus" dans la sidebar (gérée par main.js)
+    if (window.AuraApp?._updateExploreMoreCard) AuraApp._updateExploreMoreCard(d.navHidden);
+  },
+
+  /* ── Couche cosmique (étoiles + aurores en overlay) ── */
+  injectCosmicLayer(effects, intensity) {
+    this.removeCosmicLayer();
+    const opacity = (intensity/100).toFixed(2);
+    const layer = document.createElement('div');
+    layer.id = 'aura-cosmic-layer';
+    layer.style.cssText = `position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;opacity:${opacity}`;
+
+    if (effects.aurora) {
+      layer.innerHTML += `<div style="position:absolute;inset:-20%;background:
+        radial-gradient(ellipse 60% 40% at 20% 0%, rgba(124,58,237,.25), transparent),
+        radial-gradient(ellipse 50% 35% at 80% 10%, rgba(236,72,153,.18), transparent),
+        radial-gradient(ellipse 45% 30% at 50% 100%, rgba(45,212,191,.15), transparent);
+        animation:auraDrift 18s ease-in-out infinite alternate;filter:blur(40px)"></div>`;
+    }
+    if (effects.particles) {
+      let stars = '';
+      for (let i=0;i<60;i++) {
+        const top = Math.random()*100, left = Math.random()*100, size = (Math.random()*2+1).toFixed(1), delay = (Math.random()*4).toFixed(1);
+        stars += `<div style="position:absolute;top:${top}%;left:${left}%;width:${size}px;height:${size}px;background:#fff;border-radius:50%;animation:auraTwinkleStar 3s ease-in-out ${delay}s infinite alternate"></div>`;
+      }
+      layer.innerHTML += stars;
+    }
+    document.body.appendChild(layer);
+
+    if (!document.getElementById('aura-cosmic-keyframes')) {
+      const style = document.createElement('style');
+      style.id = 'aura-cosmic-keyframes';
+      style.textContent = `
+        @keyframes auraDrift { 0%{transform:translate(0,0) rotate(0deg)} 100%{transform:translate(3%,-3%) rotate(3deg)} }
+        @keyframes auraTwinkleStar { 0%{opacity:.2;transform:scale(.8)} 100%{opacity:1;transform:scale(1.3)} }
+      `;
+      document.head.appendChild(style);
+    }
+  },
+  removeCosmicLayer() {
+    document.getElementById('aura-cosmic-layer')?.remove();
+  },
+
+  /* ── Reset complet ── */
+  resetAll() {
+    if (!confirm('Réinitialiser TOUT le Studio (thème, navigation, contenu) ? Cette action est irréversible.')) return;
+    localStorage.removeItem('aura_studio_v1');
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.style.removeProperty('--pu');
+    document.documentElement.style.removeProperty('--pu-l');
+    document.documentElement.style.removeProperty('--pu-b');
+    document.documentElement.style.removeProperty('--font');
+    this.removeCosmicLayer();
+    AuraUI.showToast('Studio réinitialisé — rechargement...');
+    setTimeout(()=>location.reload(), 1200);
+  },
+};
+
+function _val(id, val) { const e=document.getElementById(id); if(e) e.value = val; }
+
+if (document.readyState !== 'loading') Studio.init();
+</script>
