@@ -344,8 +344,14 @@ const AuraOnboarding = {
    présent dans aura-db.js
 ══════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  // Laisse le temps à aura-db.js de tenter une restauration de session
-  setTimeout(() => {
+  // Attend la fin RÉELLE de la tentative de restauration de session
+  // (signalée par aura-db.js) plutôt qu'un délai fixe. Un setTimeout
+  // arbitraire de 200ms peut se déclencher avant que l'appel réseau de
+  // restauration ait fini, et faire croire à tort que la personne n'est
+  // pas connectée — ce qui rouvre l'écran "Bon retour" / PIN alors que
+  // la session était simplement en cours de restauration en arrière-plan.
+  // Garde-fou de 3s : si le signal ne vient jamais, on continue quand même.
+  const runOnboardingCheck = () => {
     const alreadyLoggedIn = window.SupaClient?.isLoggedIn?.();
     if (alreadyLoggedIn) return; // déjà connectée, rien à afficher
 
@@ -364,7 +370,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!AuraOnboarding.isDone()) {
       AuraOnboarding.maybeShow();
     }
-  }, 200);
+  };
+
+  if (window.__auraSessionReady) {
+    // La restauration était déjà finie avant même que ce script ne s'exécute
+    runOnboardingCheck();
+  } else {
+    let done = false;
+    const safetyTimer = setTimeout(() => { if (!done) { done = true; runOnboardingCheck(); } }, 3000);
+    document.addEventListener('aura:session-ready', () => {
+      if (done) return;
+      done = true;
+      clearTimeout(safetyTimer);
+      runOnboardingCheck();
+    }, { once: true });
+  }
 });
 
 window.AuraOnboarding = AuraOnboarding;

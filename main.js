@@ -277,9 +277,7 @@ const AuraBridge = {
         const lbl = args.slice(1).join(' ')||'Action IA';
         return `✦ +${pts} XP : "${lbl}"`;
       case 'status':
-        const s = AuraStore.get();
-        const l = AuraXP.getLevel(s.xp.total);
-        return `Module actuel: ${AuraApp.current} | XP: ${s.xp.total} | Niveau ${l.cur.n} (${l.cur.name})`;
+        return `Module actuel: ${AuraApp.current}`;
       case 'theme':
         const t = args[0];
         document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'');

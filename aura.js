@@ -651,3 +651,15 @@ function _deepSet(obj, path, val) {
   for (let i = 0; i < k.length - 1; i++) { if (!o[k[i]]) o[k[i]] = {}; o = o[k[i]]; }
   o[k[k.length - 1]] = val;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   STUB GLOBAL earnXP — système XP retiré de l'app.
+   De nombreux modules (budget, habitudes, rituel...) appellent
+   encore earnXP(...) après une sauvegarde réussie. Sans cette
+   fonction, l'appel lève un ReferenceError qui interrompt le
+   script du module APRÈS la sauvegarde des données mais AVANT
+   l'affichage du toast de confirmation — donnant l'impression
+   trompeuse que la saisie n'a pas été enregistrée alors qu'elle
+   l'a été. No-op volontaire : ne fait rien, n'affiche rien.
+══════════════════════════════════════════════════════════════ */
+window.earnXP = function() {};

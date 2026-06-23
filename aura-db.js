@@ -935,6 +935,14 @@ function _fmt(n) { return Number(n||0).toLocaleString('fr-FR',{minimumFractionDi
 document.addEventListener('DOMContentLoaded', async () => {
   const isLoggedIn = await AuraAuth.init();
   AuraAuth.updateSidebarAuth();
+  // Signale aux autres scripts (aura-onboarding.js notamment) que la
+  // tentative de restauration de session est terminée, avec son résultat
+  // réel — plus besoin de deviner via un setTimeout arbitraire qui peut
+  // se déclencher avant la fin de l'appel réseau et rouvrir à tort
+  // l'écran de connexion alors que la session était en cours de restauration.
+  window.__auraSessionReady = true;
+  window.__auraSessionLoggedIn = isLoggedIn;
+  document.dispatchEvent(new CustomEvent('aura:session-ready', { detail: { isLoggedIn } }));
   // Note : l'ancien auto-affichage du modal de login a été retiré.
   // C'est maintenant aura-onboarding.js qui gère le premier contact avec l'utilisateur
   // (parcours de bienvenue), avec un lien "J'ai déjà un compte" qui ouvre ce modal.
