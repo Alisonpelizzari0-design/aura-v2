@@ -601,6 +601,10 @@ function initParams() {
   renderAccountStatus();
 }
 
+function _val(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
 function _readPath(obj, path) {
   return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
 }
