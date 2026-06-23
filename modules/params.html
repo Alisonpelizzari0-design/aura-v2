@@ -1,6 +1,15 @@
 <!-- ============================================================
      AURA — params.html  (fragment SPA)
-     Paramètres complets : profil, Gemini, budget, alertes, thème
+     Centre de paramètres complet :
+     - Google Gemini IA
+     - Compte (connexion / déconnexion)
+     - Profil personnel
+     - Enveloppes budgétaires personnalisables (source unique,
+       partagée avec le module Budget via aura_finance_v1)
+     - Alertes & notifications
+     - Liens & intégrations
+     - Apparence & préférences
+     - Réinitialisation
      ============================================================ -->
 
 <style>
@@ -8,6 +17,7 @@
 .params-section:last-child { margin-bottom:0; }
 .params-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--t3); margin-bottom:.75rem; display:flex; align-items:center; gap:6px; padding-bottom:.5rem; border-bottom:1px solid var(--bd); }
 .params-section-title i { font-size:14px; }
+.params-section-title .section-hint { margin-left:auto; font-size:10px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--t3); }
 .key-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:10px; }
 .key-status.ok  { background:var(--gr-l); color:var(--gr); border:1px solid var(--gr-b); }
 .key-status.ko  { background:var(--am-l); color:var(--am); border:1px solid var(--am-b); }
@@ -22,6 +32,29 @@
 .swatch { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2.5px solid transparent; transition:transform .12s; }
 .swatch:hover { transform:scale(1.15); }
 .swatch.active { outline:2.5px solid var(--text); outline-offset:2px; }
+
+/* ── Enveloppes budgétaires ── */
+.env-list { display:flex; flex-direction:column; gap:8px; margin-bottom:.875rem; }
+.env-row { display:flex; align-items:center; gap:10px; padding:.625rem .75rem; border-radius:var(--r-md); background:var(--bg); border:1px solid var(--bd); }
+.env-icon-btn { width:34px; height:34px; border-radius:var(--r-md); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; border:none; cursor:pointer; }
+.env-icon-btn i { font-size:15px; }
+.env-label-input { flex:1; min-width:0; border:none; background:none; font-size:12.5px; font-weight:600; color:var(--text); outline:none; padding:4px 0; }
+.env-label-input:focus { border-bottom:1px solid var(--pu); }
+.env-amount-wrap { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+.env-amount-input { width:64px; text-align:right; border:none; background:none; font-size:13px; font-weight:700; color:var(--text); outline:none; padding:4px 0; }
+.env-amount-input:focus { border-bottom:1px solid var(--pu); }
+.env-actions { display:flex; gap:4px; flex-shrink:0; }
+.env-action-btn { width:28px; height:28px; border-radius:var(--r-sm); border:none; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--t3); transition:background .12s,color .12s; }
+.env-action-btn:hover { background:var(--bd); color:var(--text); }
+.env-action-btn.danger:hover { background:var(--re-l); color:var(--re); }
+.env-color-picker { position:fixed; z-index:30; background:var(--white); border:1px solid var(--bd); border-radius:var(--r-md); padding:.625rem; box-shadow:0 8px 24px rgba(0,0,0,.14); display:flex; flex-wrap:wrap; gap:6px; width:168px; }
+.env-color-picker .swatch { width:22px; height:22px; }
+.env-add-form { display:flex; align-items:center; gap:8px; padding:.625rem .75rem; border-radius:var(--r-md); border:1.5px dashed var(--bd2); }
+.env-total-row { display:flex; justify-content:space-between; align-items:center; padding-top:.75rem; border-top:1px solid var(--bd); margin-top:.25rem; }
+.env-total-label { font-size:12px; font-weight:700; color:var(--text); }
+.env-total-value { font-size:15px; font-weight:800; color:var(--pu); }
+.env-sync-note { font-size:10px; color:var(--t3); line-height:1.5; margin-top:.625rem; display:flex; gap:5px; align-items:flex-start; }
+.env-sync-note i { font-size:12px; margin-top:1px; flex-shrink:0; }
 </style>
 
 <!-- ── En-tête ── -->
@@ -40,7 +73,7 @@
   <!-- Colonne gauche -->
   <div style="display:flex;flex-direction:column;gap:1.25rem">
 
-    <!-- 🔑 Gemini IA -->
+    <!-- Gemini IA -->
     <div class="card glow">
       <div class="params-section-title"><i class="ti ti-sparkles"></i> Google Gemini IA <span class="key-status" id="key-status-badge">⚠ Non configurée</span></div>
 
@@ -76,7 +109,7 @@
       <div id="gemini-test-result" style="margin-top:.625rem;font-size:12px;display:none"></div>
     </div>
 
-    <!-- 🔐 Mon compte -->
+    <!-- Mon compte -->
     <div class="card" id="account-status-card">
       <div class="params-section-title"><i class="ti ti-shield-lock"></i> Mon compte</div>
 
@@ -117,7 +150,7 @@
       </div>
     </div>
 
-    <!-- 👤 Profil -->
+    <!-- Profil -->
     <div class="card">
       <div class="params-section-title"><i class="ti ti-user"></i> Mon profil</div>
 
@@ -150,7 +183,7 @@
         <div><div class="param-lbl">Personnes au foyer</div></div>
         <select class="field-select" id="p-foyer" style="width:80px">
           <option value="1">1</option>
-          <option value="2" selected>2</option>
+          <option value="2">2</option>
           <option value="3">3</option>
           <option value="4">4+</option>
         </select>
@@ -158,8 +191,8 @@
       <div class="param-row">
         <div><div class="param-lbl">Appareils cuisine</div></div>
         <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
-          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-airfryer" checked> Air fryer</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-four" checked> Four</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-airfryer"> Air fryer</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-four"> Four</label>
           <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-thermomix"> Thermomix</label>
         </div>
       </div>
@@ -174,74 +207,64 @@
   <!-- Colonne droite -->
   <div style="display:flex;flex-direction:column;gap:1.25rem">
 
-    <!-- 💰 Budget mensuel -->
-    <div class="card">
-      <div class="params-section-title"><i class="ti ti-chart-pie"></i> Budget mensuel</div>
+    <!-- Enveloppes budgétaires -->
+    <div class="card" style="position:relative">
+      <div class="params-section-title">
+        <i class="ti ti-chart-pie"></i> Enveloppes budgétaires
+        <span class="section-hint">partagées avec le module Budget</span>
+      </div>
 
-      <div class="param-row">
-        <div class="param-lbl">Revenus nets</div>
-        <div style="display:flex;align-items:center;gap:5px">
-          <input class="field-input" id="b-revenus" type="number" value="3400" min="0" style="width:90px;text-align:right">
-          <span style="font-size:12px;color:var(--t2)">€</span>
+      <div class="env-list" id="env-list"></div>
+
+      <div class="env-add-form">
+        <input type="text" id="env-new-label" placeholder="Nouvelle catégorie..." class="env-label-input" style="font-weight:500">
+        <div class="env-amount-wrap">
+          <input type="number" id="env-new-amount" placeholder="0" min="0" class="env-amount-input" style="width:56px">
+          <span style="font-size:11px;color:var(--t2)">€</span>
         </div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Logement</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-logement"     type="number" value="900"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Alimentation</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-alimentation" type="number" value="350"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Loisirs</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-loisirs"      type="number" value="250"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Transport</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-transport"    type="number" value="150"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Abonnements</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-abonnements"  type="number" value="200"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
-      </div>
-      <div class="param-row">
-        <div class="param-lbl">Santé</div>
-        <div style="display:flex;align-items:center;gap:5px"><input class="field-input" id="b-sante"        type="number" value="100"  min="0" style="width:90px;text-align:right"><span style="font-size:12px;color:var(--t2)">€</span></div>
+        <button class="env-action-btn" onclick="addEnvelope()" title="Ajouter" style="background:var(--pu-l);color:var(--pu)">
+          <i class="ti ti-plus"></i>
+        </button>
       </div>
 
-      <button class="save-btn secondary" onclick="saveBudget()" style="width:100%;margin-top:.875rem">
-        <i class="ti ti-device-floppy"></i> Sauvegarder le budget
-      </button>
+      <div class="env-total-row">
+        <span class="env-total-label">Total enveloppes</span>
+        <span class="env-total-value" id="env-total-display">0 €</span>
+      </div>
+
+      <div class="env-sync-note">
+        <i class="ti ti-info-circle"></i>
+        <span>Ajoute, renomme ou supprime tes catégories ici — elles apparaîtront automatiquement dans le module Budget au prochain chargement. Couleur et icône personnalisables par catégorie (clique sur le rond coloré).</span>
+      </div>
     </div>
 
-    <!-- 🔔 Alertes -->
+    <!-- Alertes -->
     <div class="card">
       <div class="params-section-title"><i class="ti ti-bell"></i> Alertes & notifications</div>
 
       <div class="param-row">
         <div><div class="param-lbl">Dépassement budget</div><div class="param-sub">Quand une enveloppe dépasse 90%</div></div>
-        <button class="toggle on" onclick="toggleSwitch(this)" id="t-budget" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.budgetDepassement" aria-label="toggle"></button>
       </div>
       <div class="param-row">
         <div><div class="param-lbl">Rappel rituel matin</div><div class="param-sub">Chaque matin</div></div>
-        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.rappelRituel" aria-label="toggle"></button>
       </div>
       <div class="param-row">
         <div><div class="param-lbl">Rappel habitudes</div><div class="param-sub">20h00 chaque soir</div></div>
-        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.rappelHabitudes" aria-label="toggle"></button>
       </div>
       <div class="param-row">
         <div><div class="param-lbl">Bilan hebdomadaire</div><div class="param-sub">Dimanche soir</div></div>
-        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.bilanHebdo" aria-label="toggle"></button>
       </div>
       <div class="param-row">
         <div><div class="param-lbl">Idée recette Air Fryer</div><div class="param-sub">Chaque matin</div></div>
-        <button class="toggle off" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.recetteAirfryer" aria-label="toggle"></button>
       </div>
       <div class="param-row">
         <div><div class="param-lbl">Coach IA proactif</div><div class="param-sub">Conseils si anomalie détectée</div></div>
-        <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+        <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.coachProactif" aria-label="toggle"></button>
       </div>
     </div>
 
@@ -287,6 +310,10 @@
         <i class="ti ti-sun"></i> auraos-tau.vercel.app <i class="ti ti-external-link" style="font-size:11px"></i>
       </a>
     </div>
+
+    <button class="save-btn secondary" onclick="saveLinks()" style="width:100%;margin-top:.875rem">
+      <i class="ti ti-device-floppy"></i> Sauvegarder les liens
+    </button>
   </div>
 
   <!-- Apparence -->
@@ -304,7 +331,7 @@
     <div class="param-row">
       <div class="param-lbl">Couleur principale</div>
       <div class="color-swatches" id="color-swatches">
-        <div class="swatch active" style="background:#7C3AED" data-color="#7C3AED" onclick="setAccent('#7C3AED','#F5F3FF','#DDD6FE')" title="Violet"></div>
+        <div class="swatch" style="background:#7C3AED" data-color="#7C3AED" onclick="setAccent('#7C3AED','#F5F3FF','#DDD6FE')" title="Violet"></div>
         <div class="swatch" style="background:#0D9488" data-color="#0D9488" onclick="setAccent('#0D9488','#F0FDFA','#99F6E4')" title="Teal"></div>
         <div class="swatch" style="background:#DB2777" data-color="#DB2777" onclick="setAccent('#DB2777','#FDF2F8','#F9A8D4')" title="Rose"></div>
         <div class="swatch" style="background:#EA580C" data-color="#EA580C" onclick="setAccent('#EA580C','#FFF7ED','#FED7AA')" title="Orange"></div>
@@ -316,7 +343,7 @@
     <div class="param-row">
       <div><div class="param-lbl">Page d'accueil</div></div>
       <select class="field-select" id="p-home" style="width:130px">
-        <option value="dashboard" selected>Ancre du jour</option>
+        <option value="dashboard">Ancre du jour</option>
         <option value="rituel">Rituel du matin</option>
         <option value="habitudes">Habitudes</option>
         <option value="budget">Finances</option>
@@ -325,8 +352,8 @@
     </div>
 
     <div class="param-row">
-      <div><div class="param-lbl">Toasts XP</div><div class="param-sub">Afficher les gains XP</div></div>
-      <button class="toggle on" onclick="toggleSwitch(this)" aria-label="toggle"></button>
+      <div><div class="param-lbl">Toasts de confirmation</div><div class="param-sub">Afficher les messages "✓ Sauvegardé"</div></div>
+      <button class="toggle" onclick="toggleSwitch(this)" data-pref="prefs.showToasts" id="t-toasts" aria-label="toggle"></button>
     </div>
 
     <button class="save-btn secondary" onclick="saveAppearance()" style="width:100%;margin-top:.875rem">
@@ -355,26 +382,233 @@ window.initModule = function(name) {
   initParams();
 };
 
+const ENV_COLOR_PALETTE = [
+  { bg:'#FFF7ED', ic2:'#EA580C', name:'Orange' },
+  { bg:'#FDF2F8', ic2:'#DB2777', name:'Rose'   },
+  { bg:'#F0FDFA', ic2:'#0D9488', name:'Teal'   },
+  { bg:'#F0FDF4', ic2:'#16A34A', name:'Vert'   },
+  { bg:'#EFF6FF', ic2:'#2563EB', name:'Bleu'   },
+  { bg:'#FEFCE8', ic2:'#C9A84C', name:'Or'     },
+  { bg:'#F5F3FF', ic2:'#7C3AED', name:'Violet' },
+  { bg:'#FEF2F2', ic2:'#DC2626', name:'Rouge'  },
+];
+const ENV_ICON_CHOICES = [
+  'ti-shopping-cart','ti-confetti','ti-car','ti-heart','ti-shirt',
+  'ti-tools-kitchen-2','ti-home-2','ti-device-mobile','ti-paw',
+  'ti-school','ti-gift','ti-plane','ti-dog','ti-gas-station','ti-tag',
+];
+
+const ParamsEnv = {
+  _key: 'aura_finance_v1',
+
+  _readAll() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      if (raw) return JSON.parse(raw);
+    } catch(_) {}
+    return null;
+  },
+
+  _writeAll(data) {
+    try { localStorage.setItem(this._key, JSON.stringify(data)); } catch(_) {}
+  },
+
+  getEnveloppes() {
+    const d = this._readAll();
+    if (d && Array.isArray(d.enveloppes)) return d.enveloppes;
+    return [
+      { id:1, label:'Alimentation', budget:0, ic:'ti-shopping-cart', bg:'#FFF7ED', ic2:'#EA580C' },
+      { id:2, label:'Loisirs',      budget:0, ic:'ti-confetti',      bg:'#FDF2F8', ic2:'#DB2777' },
+      { id:3, label:'Transport',    budget:0, ic:'ti-car',           bg:'#F0FDFA', ic2:'#0D9488' },
+      { id:4, label:'Santé',        budget:0, ic:'ti-heart',         bg:'#F0FDF4', ic2:'#16A34A' },
+      { id:5, label:'Vêtements',    budget:0, ic:'ti-shirt',         bg:'#EFF6FF', ic2:'#2563EB' },
+      { id:6, label:'Restaurant',   budget:0, ic:'ti-tools-kitchen-2',bg:'#FEFCE8',ic2:'#C9A84C' },
+    ];
+  },
+
+  saveEnveloppes(list) {
+    let d = this._readAll();
+    if (!d) {
+      d = { revenus:[], charges:[], depenses:[], epargne:[], enveloppes:[], histChart:[] };
+    }
+    d.enveloppes = list;
+    this._writeAll(d);
+  },
+
+  nextId(list) {
+    return list.length ? Math.max(...list.map(e => e.id)) + 1 : 1;
+  },
+};
+
+function renderEnvelopes() {
+  const list = ParamsEnv.getEnveloppes();
+  const wrap = document.getElementById('env-list');
+  if (!wrap) return;
+
+  if (!list.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:1rem 0">Aucune catégorie pour l\'instant — ajoute la première ci-dessous.</div>';
+  } else {
+    wrap.innerHTML = list.map(env => `
+      <div class="env-row" data-env-id="${env.id}">
+        <button class="env-icon-btn" style="background:${env.bg};color:${env.ic2}" onclick="openEnvColorPicker(${env.id}, event)" title="Changer la couleur/icône">
+          <i class="${env.ic}"></i>
+        </button>
+        <input type="text" class="env-label-input" value="${_escAttr(env.label)}" onchange="updateEnvField(${env.id},'label',this.value)" placeholder="Nom de la catégorie">
+        <div class="env-amount-wrap">
+          <input type="number" class="env-amount-input" value="${env.budget || 0}" min="0" onchange="updateEnvField(${env.id},'budget',parseFloat(this.value)||0)">
+          <span style="font-size:11px;color:var(--t2)">€</span>
+        </div>
+        <div class="env-actions">
+          <button class="env-action-btn danger" onclick="deleteEnvelope(${env.id})" title="Supprimer">
+            <i class="ti ti-trash" style="font-size:14px"></i>
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  const total = list.reduce((s, e) => s + (parseFloat(e.budget) || 0), 0);
+  const totalEl = document.getElementById('env-total-display');
+  if (totalEl) totalEl.textContent = total.toLocaleString('fr-FR') + ' €';
+}
+
+function _escAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function updateEnvField(id, field, value) {
+  const list = ParamsEnv.getEnveloppes();
+  const env = list.find(e => e.id === id);
+  if (!env) return;
+  env[field] = value;
+  ParamsEnv.saveEnveloppes(list);
+  renderEnvelopes();
+  AuraUI?.showToast?.('✓ Enveloppe mise à jour');
+}
+
+function deleteEnvelope(id) {
+  if (!confirm('Supprimer cette catégorie de budget ? Les dépenses déjà liées resteront mais ne seront plus rattachées à une enveloppe visible.')) return;
+  const list = ParamsEnv.getEnveloppes().filter(e => e.id !== id);
+  ParamsEnv.saveEnveloppes(list);
+  renderEnvelopes();
+  AuraUI?.showToast?.('Catégorie supprimée');
+}
+
+function addEnvelope() {
+  const labelEl  = document.getElementById('env-new-label');
+  const amountEl = document.getElementById('env-new-amount');
+  const label  = labelEl?.value?.trim();
+  const amount = parseFloat(amountEl?.value) || 0;
+  if (!label) { AuraUI?.showToast?.('⚠ Donne un nom à la catégorie'); return; }
+
+  const list = ParamsEnv.getEnveloppes();
+  const palette = ENV_COLOR_PALETTE[list.length % ENV_COLOR_PALETTE.length];
+  const icon = ENV_ICON_CHOICES[list.length % ENV_ICON_CHOICES.length];
+  list.push({ id: ParamsEnv.nextId(list), label, budget: amount, ic: icon, bg: palette.bg, ic2: palette.ic2 });
+  ParamsEnv.saveEnveloppes(list);
+
+  labelEl.value = ''; amountEl.value = '';
+  renderEnvelopes();
+  AuraUI?.showToast?.('✓ "' + label + '" ajoutée');
+}
+
+function openEnvColorPicker(envId, evt) {
+  evt?.stopPropagation();
+  document.querySelectorAll('.env-color-picker').forEach(p => p.remove());
+
+  const list = ParamsEnv.getEnveloppes();
+  const env = list.find(e => e.id === envId);
+  if (!env) return;
+
+  const picker = document.createElement('div');
+  picker.className = 'env-color-picker';
+  picker.innerHTML = '<div style="width:100%;font-size:10px;font-weight:700;color:var(--t3);margin-bottom:2px">Couleur</div>' +
+    ENV_COLOR_PALETTE.map(p => '<div class="swatch ' + (p.ic2===env.ic2?'active':'') + '" style="background:' + p.ic2 + '" onclick="setEnvColor(' + envId + ',\'' + p.bg + '\',\'' + p.ic2 + '\')"></div>').join('') +
+    '<div style="width:100%;font-size:10px;font-weight:700;color:var(--t3);margin:8px 0 2px">Icône</div>' +
+    ENV_ICON_CHOICES.map(ic => '<button class="env-icon-btn" style="width:26px;height:26px;background:' + (ic===env.ic?'var(--pu-l)':'var(--bg)') + ';color:' + (ic===env.ic?'var(--pu)':'var(--t2)') + '" onclick="setEnvIcon(' + envId + ',\'' + ic + '\')"><i class="' + ic + '" style="font-size:13px"></i></button>').join('');
+  document.body.appendChild(picker);
+
+  const btn = evt?.currentTarget;
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    picker.style.top  = (r.bottom + 6) + 'px';
+    picker.style.left = r.left + 'px';
+  }
+
+  const closeOnOutside = (e) => {
+    if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', closeOnOutside); }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutside), 10);
+}
+
+function setEnvColor(id, bg, ic2) {
+  const list = ParamsEnv.getEnveloppes();
+  const env = list.find(e => e.id === id);
+  if (!env) return;
+  env.bg = bg; env.ic2 = ic2;
+  ParamsEnv.saveEnveloppes(list);
+  document.querySelectorAll('.env-color-picker').forEach(p => p.remove());
+  renderEnvelopes();
+}
+
+function setEnvIcon(id, ic) {
+  const list = ParamsEnv.getEnveloppes();
+  const env = list.find(e => e.id === id);
+  if (!env) return;
+  env.ic = ic;
+  ParamsEnv.saveEnveloppes(list);
+  document.querySelectorAll('.env-color-picker').forEach(p => p.remove());
+  renderEnvelopes();
+}
+
 function initParams() {
   const d = AuraStore.get();
-  // Charger les valeurs
-  _val('p-name',        d.prefs?.name         || '');
-  _val('p-affirmation', d.prefs?.affirmation   || '');
-  _val('p-sign',        d.prefs?.sign          || 'vierge');
-  _val('p-home',        d.prefs?.homeModule    || 'dashboard');
-  // Clé Gemini — afficher seulement si configurée
-  const key = d.prefs?.geminiKey || '';
+  const prefs = d.prefs || {};
+
+  _val('p-name',        prefs.name        || '');
+  _val('p-affirmation', prefs.affirmation || '');
+  _val('p-sign',        prefs.sign        || 'vierge');
+  _val('p-foyer',       prefs.foyer       || '2');
+  _setChecked('p-airfryer',  prefs.appareils?.airfryer  ?? true);
+  _setChecked('p-four',      prefs.appareils?.four      ?? true);
+  _setChecked('p-thermomix', prefs.appareils?.thermomix ?? false);
+
+  _val('p-home', prefs.homeModule || 'dashboard');
+  document.querySelectorAll('#color-swatches .swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === (prefs.accentColor || '#7C3AED'));
+  });
+  _setChecked('t-toasts', prefs.showToasts ?? true);
+
+  _val('l-bank',   prefs.links?.bank   || '');
+  _val('l-livret', prefs.links?.livret || '');
+
+  document.querySelectorAll('.toggle[data-pref]').forEach(btn => {
+    const path = btn.dataset.pref;
+    const val = _readPath(d, path);
+    const isOn = val === undefined ? true : !!val;
+    btn.classList.toggle('on', isOn);
+    btn.classList.toggle('off', !isOn);
+  });
+
+  const key = prefs.geminiKey || '';
   if (key) {
     document.getElementById('gemini-key-input').value = key;
     updateKeyStatus(true);
   } else {
     updateKeyStatus(false);
   }
-  // État du compte — connecté (Supabase) ou mode local
+
+  renderEnvelopes();
   renderAccountStatus();
 }
 
-/* ── Affiche clairement l'état réel de connexion, avec l'email du compte actif ── */
+function _readPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+}
+function _setChecked(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.checked = !!val;
+}
+
 function renderAccountStatus() {
   const connectedEl = document.getElementById('account-status-connected');
   const localEl      = document.getElementById('account-status-local');
@@ -393,7 +627,6 @@ function renderAccountStatus() {
   }
 }
 
-/* ── Déconnexion depuis Paramètres, avec confirmation ── */
 async function handleAccountDisconnect() {
   if (!confirm('Se déconnecter de ton compte AURA ? Tu pourras te reconnecter avec ton PIN.')) return;
   await AuraAuth.logout();
@@ -435,32 +668,35 @@ async function testGemini() {
     window.AuraGemini.API_KEY = key;
     const txt = await AuraGemini.call({ prompt:'Réponds juste "OK AURA" en français.', maxTokens:20 });
     if (txt.includes('OK') || txt.length > 0) {
-      showSaveMsg('gemini-test-result', `✓ Connexion réussie — Gemini répond ! "${txt.trim().slice(0,40)}"`, 'var(--gr)');
+      showSaveMsg('gemini-test-result', '✓ Connexion réussie — Gemini répond ! "' + txt.trim().slice(0,40) + '"', 'var(--gr)');
     } else {
       showSaveMsg('gemini-test-result', '⚠ Réponse inattendue — vérifie la clé', 'var(--am)');
     }
   } catch(e) {
-    showSaveMsg('gemini-test-result', `✗ Erreur : ${e.message}`, 'var(--re)');
+    showSaveMsg('gemini-test-result', '✗ Erreur : ' + e.message, 'var(--re)');
   }
 }
 
 function saveProfile() {
-  const d = AuraStore.get();
-  AuraStore.set('prefs.name',        document.getElementById('p-name')?.value        || d.prefs.name);
-  AuraStore.set('prefs.affirmation', document.getElementById('p-affirmation')?.value || d.prefs.affirmation);
-  AuraStore.set('prefs.sign',        document.getElementById('p-sign')?.value        || d.prefs.sign);
-  AuraUI.updateXPDisplays();
-  earnXP(5, 'Profil mis à jour', '👤');
+  AuraStore.set('prefs.name',        document.getElementById('p-name')?.value || 'Mon AURA');
+  AuraStore.set('prefs.affirmation', document.getElementById('p-affirmation')?.value || '');
+  AuraStore.set('prefs.sign',        document.getElementById('p-sign')?.value || 'vierge');
+  AuraStore.set('prefs.foyer',       document.getElementById('p-foyer')?.value || '2');
+  AuraStore.set('prefs.appareils', {
+    airfryer:   document.getElementById('p-airfryer')?.checked   ?? true,
+    four:       document.getElementById('p-four')?.checked       ?? true,
+    thermomix:  document.getElementById('p-thermomix')?.checked  ?? false,
+  });
+  AuraUI.updateXPDisplays?.();
   AuraUI.showToast('Profil sauvegardé ✓');
 }
 
-function saveBudget() {
-  const fields = ['revenus','logement','alimentation','loisirs','transport','abonnements','sante'];
-  fields.forEach(f => {
-    const v = document.getElementById(`b-${f}`)?.value;
-    if (v !== undefined) AuraStore.set(`budget.${f}`, parseFloat(v)||0);
+function saveLinks() {
+  AuraStore.set('prefs.links', {
+    bank:   document.getElementById('l-bank')?.value?.trim()   || '',
+    livret: document.getElementById('l-livret')?.value?.trim() || '',
   });
-  AuraUI.showToast('Budget sauvegardé ✓');
+  AuraUI.showToast('Liens sauvegardés ✓');
 }
 
 function saveAppearance() {
@@ -484,6 +720,14 @@ function setAccent(color, light, border) {
   AuraUI.showToast('Couleur appliquée ✓');
 }
 
+function toggleSwitch(btn) {
+  const isOn = btn.classList.contains('on');
+  btn.classList.toggle('on', !isOn);
+  btn.classList.toggle('off', isOn);
+  const path = btn.dataset.pref;
+  if (path) AuraStore.set(path, !isOn);
+}
+
 function resetAura() {
   if (!confirm('Réinitialiser complètement AURA ? Toutes tes données XP et paramètres seront effacés.')) return;
   localStorage.removeItem('aura_data_v2');
@@ -495,13 +739,8 @@ function showSaveMsg(id, msg, color) {
   const el = document.getElementById(id);
   if (!el) return;
   el.style.display = 'block';
-  el.style.color   = color;
-  el.textContent   = msg;
-}
-
-function _val(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.value = val;
+  el.style.color = color || 'var(--t2)';
+  el.textContent = msg;
 }
 
 if (document.readyState !== 'loading') initParams();
