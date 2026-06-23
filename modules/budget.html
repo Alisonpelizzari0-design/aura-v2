@@ -198,38 +198,39 @@
 <!-- ═══════════════════════════════════════════════
      HERO BILAN DU MOIS
 ════════════════════════════════════════════════ -->
+
 <div class="bilan-hero">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
     <div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--gr)">💰 Bilan — <span id="bilan-mois">Juin 2026</span></div>
-      <div class="bilan-main pos" id="bilan-solde">+1 247 €</div>
+      <div class="bilan-main pos" id="bilan-solde">0 €</div>
       <div style="font-size:12px;color:var(--t2);margin-top:4px">Disponible après toutes les charges</div>
     </div>
     <div style="text-align:right">
       <div style="font-size:12px;color:var(--t2)">Taux d'épargne</div>
-      <div style="font-size:24px;font-weight:800;color:var(--pu)" id="bilan-taux">18,2%</div>
+      <div style="font-size:24px;font-weight:800;color:var(--pu)" id="bilan-taux">0%</div>
       <div style="font-size:11px;color:var(--pu)">Objectif : 20%</div>
     </div>
   </div>
   <div class="bilan-cols">
     <div class="bilan-col">
       <div class="bilan-col-lbl">Revenus</div>
-      <div class="bilan-col-val" style="color:var(--gr)" id="bilan-revenus">3 400 €</div>
+      <div class="bilan-col-val" style="color:var(--gr)" id="bilan-revenus">0 €</div>
       <div class="bilan-col-hint" id="bilan-revenus-detail">Salaire + autres</div>
     </div>
     <div class="bilan-col">
       <div class="bilan-col-lbl">Charges fixes</div>
-      <div class="bilan-col-val" style="color:var(--re)" id="bilan-charges">−1 153 €</div>
+      <div class="bilan-col-val" style="color:var(--re)" id="bilan-charges">−0 €</div>
       <div class="bilan-col-hint" id="bilan-charges-nb">5 charges</div>
     </div>
     <div class="bilan-col">
       <div class="bilan-col-lbl">Dépenses var.</div>
-      <div class="bilan-col-val" style="color:var(--or)" id="bilan-depenses">−1 000 €</div>
+      <div class="bilan-col-val" style="color:var(--or)" id="bilan-depenses">−0 €</div>
       <div class="bilan-col-hint" id="bilan-depenses-nb">Ce mois</div>
     </div>
     <div class="bilan-col">
       <div class="bilan-col-lbl">Épargne</div>
-      <div class="bilan-col-val" style="color:var(--pu)" id="bilan-epargne">618 €</div>
+      <div class="bilan-col-val" style="color:var(--pu)" id="bilan-epargne">0 €</div>
       <div class="bilan-col-hint">Virée ce mois</div>
     </div>
   </div>
@@ -384,39 +385,7 @@
       <div class="tx-list" id="revenus-list"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.875rem 0 0;border-top:1px solid var(--bd);margin-top:.5rem">
         <span style="font-size:13px;font-weight:700;color:var(--text)">Total mensuel</span>
-        <span style="font-size:16px;font-weight:800;color:var(--gr)" id="revenus-total">3 400 €</span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title"><i class="ti ti-calendar-repeat"></i> <span data-aura-edit="budget.title.5" data-aura-edit-label="Titre : Sources régulières">Sources régulières</span></span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:.625rem">
-        <div style="background:var(--gr-l);border:1px solid var(--gr-b);border-radius:var(--r-md);padding:.875rem">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:12.5px;font-weight:700;color:var(--text)">💼 Salaire principal</div>
-              <div style="font-size:11px;color:var(--t3)">Virement le 15 de chaque mois</div>
-            </div>
-            <div style="font-size:16px;font-weight:800;color:var(--gr)">3 000 €</div>
-          </div>
-        </div>
-        <div style="background:var(--bl-l);border:1px solid var(--bl-b);border-radius:var(--r-md);padding:.875rem">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:12.5px;font-weight:700;color:var(--text)">🚀 Revenus complémentaires</div>
-              <div style="font-size:11px;color:var(--t3)">Freelance, commissions, autres</div>
-            </div>
-            <div style="font-size:16px;font-weight:800;color:var(--bl)">400 €</div>
-          </div>
-        </div>
-        <div style="background:var(--bg);border:1px dashed var(--bd2);border-radius:var(--r-md);padding:.875rem;cursor:pointer" onclick="openModal('revenu')">
-          <div style="font-size:12px;color:var(--t3);text-align:center">+ Ajouter une source de revenu</div>
-        </div>
-      </div>
-      <div style="margin-top:1rem;padding:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md)">
-        <div style="font-size:11px;font-weight:700;color:var(--pu-d);margin-bottom:3px">💡 Conseil AURA</div>
-        <div style="font-size:12px;color:var(--t2);line-height:1.5">Diversifier ses revenus réduit la vulnérabilité financière. Un 2e flux de revenus, même modeste, change tout sur le long terme.</div>
+        <span style="font-size:16px;font-weight:800;color:var(--gr)" id="revenus-total">0 €</span>
       </div>
     </div>
   </div>
@@ -438,7 +407,7 @@
           <div style="font-size:13px;font-weight:700;color:var(--text)">Total mensuel</div>
           <div style="font-size:11px;color:var(--t3)" id="charges-pct-revenus">% des revenus</div>
         </div>
-        <span style="font-size:16px;font-weight:800;color:var(--re)" id="charges-total">−1 153 €</span>
+        <span style="font-size:16px;font-weight:800;color:var(--re)" id="charges-total">−0 €</span>
       </div>
     </div>
     <div class="card">
