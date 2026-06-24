@@ -1,12 +1,17 @@
 <!-- ============================================================
      AURA — sante.html  (fragment SPA)
-     Rubrique pratique "Santé" — liée à la sphère coaching "sante" :
-     - Score bien-être global
-     - Hydratation quotidienne (compteur de verres)
-     - Sommeil (heures + qualité)
-     - Activité physique (type + durée)
-     - Suivi médical (rappels rendez-vous, médicaments)
-     - Conseils IA personnalisés
+     Rubrique pratique "Santé" — suivi médical uniquement :
+     - Rendez-vous médicaux (date, praticien, note)
+     - Traitements en cours (nom, fréquence, note)
+     - Conseils IA basés sur ce suivi réel
+
+     Note : les anciens onglets Hydratation / Sommeil / Activité
+     physique ont été retirés à la demande — trop chronophages à
+     saisir au quotidien pour la valeur qu'ils apportaient. La sphère
+     coaching "santé" (aura-scores.js) n'a donc plus de calcul
+     automatique possible et redevient 100% manuelle dans spheres.html
+     — c'est volontaire et honnête plutôt que de garder un calcul
+     basé sur des données qui n'existent plus.
      ============================================================ -->
 
 <style>
@@ -16,47 +21,15 @@
   display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
 }
 
-.san-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
-.san-tab  { font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px; border:1px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; white-space:nowrap; transition:all .12s; flex-shrink:0; }
-.san-tab.active { border-color:var(--gr); color:var(--gr); background:var(--gr-l); }
-.san-panel { display:none; flex-direction:column; gap:1.25rem; }
-.san-panel.on { display:flex; }
-
-/* ── Hydratation ── */
-.water-glasses { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:1.25rem 0; }
-.water-glass { width:42px; height:52px; border-radius:0 0 8px 8px; border:2px solid var(--bl); cursor:pointer; transition:all .15s; position:relative; overflow:hidden; background:var(--bg); }
-.water-glass.filled { background:linear-gradient(to top, #60A5FA 0%, #93C5FD 100%); }
-.water-glass:hover { transform:scale(1.08); }
-.water-count-big { font-size:36px; font-weight:800; color:var(--bl); text-align:center; }
-.water-target-text { text-align:center; font-size:12px; color:var(--t2); margin-top:.25rem; }
-
-/* ── Sommeil ── */
-.sleep-input-row { display:flex; align-items:center; gap:12px; margin-bottom:1rem; }
-.sleep-quality-stars { display:flex; gap:4px; }
-.sleep-star { font-size:22px; cursor:pointer; transition:transform .12s; }
-.sleep-star:hover { transform:scale(1.2); }
-
-/* ── Activité ── */
-.activity-type-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.625rem; }
-.activity-type-btn { padding:.75rem .5rem; border-radius:var(--r-md); border:1.5px solid var(--bd2); background:var(--white); cursor:pointer; text-align:center; transition:all .15s; }
-.activity-type-btn:hover { border-color:var(--te); }
-.activity-type-btn.sel { border-color:var(--te); background:var(--te-l); }
-.activity-type-icon { font-size:22px; margin-bottom:4px; }
-.activity-type-name { font-size:10.5px; font-weight:700; color:var(--text); }
-
-/* ── Médical ── */
-.med-row { display:flex; align-items:center; gap:10px; padding:.625rem .75rem; border-radius:var(--r-md); border:1px solid var(--bd); margin-bottom:.5rem; }
+.med-row { display:flex; align-items:center; gap:10px; padding:.75rem .875rem; border-radius:var(--r-md); border:1px solid var(--bd); margin-bottom:.5rem; }
 .med-row:last-child { margin-bottom:0; }
-.med-icon-box { width:32px; height:32px; border-radius:8px; background:var(--re-l); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-
-/* ── Graphique semaine simple ── */
-.week-chart { display:flex; align-items:flex-end; gap:6px; height:70px; }
-.week-chart-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
-.week-chart-bar { width:100%; border-radius:4px 4px 0 0; min-height:3px; transition:height .4s; }
-.week-chart-lbl { font-size:9px; color:var(--t3); font-weight:600; }
+.med-icon-box { width:36px; height:36px; border-radius:9px; background:var(--re-l); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.med-note { font-size:10.5px; color:var(--t3); margin-top:2px; font-style:italic; }
+.med-soon { font-size:10px; font-weight:700; padding:2px 8px; border-radius:9px; background:var(--am-l); color:var(--am); flex-shrink:0; }
+.med-today { background:var(--re-l); color:var(--re); }
 
 @media(max-width:768px) {
-  .activity-type-grid { grid-template-columns:repeat(2,1fr); }
+  .san-hero { flex-direction:column; align-items:flex-start; }
 }
 </style>
 
@@ -66,133 +39,91 @@
 <div class="san-hero">
   <div style="font-size:42px">🌿</div>
   <div style="flex:1;min-width:200px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#166534">Score Santé & Bien-être</div>
-    <div style="font-size:30px;font-weight:800;color:#166534" id="san-score">82<span style="font-size:16px;color:var(--t2)">/100</span></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#166534">Suivi médical</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="san-summary">Aucun rendez-vous à venir</div>
   </div>
   <div style="display:flex;gap:.75rem;flex-wrap:wrap">
     <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
-      <div style="font-size:18px;font-weight:800;color:var(--bl)" id="san-stat-water">0<span style="font-size:12px;color:var(--t2)">/8</span></div>
-      <div style="font-size:10px;color:var(--t2)">Verres d'eau</div>
+      <div style="font-size:18px;font-weight:800;color:var(--re)" id="san-stat-rdv">0</div>
+      <div style="font-size:10px;color:var(--t2)">RDV à venir</div>
     </div>
     <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
-      <div style="font-size:18px;font-weight:800;color:var(--pu)" id="san-stat-sleep">7h30</div>
-      <div style="font-size:10px;color:var(--t2)">Sommeil hier</div>
-    </div>
-    <div style="text-align:center;background:rgba(255,255,255,.55);border-radius:var(--r-md);padding:.625rem .875rem">
-      <div style="font-size:18px;font-weight:800;color:var(--te)" id="san-stat-streak">0</div>
-      <div style="font-size:10px;color:var(--t2)">Jours actifs streak</div>
+      <div style="font-size:18px;font-weight:800;color:var(--bl)" id="san-stat-meds">0</div>
+      <div style="font-size:10px;color:var(--t2)">Traitements suivis</div>
     </div>
   </div>
 </div>
 
-<div class="san-tabs">
-  <button class="san-tab active" onclick="Sante.showTab('hydratation')"><i class="ti ti-droplet" style="font-size:13px"></i> Hydratation</button>
-  <button class="san-tab" onclick="Sante.showTab('sommeil')"><i class="ti ti-moon" style="font-size:13px"></i> Sommeil</button>
-  <button class="san-tab" onclick="Sante.showTab('activite')"><i class="ti ti-run" style="font-size:13px"></i> Activité physique</button>
-  <button class="san-tab" onclick="Sante.showTab('medical')"><i class="ti ti-stethoscope" style="font-size:13px"></i> Suivi médical</button>
-  <button class="san-tab" onclick="Sante.showTab('conseils')"><i class="ti ti-sparkles" style="font-size:13px"></i> Conseils IA</button>
-</div>
+<div class="g2">
 
-<!-- ════════ HYDRATATION ════════ -->
-<div class="san-panel on" id="san-panel-hydratation">
-  <div class="g2">
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-droplet"></i> <span data-aura-edit="sante.title.1" data-aura-edit-label="Titre : Aujourd'hui">Aujourd'hui</span></span></div>
-      <div class="water-count-big" id="water-count-display">0 / 8</div>
-      <div class="water-target-text">verres d'eau (≈ 2L)</div>
-      <div class="water-glasses" id="water-glasses"></div>
-      <button class="btn-primary" onclick="Sante.addWater()" style="margin-top:.5rem"><i class="ti ti-plus"></i> +1 verre</button>
+  <!-- ════════ RENDEZ-VOUS ════════ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-stethoscope"></i> <span data-aura-edit="sante.title.1" data-aura-edit-label="Titre : Rendez-vous & rappels">Rendez-vous & rappels</span></span>
+      <button class="btn-ghost" onclick="navigate('agenda')">Voir Agenda →</button>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-chart-bar"></i> <span data-aura-edit="sante.title.2" data-aura-edit-label="Titre : Cette semaine">Cette semaine</span></span></div>
-      <div class="week-chart" id="water-week-chart"></div>
-    </div>
+    <div id="medical-list"></div>
+    <button class="btn-pill pu" style="width:100%;justify-content:center;margin-top:.875rem" onclick="Sante.openMedicalModal()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter un rendez-vous</button>
   </div>
-</div>
 
-<!-- ════════ SOMMEIL ════════ -->
-<div class="san-panel" id="san-panel-sommeil">
-  <div class="g2">
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-moon"></i> <span data-aura-edit="sante.title.3" data-aura-edit-label="Titre : Sommeil de la nuit dernière">Sommeil de la nuit dernière</span></span></div>
-      <div class="sleep-input-row">
-        <label class="field-lbl" style="margin:0;width:100px">Heures dormies</label>
-        <input type="range" min="3" max="11" step="0.5" value="7.5" id="sleep-hours" oninput="Sante.updateSleepPreview()" style="flex:1">
-        <span style="font-size:14px;font-weight:700;color:var(--text);width:50px;text-align:right" id="sleep-hours-val">7h30</span>
-      </div>
-      <label class="field-lbl">Qualité du sommeil</label>
-      <div class="sleep-quality-stars" id="sleep-stars">
-        <span class="sleep-star" data-star="1" onclick="Sante.setSleepQuality(1)">⭐</span>
-        <span class="sleep-star" data-star="2" onclick="Sante.setSleepQuality(2)">⭐</span>
-        <span class="sleep-star" data-star="3" onclick="Sante.setSleepQuality(3)">⭐</span>
-        <span class="sleep-star" data-star="4" onclick="Sante.setSleepQuality(4)">⭐</span>
-        <span class="sleep-star" data-star="5" onclick="Sante.setSleepQuality(5)">⭐</span>
-      </div>
-      <button class="btn-primary" onclick="Sante.saveSleep()" style="margin-top:1rem"><i class="ti ti-check"></i> Enregistrer — +10 XP</button>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-chart-bar"></i> <span data-aura-edit="sante.title.4" data-aura-edit-label="Titre : Cette semaine">Cette semaine</span></span></div>
-      <div class="week-chart" id="sleep-week-chart"></div>
-      <div style="margin-top:1rem;padding:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);font-size:11.5px;color:var(--pu-d);line-height:1.5">
-        💡 7 à 9h de sommeil par nuit est la fourchette recommandée pour un adulte. La régularité des horaires compte autant que la durée.
-      </div>
-    </div>
+  <!-- ════════ TRAITEMENTS ════════ -->
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="ti ti-pill"></i> <span data-aura-edit="sante.title.2" data-aura-edit-label="Titre : Traitements en cours">Traitements en cours</span></span></div>
+    <div id="meds-list"></div>
+    <button class="btn-pill pu" style="width:100%;justify-content:center;margin-top:.875rem" onclick="Sante.openMedicationModal()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter un traitement</button>
   </div>
-</div>
 
-<!-- ════════ ACTIVITÉ ════════ -->
-<div class="san-panel" id="san-panel-activite">
-  <div class="g2">
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-run"></i> <span data-aura-edit="sante.title.5" data-aura-edit-label="Titre : Activité d'aujourd'hui">Activité d'aujourd'hui</span></span></div>
-      <label class="field-lbl">Type d'activité</label>
-      <div class="activity-type-grid" id="activity-types"></div>
-      <label class="field-lbl" style="margin-top:1rem">Durée (minutes)</label>
-      <input class="field-input" type="number" id="activity-duration" placeholder="30" min="0">
-      <button class="btn-primary" onclick="Sante.saveActivity()" style="margin-top:1rem"><i class="ti ti-check"></i> Enregistrer — +20 XP</button>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-history"></i> <span data-aura-edit="sante.title.6" data-aura-edit-label="Titre : Historique récent">Historique récent</span></span></div>
-      <div id="activity-history"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════ MÉDICAL ════════ -->
-<div class="san-panel" id="san-panel-medical">
-  <div class="g2">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title"><i class="ti ti-stethoscope"></i> <span data-aura-edit="sante.title.7" data-aura-edit-label="Titre : Rendez-vous & rappels">Rendez-vous & rappels</span></span>
-        <button class="btn-ghost" onclick="navigate('agenda')">Voir Agenda →</button>
-      </div>
-      <div id="medical-list"></div>
-      <button class="btn-pill pu" style="width:100%;justify-content:center;margin-top:.875rem" onclick="Sante.addMedicalReminder()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter un rappel</button>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-pill"></i> <span data-aura-edit="sante.title.8" data-aura-edit-label="Titre : Traitements en cours">Traitements en cours</span></span></div>
-      <div id="meds-list"></div>
-      <button class="btn-pill pu" style="width:100%;justify-content:center;margin-top:.875rem" onclick="Sante.addMedication()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter un traitement</button>
-    </div>
-  </div>
 </div>
 
 <!-- ════════ CONSEILS IA ════════ -->
-<div class="san-panel" id="san-panel-conseils">
+<div class="card">
+  <div class="card-header"><span class="card-title"><i class="ti ti-sparkles"></i> <span data-aura-edit="sante.title.3" data-aura-edit-label="Titre : Conseils IA">Conseils IA</span></span></div>
   <div class="ia-suggest-box" style="background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-lg);padding:1.25rem">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
       <div style="width:40px;height:40px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <i class="ti ti-sparkles" style="color:#fff;font-size:18px"></i>
       </div>
       <div>
-        <div style="font-size:13px;font-weight:700;color:var(--pu-d)">Bilan bien-être — Gemini IA</div>
-        <div style="font-size:12px;color:#7C3AED">Analyse de tes habitudes santé · +25 XP</div>
+        <div style="font-size:13px;font-weight:700;color:var(--pu-d)">Bilan suivi médical — Gemini IA</div>
+        <div style="font-size:12px;color:#7C3AED">Organisation de tes rendez-vous & traitements</div>
       </div>
     </div>
     <button class="btn-primary" onclick="Sante.askIA()">
-      <i class="ti ti-sparkles"></i> Analyser mon bien-être de la semaine
+      <i class="ti ti-sparkles"></i> Analyser mon suivi médical
     </button>
     <div class="coach-resp" id="san-ia-resp"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL — Nouveau rendez-vous
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="san-medical-modal" style="display:none" onclick="if(event.target===this)Sante.closeMedicalModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-stethoscope"></i> Nouveau rendez-vous</div>
+    <div class="modal-field"><label class="modal-lbl">Praticien / motif</label><input class="modal-input" id="sm-med-label" placeholder="Ex: Dr Martin — dentiste"></div>
+    <div class="modal-field"><label class="modal-lbl">Date</label><input class="modal-input" id="sm-med-date" type="date"></div>
+    <div class="modal-field"><label class="modal-lbl">Note (optionnel)</label><input class="modal-input" id="sm-med-note" placeholder="Ex: amener carnet de santé"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Sante.saveMedical()">Ajouter</button>
+      <button class="modal-btn cancel" onclick="Sante.closeMedicalModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODAL — Nouveau traitement
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="san-medication-modal" style="display:none" onclick="if(event.target===this)Sante.closeMedicationModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-pill"></i> Nouveau traitement</div>
+    <div class="modal-field"><label class="modal-lbl">Nom du traitement</label><input class="modal-input" id="sm-medic-name" placeholder="Ex: Vitamine D"></div>
+    <div class="modal-field"><label class="modal-lbl">Fréquence</label><input class="modal-input" id="sm-medic-freq" placeholder="Ex: 1x/jour" value="1x/jour"></div>
+    <div class="modal-field"><label class="modal-lbl">Note (optionnel)</label><input class="modal-input" id="sm-medic-note" placeholder="Ex: à prendre avec un repas"></div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Sante.saveMedication()">Ajouter</button>
+      <button class="modal-btn cancel" onclick="Sante.closeMedicationModal()">Annuler</button>
+    </div>
   </div>
 </div>
 
@@ -208,256 +139,150 @@ const SanStore = {
 
   get() {
     if (this._data) return this._data;
-    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
-    const today = new Date();
-    const ds = n => { const x=new Date(today); x.setDate(x.getDate()-n); return x.toISOString().slice(0,10); };
-    this._data = {
-      water: {},
-      sleep: {},
-      activities: [],
-      medical: [],
-      medications: [],
-    };
+    try {
+      const r = localStorage.getItem(this._key);
+      if (r) {
+        this._data = JSON.parse(r);
+        // Migration douce : si l'ancienne structure (water/sleep/activities)
+        // existe encore, on la laisse de côté sans la supprimer — au cas où
+        // une version antérieure de l'app y reviendrait — mais on s'assure
+        // que medical/medications existent bien pour le nouveau périmètre.
+        this._data.medical = this._data.medical || [];
+        this._data.medications = this._data.medications || [];
+        return this._data;
+      }
+    } catch(_) {}
+    this._data = { medical: [], medications: [] };
     this.save();
     return this._data;
   },
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 };
 
-const ACTIVITY_TYPES = [
-  { key:'course', icon:'🏃', name:'Course' },
-  { key:'muscu',  icon:'💪', name:'Muscu' },
-  { key:'yoga',   icon:'🧘', name:'Yoga' },
-  { key:'velo',   icon:'🚴', name:'Vélo' },
-  { key:'natation',icon:'🏊', name:'Natation' },
-  { key:'marche', icon:'🚶', name:'Marche' },
-  { key:'danse',  icon:'💃', name:'Danse' },
-  { key:'autre',  icon:'⚡', name:'Autre' },
-];
-
 const Sante = {
-  selectedSleepQuality: 4,
-  selectedActivityType: 'course',
 
   init() {
     this.renderHero();
-    this.showTab('hydratation');
-    this.renderWater();
-    this.renderWaterWeek();
-    this.renderSleepWeek();
-    this.renderActivityTypes();
-    this.renderActivityHistory();
     this.renderMedical();
     this.renderMeds();
-    document.getElementById('sleep-hours').value = 7.5;
-    this.updateSleepPreview();
-    this.setSleepQuality(4);
-  },
-
-  showTab(tab) {
-    document.querySelectorAll('.san-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.san-panel').forEach(p=>p.classList.remove('on'));
-    const tabs = ['hydratation','sommeil','activite','medical','conseils'];
-    document.querySelectorAll('.san-tab')[tabs.indexOf(tab)]?.classList.add('active');
-    document.getElementById('san-panel-'+tab)?.classList.add('on');
   },
 
   renderHero() {
     const d = SanStore.get();
-    const today = new Date().toISOString().slice(0,10);
-    _set('san-stat-water', `${d.water[today]||0}<span style="font-size:12px;color:var(--t2)">/8</span>`);
-    document.getElementById('san-stat-water').innerHTML = `${d.water[today]||0}<span style="font-size:12px;color:var(--t2)">/8</span>`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = d.medical.filter(m => new Date(m.date) >= today).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    _set('san-stat-rdv', upcoming.length);
+    _set('san-stat-meds', d.medications.length);
 
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-    const ys = yesterday.toISOString().slice(0,10);
-    const sleepY = d.sleep[ys];
-    _set('san-stat-sleep', sleepY ? this.fmtHours(sleepY.hours) : '—');
-
-    // Streak activité
-    let streak = 0, cursor = new Date();
-    const actDates = new Set(d.activities.map(a=>a.date));
-    while (actDates.has(cursor.toISOString().slice(0,10))) { streak++; cursor.setDate(cursor.getDate()-1); }
-    _set('san-stat-streak', streak);
+    if (!upcoming.length) {
+      _set('san-summary', 'Aucun rendez-vous à venir');
+    } else {
+      const next = upcoming[0];
+      const days = Math.ceil((new Date(next.date) - today) / 86400000);
+      const when = days === 0 ? "aujourd'hui" : days === 1 ? 'demain' : `dans ${days} jours`;
+      _set('san-summary', `Prochain RDV : ${next.label} — ${when}`);
+    }
   },
 
-  fmtHours(h) { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${hh}h${mm.toString().padStart(2,'0')}`; },
-
-  /* ── Hydratation ── */
-  renderWater() {
-    const d = SanStore.get();
-    const today = new Date().toISOString().slice(0,10);
-    const count = d.water[today] || 0;
-    document.getElementById('water-count-display').textContent = `${count} / 8`;
-    document.getElementById('water-glasses').innerHTML = Array.from({length:8},(_,i) => `
-      <div class="water-glass ${i<count?'filled':''}" onclick="Sante.setWater(${i+1})"></div>`).join('');
-  },
-
-  setWater(count) {
-    const d = SanStore.get();
-    const today = new Date().toISOString().slice(0,10);
-    d.water[today] = count;
-    SanStore.save();
-    this.renderWater();
-    this.renderHero();
-    this.renderWaterWeek();
-  },
-
-  addWater() {
-    const d = SanStore.get();
-    const today = new Date().toISOString().slice(0,10);
-    const newCount = Math.min(12, (d.water[today]||0)+1);
-    d.water[today] = newCount;
-    SanStore.save();
-    this.renderWater();
-    this.renderHero();
-    this.renderWaterWeek();
-    if (newCount === 8) earnXP(15, 'Objectif hydratation atteint !', '💧');
-  },
-
-  renderWaterWeek() {
-    const d = SanStore.get();
-    const days = [];
-    for (let i=6;i>=0;i--) { const dt=new Date(); dt.setDate(dt.getDate()-i); days.push(dt); }
-    const max = 10;
-    document.getElementById('water-week-chart').innerHTML = days.map(dt => {
-      const ds = dt.toISOString().slice(0,10);
-      const val = d.water[ds] || 0;
-      const h = Math.max(3, (val/max)*70);
-      const color = val>=8 ? '#10B981' : val>=5 ? '#3B82F6' : '#93C5FD';
-      return `<div class="week-chart-bar-col">
-        <div class="week-chart-bar" style="height:${h}px;background:${color}" title="${val} verres"></div>
-        <span class="week-chart-lbl">${dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,1).toUpperCase()}</span>
-      </div>`;
-    }).join('');
-  },
-
-  /* ── Sommeil ── */
-  updateSleepPreview() {
-    const h = parseFloat(document.getElementById('sleep-hours').value);
-    _set('sleep-hours-val', this.fmtHours(h));
-  },
-
-  setSleepQuality(n) {
-    this.selectedSleepQuality = n;
-    document.querySelectorAll('.sleep-star').forEach(s => {
-      const starNum = parseInt(s.dataset.star);
-      s.style.opacity = starNum <= n ? '1' : '.25';
-    });
-  },
-
-  saveSleep() {
-    const hours = parseFloat(document.getElementById('sleep-hours').value);
-    const d = SanStore.get();
-    const today = new Date().toISOString().slice(0,10);
-    d.sleep[today] = { hours, quality: this.selectedSleepQuality };
-    SanStore.save();
-    this.renderSleepWeek();
-    this.renderHero();
-    earnXP(10, 'Sommeil enregistré', '🌙');
-    AuraUI.showToast('✓ Sommeil enregistré');
-  },
-
-  renderSleepWeek() {
-    const d = SanStore.get();
-    const days = [];
-    for (let i=6;i>=0;i--) { const dt=new Date(); dt.setDate(dt.getDate()-i); days.push(dt); }
-    document.getElementById('sleep-week-chart').innerHTML = days.map(dt => {
-      const ds = dt.toISOString().slice(0,10);
-      const entry = d.sleep[ds];
-      const h = entry ? Math.max(3, (entry.hours/10)*70) : 3;
-      const color = !entry ? '#E2E8F0' : entry.hours>=7 ? '#A78BFA' : entry.hours>=6 ? '#C4B5FD' : '#FCA5A5';
-      return `<div class="week-chart-bar-col">
-        <div class="week-chart-bar" style="height:${h}px;background:${color}" title="${entry?this.fmtHours(entry.hours):'—'}"></div>
-        <span class="week-chart-lbl">${dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,1).toUpperCase()}</span>
-      </div>`;
-    }).join('');
-  },
-
-  /* ── Activité ── */
-  renderActivityTypes() {
-    document.getElementById('activity-types').innerHTML = ACTIVITY_TYPES.map(t => `
-      <div class="activity-type-btn ${t.key===this.selectedActivityType?'sel':''}" data-type="${t.key}" onclick="Sante.selectActivityType('${t.key}')">
-        <div class="activity-type-icon">${t.icon}</div>
-        <div class="activity-type-name">${t.name}</div>
-      </div>`).join('');
-  },
-
-  selectActivityType(key) {
-    this.selectedActivityType = key;
-    document.querySelectorAll('.activity-type-btn').forEach(b => b.classList.toggle('sel', b.dataset.type===key));
-  },
-
-  saveActivity() {
-    const duration = parseInt(document.getElementById('activity-duration')?.value);
-    if (!duration || duration<=0) { AuraUI.showToast('⚠ Saisis une durée'); return; }
-    const type = ACTIVITY_TYPES.find(t=>t.key===this.selectedActivityType);
-    const d = SanStore.get();
-    d.activities.unshift({ date: new Date().toISOString().slice(0,10), type: type.name, icon: type.icon, duration });
-    SanStore.save();
-    document.getElementById('activity-duration').value = '';
-    this.renderActivityHistory();
-    this.renderHero();
-    earnXP(20, `${type.name} ${duration} min`, type.icon);
-    AuraUI.showToast('✓ Activité enregistrée');
-  },
-
-  renderActivityHistory() {
-    const d = SanStore.get();
-    const el = document.getElementById('activity-history');
-    el.innerHTML = d.activities.slice(0,8).map(a => `
-      <div style="display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:1px solid var(--bd)">
-        <span style="font-size:18px">${a.icon}</span>
-        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--text)">${a.type}</div><div style="font-size:10px;color:var(--t3)">${new Date(a.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</div></div>
-        <span style="font-size:12px;font-weight:700;color:var(--te)">${a.duration} min</span>
-      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucune activité enregistrée</div>';
-  },
-
-  /* ── Médical ── */
+  /* ── Rendez-vous médicaux ── */
   renderMedical() {
     const d = SanStore.get();
-    document.getElementById('medical-list').innerHTML = d.medical.map(m => `
-      <div class="med-row">
+    const today = new Date(); today.setHours(0,0,0,0);
+    const sorted = [...d.medical].sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+    document.getElementById('medical-list').innerHTML = sorted.map(m => {
+      const days = Math.ceil((new Date(m.date) - today) / 86400000);
+      const badge = days < 0 ? '' : days === 0 ? '<span class="med-soon med-today">Aujourd\'hui</span>' : days <= 7 ? `<span class="med-soon">J-${days}</span>` : '';
+      const isSynced = !!m.fromAgendaId;
+      const actionBtn = isSynced
+        ? `<button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="navigate('agenda')" title="Géré depuis Agenda"><i class="ti ti-calendar"></i></button>`
+        : `<button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="Sante.deleteMedical(${m.id})"><i class="ti ti-trash"></i></button>`;
+      return `<div class="med-row">
         <div class="med-icon-box"><i class="ti ti-calendar-event" style="color:var(--re);font-size:14px"></i></div>
-        <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:var(--text)">${m.label}</div><div style="font-size:10.5px;color:var(--t3)">${new Date(m.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</div></div>
-        <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="Sante.deleteMedical(${m.id})"><i class="ti ti-trash"></i></button>
-      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun rappel</div>';
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${m.label}${isSynced ? ' <span style="font-size:9px;font-weight:700;color:var(--bl);background:var(--bl-l);padding:1px 6px;border-radius:7px">Agenda</span>' : ''}</div>
+          <div style="font-size:10.5px;color:var(--t3)">${new Date(m.date).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</div>
+          ${m.note ? `<div class="med-note">${m.note}</div>` : ''}
+        </div>
+        ${badge}
+        ${actionBtn}
+      </div>`;
+    }).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun rendez-vous — ajoute le premier ou crée un événement "Santé" dans Agenda</div>';
   },
 
-  addMedicalReminder() {
-    const label = prompt('Nom du rendez-vous / rappel :');
-    if (!label) return;
-    const date = prompt('Date (AAAA-MM-JJ) :', new Date().toISOString().slice(0,10));
-    if (!date) return;
+  openMedicalModal() {
+    document.getElementById('sm-med-label').value = '';
+    document.getElementById('sm-med-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('sm-med-note').value = '';
+    document.getElementById('san-medical-modal').style.display = 'flex';
+  },
+  closeMedicalModal() { document.getElementById('san-medical-modal').style.display = 'none'; },
+
+  saveMedical() {
+    const label = document.getElementById('sm-med-label')?.value?.trim();
+    const date = document.getElementById('sm-med-date')?.value;
+    const note = document.getElementById('sm-med-note')?.value?.trim();
+    if (!label || !date) { AuraUI.showToast('⚠ Indique au moins le motif et la date'); return; }
     const d = SanStore.get();
-    d.medical.push({ id: d.medical.length?Math.max(...d.medical.map(x=>x.id))+1:1, label, date });
+    d.medical.push({ id: d.medical.length?Math.max(...d.medical.map(x=>x.id))+1:1, label, date, note: note||'' });
+    SanStore.save();
+    this.closeMedicalModal();
+    this.renderMedical();
+    this.renderHero();
+    AuraUI.showToast('✓ Rendez-vous ajouté');
+  },
+
+  deleteMedical(id) {
+    const d = SanStore.get();
+    d.medical = d.medical.filter(x=>x.id!==id);
     SanStore.save();
     this.renderMedical();
-    earnXP(5, 'Rappel médical ajouté', '📅');
+    this.renderHero();
   },
 
-  deleteMedical(id) { const d=SanStore.get(); d.medical=d.medical.filter(x=>x.id!==id); SanStore.save(); this.renderMedical(); },
-
+  /* ── Traitements ── */
   renderMeds() {
     const d = SanStore.get();
     document.getElementById('meds-list').innerHTML = d.medications.map(m => `
       <div class="med-row">
         <div class="med-icon-box" style="background:var(--bl-l)"><i class="ti ti-pill" style="color:var(--bl);font-size:14px"></i></div>
-        <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:var(--text)">${m.name}</div><div style="font-size:10.5px;color:var(--t3)">${m.freq}</div></div>
+        <div style="flex:1">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${m.name}</div>
+          <div style="font-size:10.5px;color:var(--t3)">${m.freq}</div>
+          ${m.note ? `<div class="med-note">${m.note}</div>` : ''}
+        </div>
         <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:13px" onclick="Sante.deleteMed(${m.id})"><i class="ti ti-trash"></i></button>
-      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun traitement</div>';
+      </div>`).join('') || '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px">Aucun traitement — ajoute le premier</div>';
   },
 
-  addMedication() {
-    const name = prompt('Nom du traitement :');
-    if (!name) return;
-    const freq = prompt('Fréquence (ex: 1x/jour) :', '1x/jour');
+  openMedicationModal() {
+    document.getElementById('sm-medic-name').value = '';
+    document.getElementById('sm-medic-freq').value = '1x/jour';
+    document.getElementById('sm-medic-note').value = '';
+    document.getElementById('san-medication-modal').style.display = 'flex';
+  },
+  closeMedicationModal() { document.getElementById('san-medication-modal').style.display = 'none'; },
+
+  saveMedication() {
+    const name = document.getElementById('sm-medic-name')?.value?.trim();
+    const freq = document.getElementById('sm-medic-freq')?.value?.trim() || '1x/jour';
+    const note = document.getElementById('sm-medic-note')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Indique le nom du traitement'); return; }
     const d = SanStore.get();
-    d.medications.push({ id: d.medications.length?Math.max(...d.medications.map(x=>x.id))+1:1, name, freq: freq||'1x/jour' });
+    d.medications.push({ id: d.medications.length?Math.max(...d.medications.map(x=>x.id))+1:1, name, freq, note: note||'' });
+    SanStore.save();
+    this.closeMedicationModal();
+    this.renderMeds();
+    this.renderHero();
+    AuraUI.showToast('✓ Traitement ajouté');
+  },
+
+  deleteMed(id) {
+    const d = SanStore.get();
+    d.medications = d.medications.filter(x=>x.id!==id);
     SanStore.save();
     this.renderMeds();
   },
-
-  deleteMed(id) { const d=SanStore.get(); d.medications=d.medications.filter(x=>x.id!==id); SanStore.save(); this.renderMeds(); },
 
   /* ── IA ── */
   async askIA() {
@@ -466,19 +291,21 @@ const Sante = {
     const d = SanStore.get();
     const resp = document.getElementById('san-ia-resp');
     resp.style.display='block';
-    resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de ton bien-être...</span>';
-    const waterVals = Object.values(d.water).slice(0,7);
-    const sleepVals = Object.values(d.sleep).slice(0,7).map(s=>s.hours);
-    const actCount = d.activities.length;
+    resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de ton suivi médical...</span>';
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = d.medical.filter(m => new Date(m.date) >= today);
+    const rdvDesc = upcoming.length ? upcoming.map(m=>`${m.label} le ${m.date}`).join(', ') : 'aucun rendez-vous prévu';
+    const medsDesc = d.medications.length ? d.medications.map(m=>`${m.name} (${m.freq})`).join(', ') : 'aucun traitement en cours';
+
     try {
       AURA_GEMINI.API_KEY = key;
       const text = await AURA_GEMINI.call({
-        system: 'Tu es un coach bien-être bienveillant, basé sur des données factuelles de santé du quotidien.',
-        prompt: `Mes données récentes : hydratation (verres/jour): ${waterVals.join(', ')}. Sommeil (heures/nuit): ${sleepVals.join(', ')}. Activités physiques cette semaine: ${actCount}. Donne-moi un bilan bienveillant en 3-4 phrases et 1 conseil concret pour cette semaine.`,
+        system: 'Tu es un assistant bienveillant qui aide à organiser un suivi médical personnel — pas un médecin, tu ne donnes aucun avis médical, seulement de l\'aide à l\'organisation et des rappels de bon sens (préparer les documents, anticiper les renouvellements...).',
+        prompt: `Mes rendez-vous à venir : ${rdvDesc}. Mes traitements en cours : ${medsDesc}. Donne-moi 2-3 conseils pratiques pour bien m'organiser (ce qu'il faut anticiper, préparer, ou vérifier), en 3-4 phrases.`,
         maxTokens: 350,
       });
       resp.innerHTML = text.replace(/\n/g,'<br>');
-      earnXP(25,'Bilan bien-être IA','✨');
     } catch(e) { resp.innerHTML = '<span style="color:var(--re)">Indisponible — vérifie ta clé Gemini.</span>'; }
   },
 };
