@@ -193,6 +193,76 @@
 
 /* ── IA Planning suggestions ── */
 .ia-day-suggest-box { background:var(--pu-l); border:1px solid var(--pu-b); border-radius:var(--r-lg); padding:1.25rem; }
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE MOBILE — même seuil que le reste de l'app
+   (sante.html, social.html, abonnements.html, cuisine.html)
+══════════════════════════════════════════════════ */
+@media(max-width:768px) {
+  /* Le layout calendrier + sidebar passe d'une grille 2 colonnes
+     à un empilement vertical — la sidebar (mini-calendrier,
+     événements du jour, prochains, stats, IA) descend sous le
+     calendrier principal plutôt que de cohabiter dans 280px. */
+  .agenda-shell { grid-template-columns:1fr; gap:1rem; }
+
+  /* Hero : badge streak retombe sous le titre plutôt que de
+     forcer une largeur minimale qui dépasserait l'écran. */
+  .age-hero { padding:1.125rem; }
+  .age-hero-top { gap:.75rem; }
+  .age-streak-badge { margin-left:0; width:100%; justify-content:center; }
+  .age-day-summary { flex-wrap:wrap; }
+  .age-summary-btn { width:100%; padding:8px; }
+
+  /* Stats rapides : 4 colonnes devient 2x2, sinon les chiffres
+     se retrouvent compressés sur quelques pixels chacun. */
+  .age-stats-row { grid-template-columns:1fr 1fr; }
+
+  /* Toolbar : navigation + sélecteur de vue + bouton ajouter
+     s'empilent verticalement, chacun en pleine largeur. */
+  .cal-toolbar { flex-direction:column; align-items:stretch; }
+  .cal-nav { justify-content:center; }
+  .cal-title { min-width:0; flex:1; }
+  .view-btns { justify-content:center; }
+  .cal-toolbar > button.btn-pill { width:100%; justify-content:center; }
+
+  /* Vue Mois : 7 colonnes restent en grille (sinon la structure
+     calendaire perd son sens), mais chaque case est nettement
+     plus basse et compacte pour rester lisible en largeur réduite.
+     Les pastilles d'événements se réduisent aussi en conséquence. */
+  .cal-cell { min-height:58px; padding:3px; }
+  .cal-day-num { font-size:10.5px; width:18px; height:18px; }
+  .cal-event-pill { font-size:8px; padding:1.5px 4px; margin-bottom:1.5px; }
+  .cal-dow { font-size:9px; padding:.375rem 0; }
+
+  /* Vue Semaine : 7 colonnes de jour + 1 colonne d'heures dans un
+     espace de ~340px donneraient des colonnes de ~40px, illisibles.
+     On bascule en défilement horizontal — chaque colonne garde une
+     largeur minimale utilisable (72px), le conteneur scrolle plutôt
+     que d'écraser le contenu. */
+  .week-header, .week-body { grid-template-columns:44px repeat(7, minmax(72px, 1fr)); }
+  .cal-week { overflow-x:auto; }
+  .week-header, .week-body { width:max-content; min-width:100%; }
+  .week-time-slot { font-size:8px; }
+  .week-event { font-size:9px; padding:2px 4px; }
+  .week-event-time { font-size:8px; }
+
+  /* Vue Jour : déjà 1 seule colonne de contenu (52px + 1fr), elle
+     reste lisible telle quelle — juste réduire le header pour
+     laisser plus de place à la timeline. */
+  .day-view-header { padding:.875rem 1rem; flex-wrap:wrap; gap:.5rem; }
+  .day-view-title { font-size:14px; }
+
+  /* Modal événement : les 2 champs côte à côte (date début/fin,
+     heure début/fin) deviennent trop étroits pour rester lisibles
+     — on les empile en pleine largeur comme tous les autres
+     formulaires mobiles de l'app. */
+  .ev-row2 { grid-template-columns:1fr; }
+  .ev-modal { padding:1.25rem; max-height:88vh; overflow-y:auto; }
+
+  /* Mini-calendrier sidebar : un peu plus compact, cohérent avec
+     le reste de la réduction d'espacement mobile. */
+  .mini-day { font-size:10px; }
+}
 </style>
 
 <!-- ════════════════════════════════════════════════════
@@ -1025,10 +1095,12 @@ const Cal = {
       ev.id = this.editingId;
       EvStore.update(ev);
       AuraUI.showToast('✓ Événement modifié');
+      this.syncSanteEntry(ev); // garde le RDV médical lié à jour si déjà synchronisé
     } else {
       EvStore.add(ev);
       earnXP(5, `${title} ajouté`, '📅');
       AuraUI.showToast('✓ Événement créé');
+      if (ev.cat === 'sante') this.syncSanteEntry(ev);
     }
     this.closeModal();
     this.render(); this.renderMiniCal(); this.renderSide(); this.renderUpcoming();
@@ -1045,11 +1117,51 @@ const Cal = {
       SupaClient.delete('events', `id=eq.${ev.db_id}&user_id=eq.${SupaClient.userId()}`)
         .catch(e => console.warn('[Event delete sync]', e.message));
     }
+    // Retire aussi le rendez-vous médical lié dans Santé, s'il existait
+    if (ev?.cat === 'sante') this.removeSanteEntry(id);
     EvStore.delete(id);
     this.closeModal();
     this.render(); this.renderMiniCal(); this.renderSide(); this.renderUpcoming(); this.renderMonthStats();
     this.renderHero(); this.renderQuickStats();
     AuraUI.showToast('Événement supprimé');
+  },
+
+  /* ══════════════════════════════════════════════════════════════
+     SYNC AGENDA → SANTÉ — un événement catégorisé "santé" crée ou
+     met à jour automatiquement un rendez-vous médical dans le module
+     Santé (aura_sante_v1.medical), pour ne jamais avoir à le saisir
+     deux fois. Le lien se fait via fromAgendaId, conservé sur l'entrée
+     Santé, jamais sur l'événement Agenda lui-même (qui reste neutre
+     et n'a pas besoin de savoir que cette synchro existe).
+  ══════════════════════════════════════════════════════════════ */
+  syncSanteEntry(ev) {
+    let san = { medical: [], medications: [] };
+    try { san = JSON.parse(localStorage.getItem('aura_sante_v1') || '{}'); } catch(_) {}
+    san.medical = san.medical || [];
+
+    const label = ev.lieu ? `${ev.title} — ${ev.lieu}` : ev.title;
+    const existing = san.medical.find(m => m.fromAgendaId === ev.id);
+
+    if (existing) {
+      existing.label = label;
+      existing.date = ev.date;
+      existing.note = ev.note || '';
+    } else {
+      san.medical.push({
+        id: san.medical.length ? Math.max(...san.medical.map(x=>x.id))+1 : 1,
+        label, date: ev.date, note: ev.note || '',
+        fromAgendaId: ev.id,
+      });
+    }
+    try { localStorage.setItem('aura_sante_v1', JSON.stringify(san)); } catch(_) {}
+  },
+
+  removeSanteEntry(agendaId) {
+    let san = null;
+    try { san = JSON.parse(localStorage.getItem('aura_sante_v1') || '{}'); } catch(_) { return; }
+    if (!san?.medical?.length) return;
+    san.medical = san.medical.filter(m => m.fromAgendaId !== agendaId);
+    try { localStorage.setItem('aura_sante_v1', JSON.stringify(san)); } catch(_) {}
   },
 
   closeModal() {
