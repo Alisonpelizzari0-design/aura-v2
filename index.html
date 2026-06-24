@@ -169,6 +169,7 @@
         <div class="sb-avatar" id="sb-avatar">A</div>
         <div style="flex:1;text-align:left">
           <div class="sb-user-name" id="sb-user-name">Mon AURA</div>
+          <div class="sb-user-level" id="sb-user-level">Architecte · Niv.7 ✦</div>
         </div>
         <i class="ti ti-dots-vertical" style="font-size:13px;color:var(--t3)"></i>
       </button>
@@ -199,6 +200,9 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <button class="btn-pill xp" onclick="navigate('xp')">
+          <i class="ti ti-star-filled"></i>
+        </button>
         <button class="btn-pill" onclick="navigate('coach')">
           <i class="ti ti-sparkles"></i>
           <span style="display:none" id="btn-coach-lbl">Coach</span>
@@ -262,6 +266,7 @@
       <button class="mobile-more-item" onclick="navAndClose('visionboard')"><i class="ti ti-stars"></i><span>Vision Board</span></button>
       <button class="mobile-more-item" onclick="navAndClose('rituel')"><i class="ti ti-sunrise"></i><span>Rituel</span></button>
       <button class="mobile-more-item" onclick="navAndClose('habitudes')"><i class="ti ti-repeat"></i><span>Habitudes</span></button>
+      <button class="mobile-more-item" onclick="navAndClose('xp')"><i class="ti ti-trophy"></i><span>XP & Badges</span></button>
     </div>
 
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Patrimoine & Finances</div>
@@ -297,6 +302,7 @@
 <!-- Scripts — ordre important -->
 <script src="aura-db.js"></script>
 <script src="aura.js"></script>
+<script src="aura-scores.js"></script>
 <script src="main.js"></script>
 <script src="aura-editor.js"></script>
 <script src="aura-onboarding.js"></script>
