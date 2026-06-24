@@ -33,29 +33,13 @@ const AuraScores = {
   computeAutoScore(sphereKey) {
     switch (sphereKey) {
 
-      case 'sante': {
-        const d = this._read('aura_sante_v1', null);
-        if (!d) return null;
-        const today = new Date().toISOString().slice(0,10);
-        const last7 = Array.from({length:7}, (_,i) => { const dt=new Date(); dt.setDate(dt.getDate()-i); return dt.toISOString().slice(0,10); });
-
-        // Hydratation : moyenne sur 7 jours / objectif 8 verres
-        const waterVals = last7.map(ds => d.water?.[ds] || 0);
-        const waterAvg = waterVals.reduce((s,v)=>s+v,0) / 7;
-        const waterScore = Math.min(100, (waterAvg/8)*100);
-
-        // Sommeil : moyenne sur 7 jours / objectif 7-9h
-        const sleepEntries = last7.map(ds => d.sleep?.[ds]?.hours).filter(h => h !== undefined);
-        const sleepAvg = sleepEntries.length ? sleepEntries.reduce((s,v)=>s+v,0)/sleepEntries.length : null;
-        const sleepScore = sleepAvg !== null ? Math.max(0, Math.min(100, 100 - Math.abs(8-sleepAvg)*20)) : 50;
-
-        // Activité physique : nb d'activités sur 7 jours / objectif 3-4
-        const actCount = (d.activities||[]).filter(a => last7.includes(a.date)).length;
-        const actScore = Math.min(100, (actCount/4)*100);
-
-        const score = Math.round((waterScore + sleepScore + actScore) / 3);
-        return { score, detail: `Hydratation ${Math.round(waterScore)}%, sommeil ${Math.round(sleepScore)}%, activité ${Math.round(actScore)}%` };
-      }
+      // Santé n'a plus de mesure automatique possible depuis la refonte
+      // du module (hydratation/sommeil/activité retirés sur demande —
+      // trop chronophages à saisir au quotidien). La sphère redevient
+      // 100% manuelle, comme Travail et Création — honnête plutôt que
+      // de calculer un score à partir de champs qui n'existent plus.
+      case 'sante':
+        return null;
 
       case 'dev': {
         const habD = this._read('aura_habitudes_v1', null);
@@ -106,16 +90,41 @@ const AuraScores = {
 
       case 'maison': {
         const d = this._read('aura_maison_v1', null);
-        if (!d?.tasks?.length) return null;
-        const doneCount = d.tasks.filter(t => t.done).length;
-        const score = Math.round((doneCount/d.tasks.length)*100);
-        return { score, detail: `${doneCount}/${d.tasks.length} tâches d'entretien faites` };
+        if (!d?.cards?.length) return null;
+        // Structure mise à jour : tasks/declutter vivent maintenant
+        // dans chaque carte de type "piece", plutôt qu'à la racine.
+        const pieces = d.cards.filter(c => c.type === 'piece');
+        if (!pieces.length) return null;
+        const isTaskDone = (t) => {
+          if (!t.doneAt) return false;
+          const done = new Date(t.doneAt);
+          const now = new Date();
+          if (t.freq === 'Quotidien') return done.toDateString() === now.toDateString();
+          if (t.freq === 'Hebdomadaire') { const ws=new Date(now); ws.setDate(now.getDate()-((now.getDay()+6)%7)); ws.setHours(0,0,0,0); return done>=ws; }
+          if (t.freq === 'Mensuel') return done.getFullYear()===now.getFullYear() && done.getMonth()===now.getMonth();
+          return true;
+        };
+        let totalTasks = 0, doneTasks = 0;
+        pieces.forEach(p => { (p.tasks||[]).forEach(t => { totalTasks++; if (isTaskDone(t)) doneTasks++; }); });
+        if (!totalTasks) return null;
+        const score = Math.round((doneTasks/totalTasks)*100);
+        return { score, detail: `${doneTasks}/${totalTasks} tâches d'entretien à jour` };
       }
 
       case 'famille': {
         const d = this._read('aura_social_v1', null);
         if (!d?.contacts?.length) return null;
-        const onTrack = d.contacts.filter(c => Math.abs(c.lastContact) < 21).length;
+        // Calcul en direct depuis la vraie date de dernier contact —
+        // lastContact était un compteur figé à 0 pour toujours côté
+        // social.html (jamais recalculé), corrigé pour utiliser
+        // lastContactDate, la vraie date stockée, comme source unique.
+        const today = new Date();
+        const daysSince = (c) => {
+          if (!c.lastContactDate) return 0;
+          const last = new Date(c.lastContactDate);
+          return Math.floor((today - last) / 86400000);
+        };
+        const onTrack = d.contacts.filter(c => daysSince(c) < 21).length;
         const score = Math.round((onTrack/d.contacts.length)*100);
         return { score, detail: `${onTrack}/${d.contacts.length} relations entretenues récemment` };
       }
