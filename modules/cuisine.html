@@ -369,7 +369,10 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-receipt-2"></i> Budget alimentaire — ce mois</span>
-        <button class="btn-ghost" onclick="navigate('budget')">Voir Finance →</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn-ghost" onclick="navigate('maison')">Voir Maison →</button>
+          <button class="btn-ghost" onclick="navigate('budget')">Voir Finance →</button>
+        </div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.5rem">
         <span style="font-size:24px;font-weight:800;color:var(--text)" id="food-spent">0 €</span>
