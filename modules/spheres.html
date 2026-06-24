@@ -408,6 +408,14 @@ const SphStore = {
   },
 
   globalScore() {
+    // Délègue à AuraScores.globalScore() — une seule source de calcul,
+    // maintenant que aura-scores.js est correctement chargé dans
+    // index.html. Repli sur le calcul local si jamais indisponible,
+    // plutôt qu'une dépendance dure qui casserait l'affichage.
+    if (window.AuraScores?.globalScore) {
+      const score = window.AuraScores.globalScore();
+      if (score !== null) return score;
+    }
     const d = this.get();
     const vals = Object.values(d.scores || {});
     if(!vals.length) return 0;
