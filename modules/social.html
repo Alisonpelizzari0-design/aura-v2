@@ -137,7 +137,7 @@ const SocStore = {
   },
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 
-  addContact(c) { const d=this.get(); c.id=d.contacts.length?Math.max(...d.contacts.map(x=>x.id))+1:1; c.gifts=[]; c.lastContact=0; d.contacts.push(c); this.save(); return c; },
+  addContact(c) { const d=this.get(); c.id=d.contacts.length?Math.max(...d.contacts.map(x=>x.id))+1:1; c.gifts=[]; c.lastContactDate=new Date().toISOString().slice(0,10); d.contacts.push(c); this.save(); return c; },
   deleteContact(id) { const d=this.get(); d.contacts=d.contacts.filter(x=>x.id!==id); this.save(); },
 
   daysUntilBirthday(birthdayStr) {
@@ -146,6 +146,21 @@ const SocStore = {
     let next = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
     if (next < today) next = new Date(today.getFullYear()+1, bday.getMonth(), bday.getDate());
     return Math.ceil((next - today) / 86400000);
+  },
+
+  /* ── Jours écoulés depuis le dernier contact réel — recalculé à
+       chaque appel depuis la vraie date stockée, plutôt qu'un
+       compteur qui restait figé à 0 pour toujours (bug d'origine :
+       aucune valeur ne reflétait jamais le temps réellement écoulé,
+       donc le score Famille des Sphères restait artificiellement
+       à 100% indéfiniment). Retourne un nombre négatif ou nul,
+       même convention que l'ancien champ lastContact. ── */
+  daysSinceContact(contact) {
+    if (!contact.lastContactDate) return 0;
+    const last = new Date(contact.lastContactDate);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.floor((today - last) / 86400000);
+    return -Math.max(0, diff);
   },
 };
 
@@ -163,7 +178,7 @@ const Social = {
     const upcomingThisMonth = d.contacts.filter(c => new Date(c.birthday).getMonth() === thisMonth).length;
     _set('soc-summary', `${upcomingThisMonth} anniversaire${upcomingThisMonth!==1?'s':''} ce mois-ci`);
     _set('soc-stat-contacts', d.contacts.length);
-    const overdue = d.contacts.filter(c => c.lastContact <= -21).length;
+    const overdue = d.contacts.filter(c => SocStore.daysSinceContact(c) <= -21).length;
     _set('soc-stat-overdue', overdue);
   },
 
@@ -251,10 +266,10 @@ const Social = {
   /* ── Rappels d'appel ── */
   renderCallReminders() {
     const d = SocStore.get();
-    const sorted = [...d.contacts].sort((a,b)=>a.lastContact-b.lastContact);
+    const sorted = [...d.contacts].sort((a,b)=>SocStore.daysSinceContact(a)-SocStore.daysSinceContact(b));
     const el = document.getElementById('call-reminders-list');
     el.innerHTML = sorted.map(c => {
-      const daysAgo = Math.abs(c.lastContact);
+      const daysAgo = Math.abs(SocStore.daysSinceContact(c));
       const urgent = daysAgo >= 21;
       return `<div class="call-reminder-row">
         <span style="font-size:16px">${urgent?'📵':'📞'}</span>
@@ -269,7 +284,7 @@ const Social = {
     const d = SocStore.get();
     const c = d.contacts.find(x=>x.id===id);
     if (!c) return;
-    c.lastContact = 0;
+    c.lastContactDate = new Date().toISOString().slice(0,10);
     SocStore.save();
     this.renderCallReminders();
     this.renderHero();
@@ -282,7 +297,7 @@ const Social = {
     const key = AuraStore.getGeminiKey();
     if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showKeyWarning('soc-ia-resp'); document.getElementById('soc-ia-resp').style.display='block'; return; }
     const d = SocStore.get();
-    const overdue = d.contacts.filter(c=>c.lastContact<=-14).sort((a,b)=>a.lastContact-b.lastContact)[0];
+    const overdue = d.contacts.map(c => ({ ...c, _days: SocStore.daysSinceContact(c) })).filter(c=>c._days<=-14).sort((a,b)=>a._days-b._days)[0];
     const resp = document.getElementById('soc-ia-resp');
     resp.style.display='block';
     resp.innerHTML = '<span style="color:#7C3AED">✦ Réflexion en cours...</span>';
@@ -291,7 +306,7 @@ const Social = {
       const text = await AURA_GEMINI.call({
         system: 'Tu es un coach relationnel chaleureux et concret.',
         prompt: overdue
-          ? `Je n'ai pas contacté ${overdue.name} (${overdue.relation}) depuis ${Math.abs(overdue.lastContact)} jours. Donne-moi une idée concrète et simple pour reprendre contact de façon naturelle et chaleureuse.`
+          ? `Je n'ai pas contacté ${overdue.name} (${overdue.relation}) depuis ${Math.abs(overdue._days)} jours. Donne-moi une idée concrète et simple pour reprendre contact de façon naturelle et chaleureuse.`
           : 'Donne-moi une idée générale et inspirante pour entretenir mes relations proches cette semaine.',
         maxTokens: 250,
       });
