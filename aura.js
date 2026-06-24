@@ -420,7 +420,105 @@ Génère un JSON avec ces clés exactes :
 ══════════════════════════════════════════════════════════════ */
 const AuraCoach = {
 
-  async ask({ domain, type, message, history, containerId, onDone }) {
+  /* ── Construit un contexte réel et concret pour le domaine choisi,
+       à partir des vraies données — même moteur que aura-scores.js
+       utilise déjà pour les Sphères. Retourne une phrase courte à
+       injecter dans le prompt, ou '' si pas assez de données. ── */
+  _buildDomainContext(domainKey) {
+    const lines = [];
+
+    // Score réel de la sphère, si calculable (mêmes 6 sphères que
+    // AuraScores couvre — Travail et Création restent manuels).
+    const auto = window.AuraScores?.computeAutoScore?.(domainKey);
+    if (auto) lines.push(`Score réel actuel sur ce domaine : ${auto.score}/100 (${auto.detail}).`);
+
+    // Faits concrets supplémentaires, propres à chaque domaine —
+    // au-delà du score global, ce qui aide vraiment à donner un
+    // conseil actionnable plutôt qu'une généralité.
+    try {
+      switch (domainKey) {
+        case 'finance': {
+          const fin = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}');
+          const enveloppes = fin.enveloppes || [];
+          const map = { 'Alimentation':['alimentation','restaurant'], 'Loisirs':['loisirs','beaute'], 'Transport':['transport'], 'Santé':['sante'], 'Vêtements':['vetements'], 'Restaurant':['restaurant'] };
+          const overspent = enveloppes
+            .map(e => { const cats = map[e.label]||[]; const spent = (fin.depenses||[]).filter(d=>cats.includes(d.cat)).reduce((s,x)=>s+x.montant,0); return { label:e.label, pct: e.budget>0?Math.round((spent/e.budget)*100):0 }; })
+            .filter(e => e.pct >= 90)
+            .sort((a,b)=>b.pct-a.pct);
+          if (overspent.length) lines.push(`Enveloppes en tension : ${overspent.map(e=>`${e.label} à ${e.pct}%`).join(', ')}.`);
+          const epargneMois = (fin.epargne||[]).reduce((s,x)=>s+(x.mensuel||0),0);
+          if (epargneMois) lines.push(`Épargne mensuelle programmée : ${epargneMois}€.`);
+          break;
+        }
+        case 'dev': {
+          const hab = JSON.parse(localStorage.getItem('aura_habitudes_v1') || '{}');
+          const habits = hab.habits || [];
+          if (habits.length) {
+            const struggling = habits.filter(h => {
+              const today = new Date(); const last7 = Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()-i);return d.toISOString().slice(0,10);});
+              return last7.filter(ds=>h.log.includes(ds)).length <= 2;
+            });
+            if (struggling.length) lines.push(`Habitudes en difficulté cette semaine : ${struggling.map(h=>h.name).join(', ')}.`);
+          }
+          break;
+        }
+        case 'sante': {
+          const san = JSON.parse(localStorage.getItem('aura_sante_v1') || '{}');
+          const today = new Date(); today.setHours(0,0,0,0);
+          const upcoming = (san.medical||[]).filter(m => new Date(m.date) >= today);
+          if (upcoming.length) {
+            const next = upcoming.sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
+            lines.push(`Prochain rendez-vous médical : ${next.label} le ${next.date}.`);
+          }
+          if ((san.medications||[]).length) lines.push(`Traitements en cours : ${san.medications.map(m=>m.name).join(', ')}.`);
+          break;
+        }
+        case 'maison': {
+          const mai = JSON.parse(localStorage.getItem('aura_maison_v1') || '{}');
+          const pieces = (mai.cards || []).filter(c => c.type === 'piece');
+          const isDone = (t) => {
+            if (!t.doneAt) return false;
+            const done = new Date(t.doneAt), now = new Date();
+            if (t.freq === 'Quotidien') return done.toDateString() === now.toDateString();
+            if (t.freq === 'Hebdomadaire') { const ws=new Date(now); ws.setDate(now.getDate()-((now.getDay()+6)%7)); ws.setHours(0,0,0,0); return done>=ws; }
+            if (t.freq === 'Mensuel') return done.getFullYear()===now.getFullYear() && done.getMonth()===now.getMonth();
+            return true;
+          };
+          const pending = pieces.flatMap(p => (p.tasks||[]).filter(t => !isDone(t)));
+          if (pending.length) lines.push(`${pending.length} tâche(s) d'entretien en attente.`);
+          break;
+        }
+        case 'vision': {
+          const vb = JSON.parse(localStorage.getItem('aura_visionboard_v1') || '{}');
+          const cards = vb.cards || [];
+          const today = new Date();
+          const urgent = cards
+            .filter(c => c.deadline)
+            .map(c => ({ title:c.title, daysLeft: Math.ceil((new Date(c.deadline)-today)/86400000), pct: c.steps?.length?Math.round((c.steps.filter(s=>s.done).length/c.steps.length)*100):0 }))
+            .filter(c => c.daysLeft >= 0 && c.daysLeft <= 30 && c.pct < 100)
+            .sort((a,b)=>a.daysLeft-b.daysLeft);
+          if (urgent.length) lines.push(`Objectif le plus proche : "${urgent[0].title}" à ${urgent[0].pct}%, échéance dans ${urgent[0].daysLeft} jour(s).`);
+          break;
+        }
+        case 'famille': {
+          const soc = JSON.parse(localStorage.getItem('aura_social_v1') || '{}');
+          const contacts = soc.contacts || [];
+          const today = new Date();
+          const neglected = contacts.filter(c => {
+            if (!c.lastContactDate) return false;
+            const days = Math.floor((today - new Date(c.lastContactDate)) / 86400000);
+            return days >= 21;
+          });
+          if (neglected.length) lines.push(`Relations sans contact depuis 3+ semaines : ${neglected.map(c=>c.name).join(', ')}.`);
+          break;
+        }
+      }
+    } catch(_) { /* contexte best-effort, jamais bloquant pour la conversation */ }
+
+    return lines.join(' ');
+  },
+
+  async ask({ domain, type, message, history, containerId, onDone, domainKey }) {
     const el = containerId ? document.getElementById(containerId) : null;
     if (el) { el.style.display = 'block'; el.innerHTML = '<span style="color:#7C3AED">✦ Guide d\'alignement en activation...</span>'; }
 
@@ -437,6 +535,11 @@ const AuraCoach = {
       const name = d.prefs?.name || 'toi';
       const sign = d.prefs?.sign ? AuraHoro.signs[d.prefs.sign]?.name : '';
 
+      // Contexte réel du domaine — score honnête + faits concrets,
+      // construit à partir des vraies données plutôt que de laisser
+      // Gemini parler dans le vide sur un thème abstrait.
+      const domainContext = this._buildDomainContext(domainKey);
+
       // Historique conversationnel : injecté dans le prompt pour donner du
       // contexte à Gemini sur les tours précédents de la conversation.
       let fullPrompt = message || 'Accompagne-moi aujourd\'hui avec sagesse et bienveillance.';
@@ -445,15 +548,20 @@ const AuraCoach = {
         fullPrompt = `Voici notre échange jusqu'ici :\n${histText}\n\n${name} continue : ${message}`;
       }
 
+      const systemBase = `Tu es le Coach Intentionnel AURA — un guide bienveillant, inspirant et ancré dans la réalité. Spécialisé en développement personnel, loi d'attraction, gestion financière et bien-être holistique. Tu parles à ${name}${sign ? `, signe ${sign}` : ''}. Tes réponses sont chaleureuses, directes, transformatrices. Tu utilises des métaphores vivantes et des pistes d'action concrètes. Réponds en français, avec émotion et profondeur. Type d'accompagnement demandé : ${type}. Domaine : ${domain}.`;
+      const systemGrounding = domainContext
+        ? ` Voici la situation réelle de ${name} sur ce domaine, à utiliser explicitement dans ta réponse plutôt que de rester générique : ${domainContext} Appuie-toi sur ces chiffres précis pour rendre ton conseil concret et personnel — nomme-les, réagis à eux.`
+        : ` Aucune donnée chiffrée n'est encore disponible sur ce domaine — reste inspirant sans inventer de chiffres, et encourage à renseigner le module correspondant pour des conseils plus précis la prochaine fois.`;
+
       const text = await AURA_GEMINI.call({
-        system: `Tu es le Coach Intentionnel AURA — un guide bienveillant, inspirant et ancré dans la réalité. Spécialisé en développement personnel, loi d'attraction, gestion financière et bien-être holistique. Tu parles à ${name}${sign ? `, signe ${sign}` : ''}. Tes réponses sont chaleureuses, directes, transformatrices. Tu utilises des métaphores vivantes et des pistes d'action concrètes. Réponds en français, avec émotion et profondeur. Type d'accompagnement demandé : ${type}. Domaine : ${domain}.`,
+        system: systemBase + systemGrounding,
         prompt: fullPrompt,
         maxTokens: 800,
       });
 
       if (el) el.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
       AuraXP.earn(50, 'Session Coach IA', '✨'); // no-op silencieux (XP désactivé)
-      if (onDone) onDone(text);
+      if (onDone) onDone(text, domainContext);
 
     } catch (err) {
       console.error('[AURA Coach]', err);
@@ -645,21 +753,19 @@ window._setValue = function(id, val) { const e = document.getElementById(id); if
 ══════════════════════════════════════════════════════════════ */
 function _set(id, val)          { const e = document.getElementById(id); if (e) e.textContent = val; }
 function _css(id, p, v)         { const e = document.getElementById(id); if (e) e.style[p] = v; }
+/* ══════════════════════════════════════════════════════════════
+   STUB GLOBAL earnXP — système XP retiré de l'app.
+   De nombreux modules (budget, habitudes, coach, dashboard...)
+   appellent encore earnXP(...) après une sauvegarde réussie. Sans
+   cette fonction, l'appel lève un ReferenceError qui interrompt le
+   script du module APRÈS la sauvegarde des données mais AVANT
+   l'affichage du toast de confirmation. No-op volontaire.
+══════════════════════════════════════════════════════════════ */
+window.earnXP = function() {};
+
 function _deepSet(obj, path, val) {
   const k = path.split('.');
   let o = obj;
   for (let i = 0; i < k.length - 1; i++) { if (!o[k[i]]) o[k[i]] = {}; o = o[k[i]]; }
   o[k[k.length - 1]] = val;
 }
-
-/* ══════════════════════════════════════════════════════════════
-   STUB GLOBAL earnXP — système XP retiré de l'app.
-   De nombreux modules (budget, habitudes, rituel...) appellent
-   encore earnXP(...) après une sauvegarde réussie. Sans cette
-   fonction, l'appel lève un ReferenceError qui interrompt le
-   script du module APRÈS la sauvegarde des données mais AVANT
-   l'affichage du toast de confirmation — donnant l'impression
-   trompeuse que la saisie n'a pas été enregistrée alors qu'elle
-   l'a été. No-op volontaire : ne fait rien, n'affiche rien.
-══════════════════════════════════════════════════════════════ */
-window.earnXP = function() {};
