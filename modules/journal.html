@@ -137,6 +137,23 @@
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════
+     MODAL — Ajouter un tag
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="journal-tag-modal" style="display:none" onclick="if(event.target===this)Journal.closeTagPicker()">
+  <div class="modal-box" style="max-width:360px" onclick="event.stopPropagation()">
+    <div class="modal-title"><i class="ti ti-tag"></i> Ajouter un tag</div>
+    <div class="modal-field">
+      <label class="modal-lbl">Tag</label>
+      <input class="modal-input" id="journal-tag-input" placeholder="Ex: travail, famille, doute, victoire..." onkeydown="if(event.key==='Enter')Journal.confirmAddTag()">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="Journal.confirmAddTag()">Ajouter</button>
+      <button class="modal-btn cancel" onclick="Journal.closeTagPicker()">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <script>
 window.initModule = function(name) {
   if (name !== 'journal') return;
@@ -273,12 +290,19 @@ const Journal = {
       + `<button class="journal-tag-add" onclick="Journal.openTagPicker()">+ tag</button>`;
   },
   openTagPicker() {
-    const tag = prompt('Ajouter un tag (ex: travail, famille, doute, victoire...) :');
-    if (!tag?.trim()) return;
+    document.getElementById('journal-tag-input').value = '';
+    document.getElementById('journal-tag-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('journal-tag-input')?.focus(), 50);
+  },
+  closeTagPicker() { document.getElementById('journal-tag-modal').style.display = 'none'; },
+  confirmAddTag() {
+    const tag = document.getElementById('journal-tag-input')?.value?.trim();
+    if (!tag) { this.closeTagPicker(); return; }
     const existing = JournalStore.getEntry(this.currentDate);
-    const tags = [...(existing.tags || []), tag.trim()];
+    const tags = [...(existing.tags || []), tag];
     JournalStore.setEntry(this.currentDate, { ...existing, tags });
     this.renderTags(tags);
+    this.closeTagPicker();
   },
   removeTag(idx) {
     const existing = JournalStore.getEntry(this.currentDate);
@@ -300,8 +324,8 @@ const Journal = {
     if (!el) return;
     let events = [];
     try {
-      const ag = JSON.parse(localStorage.getItem('aura_events_v1') || '{}');
-      events = (ag.events || []).filter(e => e.date === this.currentDate);
+      events = JSON.parse(localStorage.getItem('aura_events_v1') || '[]');
+      events = events.filter(e => e.date === this.currentDate);
     } catch(_) {}
 
     if (!events.length) { el.innerHTML = '<div class="journal-empty-hint">Aucun événement ce jour-là</div>'; return; }
