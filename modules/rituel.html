@@ -1,388 +1,991 @@
 <!-- ============================================================
-     AURA — rituel.html  (fragment SPA)
-     Rituel du matin complet :
-     - Check-in humeur + énergie
-     - Gratitudes du jour (3 champs)
-     - Intention du jour
-     - Affirmation personnalisée (IA ou manuelle)
-     - Historique des rituels passés avec streak
-     - Sync Supabase (table: rituels, déjà existante)
+     AURA — spheres.html  (fragment SPA)
+     Module 8 Sphères de vie complet :
+     - Vue d'ensemble radar/grille des 8 sphères
+     - Détail par sphère : score, sous-catégories, historique, notes
+     - Édition manuelle du score (slider)
+     - Accès direct au Coach IA filtré par sphère
+     - Sync Supabase (table: spheres_scores)
      ============================================================ -->
 
 <style>
-.rit-hero {
-  background:linear-gradient(135deg,var(--go-l) 0%,var(--pu-l) 100%);
-  border:1px solid var(--go-b); border-radius:var(--r-xl); padding:1.5rem;
-  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+/* ── Vue d'ensemble : radar visuel ── */
+.spheres-overview { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+.radar-wrap { display:flex; align-items:center; justify-content:center; padding:1rem; }
+.radar-svg { width:100%; max-width:340px; }
+.radar-point { cursor:pointer; transition:r .15s, fill .15s; }
+.radar-point:hover { r:7; fill: var(--pu); }
+.radar-label { font-size:12px; font-weight:700; cursor:pointer; transition: transform .15s; }
+.radar-label:hover { transform: scale(1.2); }
+
+/* ── Score global ── */
+.global-score-ring { position:relative; width:120px; height:120px; margin:0 auto; }
+.global-score-val { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.global-score-num { font-size:32px; font-weight:800; color:var(--pu-d); line-height:1; }
+.global-score-lbl { font-size:10px; color:var(--t2); font-weight:600; margin-top:2px; }
+
+/* ── Grille détaillée sphères ── */
+.sph-detail-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.875rem; }
+.sph-card {
+  border-radius:var(--r-lg); padding:1.125rem; cursor:pointer; border:1.5px solid;
+  transition:all .18s ease-in-out; position:relative; overflow:hidden;
 }
-.rit-hero-icon { font-size:42px; flex-shrink:0; }
-.rit-streak-badge { font-size:24px; font-weight:800; color:#92400E; }
+.sph-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.08); }
+.sph-card.active-detail { box-shadow:0 0 0 3px rgba(124,58,237,.15); }
+.sph-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+.sph-card-icon { font-size:28px; }
+.sph-card-trend { font-size:10px; font-weight:700; padding:2px 7px; border-radius:8px; }
+.sph-card-trend.up   { background:rgba(16,185,129,.15); color:#059669; }
+.sph-card-trend.down { background:rgba(239,68,68,.15); color:#DC2626; }
+.sph-card-trend.flat { background:rgba(100,116,139,.15); color:#64748B; }
+.sph-card-name  { font-size:12.5px; font-weight:700; }
+.sph-card-score { font-size:26px; font-weight:800; margin-top:2px; }
+.sph-card-bar   { height:5px; border-radius:3px; margin-top:8px; overflow:hidden; background:rgba(255,255,255,.45); }
+.sph-card-fill  { height:100%; border-radius:3px; background:rgba(255,255,255,.9); transition:width .4s ease; }
 
-.mood-energy-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
-.energy-row { display:flex; gap:8px; margin-top:.5rem; }
-.energy-bar { flex:1; height:32px; border-radius:8px; border:1.5px solid var(--bd2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; transition:all .12s; }
-.energy-bar:hover { border-color:var(--go); }
-.energy-bar.sel { border-color:var(--go); background:var(--go-l); transform:scale(1.05); }
+/* ── Panneau détail sphère sélectionnée ── */
+.sph-detail-panel { display:none; flex-direction:column; gap:1.25rem; }
+.sph-detail-panel.on { display:flex; }
+.sph-detail-header { border-radius:var(--r-xl); padding:1.5rem; display:flex; align-items:center; gap:16px; }
+.sph-detail-icon-big { font-size:48px; flex-shrink:0; }
+.sph-detail-title { font-size:18px; font-weight:800; }
+.sph-detail-sub   { font-size:12px; margin-top:2px; opacity:.85; }
+.sph-detail-score-big { font-size:36px; font-weight:800; margin-left:auto; flex-shrink:0; }
 
-.gratitude-input { display:flex; align-items:center; gap:10px; margin-bottom:.625rem; }
-.gratitude-num { width:26px; height:26px; border-radius:50%; background:var(--pu-l); color:var(--pu-d); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.gratitude-input input { flex:1; font-size:13px; padding:9px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; transition:border-color .12s; }
-.gratitude-input input:focus { border-color:var(--pu); background:var(--white); }
+/* ── Barre d'Affirmation LOA ── */
+.sph-vision-block {
+  padding:0.75rem 1rem; background:linear-gradient(135deg, var(--pu-l), #fff); 
+  border:1px dashed var(--pu-b); border-radius:var(--r-md); display:flex; align-items:center; gap:10px;
+}
+.sph-vision-input {
+  background:none; border:none; outline:none; font-style:italic; font-size:13px;
+  color:var(--pu-d); width:100%; font-weight:600; font-family:var(--font);
+}
+.sph-vision-input::placeholder { color:var(--t3); font-weight:400; }
 
-.rit-history-day { display:flex; align-items:center; gap:10px; padding:.625rem; border-radius:var(--r-md); margin-bottom:.5rem; cursor:pointer; transition:background .1s; }
-.rit-history-day:last-child { margin-bottom:0; }
-.rit-history-day:hover { background:var(--bg); }
-.rit-history-mood { font-size:20px; flex-shrink:0; }
-.rit-history-date { font-size:11px; font-weight:700; color:var(--t2); min-width:70px; flex-shrink:0; }
-.rit-history-preview { font-size:12px; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* ── Slider score ── */
+.score-slider-wrap { display:flex; align-items:center; gap:12px; }
+.score-slider-wrap input[type=range] { flex:1; height:8px; cursor: pointer; }
+.score-slider-val { font-size:18px; font-weight:800; color:var(--text); width:48px; text-align:right; flex-shrink:0; }
 
-.streak-calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.streak-day { aspect-ratio:1; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
-.streak-day.done  { background:var(--go); color:#fff; }
-.streak-day.miss  { background:var(--bg); color:var(--t3); border:1px solid var(--bd); }
-.streak-day.future{ background:none; color:var(--t3); opacity:.4; }
+/* ── Sous-catégories ── */
+.subcat-list { display:flex; flex-direction:column; gap:.5rem; }
+.subcat-row {
+  display:flex; align-items:center; gap:10px; padding:.625rem .75rem;
+  border-radius:var(--r-md); border:1px solid var(--bd); background:var(--white);
+  transition:background .1s;
+}
+.subcat-row:hover { background:var(--bg); }
+.subcat-icon { font-size:16px; width:26px; text-align:center; flex-shrink:0; }
+.subcat-name { font-size:12.5px; font-weight:600; color:var(--text); flex:1; }
+.subcat-stars { display:flex; gap:2px; flex-shrink:0; }
+.subcat-star { font-size:15px; cursor:pointer; transition:transform .1s, color .1s; }
+.subcat-star:hover { transform:scale(1.25); }
+
+/* ── Notes / journal sphère ── */
+.sph-note-input {
+  width:100%; font-size:12.5px; padding:10px 12px; border-radius:var(--r-md);
+  border:1px solid var(--bd2); background:var(--bg); color:var(--text);
+  resize:none; font-family:var(--font); line-height:1.6; outline:none;
+  transition:border-color .12s, background-color .12s;
+}
+.sph-note-input:focus { border-color:var(--pu); background:var(--white); }
+.sph-history-item {
+  display:flex; gap:10px; padding:.625rem .75rem; border-radius:var(--r-md);
+  background:var(--bg); border:1px solid var(--bd); margin-bottom:.5rem;
+}
+.sph-history-item:last-child { margin-bottom:0; }
+.sph-history-date { font-size:10px; color:var(--t3); font-weight:700; flex-shrink:0; min-width:50px; }
+.sph-history-text { font-size:12px; color:var(--text); flex:1; line-height:1.5; }
+.sph-history-score { font-size:11px; font-weight:700; flex-shrink:0; }
+
+/* ── Bouton retour ── */
+.sph-back-btn {
+  display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+  color:var(--t2); background:none; border:none; cursor:pointer; padding:0; margin-bottom:.25rem;
+}
+.sph-back-btn:hover { color:var(--pu); }
 
 @media(max-width:768px) {
-  .mood-energy-grid { grid-template-columns:1fr; }
+  .spheres-overview { grid-template-columns:1fr; }
+  .sph-detail-grid { grid-template-columns:repeat(2,1fr); }
+  .sph-detail-header { flex-wrap:wrap; }
+  .sph-detail-score-big { margin-left:0; }
 }
+
+/* ── Radar interactif : tooltip au survol ── */
+.radar-wrap { position:relative; }
+.radar-tooltip {
+  position:absolute; pointer-events:none; background:var(--text); color:#fff;
+  font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px; white-space:nowrap;
+  transform:translate(-50%,-130%); opacity:0; transition:opacity .12s; z-index:20;
+}
+.radar-tooltip.show { opacity:1; }
+.radar-point { transition:r .15s ease, fill .15s ease; }
+
+/* ── Lien Coach IA depuis sphère ── */
+.sph-coach-link-btn {
+  display:flex; align-items:center; gap:10px; padding:.875rem 1rem; border-radius:var(--r-md);
+  background:linear-gradient(135deg, var(--pu-l), #fff); border:1px solid var(--pu-b);
+  cursor:pointer; transition:all .15s; width:100%; text-align:left;
+}
+.sph-coach-link-btn:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(124,58,237,.15); }
+.sph-coach-link-icon { width:36px; height:36px; border-radius:50%; background:var(--pu); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sph-coach-link-text { flex:1; }
+.sph-coach-link-title { font-size:12.5px; font-weight:700; color:var(--pu-d); }
+.sph-coach-link-sub { font-size:10.5px; color:var(--t2); margin-top:1px; }
+
+/* ── Historique des micro-défis + streak ── */
+.defi-history-list { display:flex; flex-direction:column; gap:.5rem; margin-top:.75rem; max-height:140px; overflow-y:auto; }
+.defi-history-item { display:flex; align-items:center; gap:8px; padding:.5rem .625rem; border-radius:var(--r-sm); background:var(--white); font-size:11.5px; }
+.defi-history-item.done { opacity:.65; }
+.defi-history-check { font-size:13px; flex-shrink:0; }
+.defi-history-text { flex:1; color:var(--text); }
+.defi-history-text.done { text-decoration:line-through; color:var(--t3); }
+.defi-history-date { font-size:9.5px; color:var(--t3); flex-shrink:0; }
+.defi-streak-badge { font-size:10px; font-weight:800; padding:2px 8px; border-radius:8px; background:var(--go-l); color:#92400E; }
+
+/* ── Vision Board lié ── */
+.sph-vb-links { display:flex; flex-direction:column; gap:.5rem; }
+.sph-vb-card-mini {
+  display:flex; align-items:center; gap:10px; padding:.625rem .75rem; border-radius:var(--r-md);
+  border:1px solid var(--bd); cursor:pointer; transition:all .15s; background:var(--white);
+}
+.sph-vb-card-mini:hover { transform:translateX(2px); border-color:var(--pu-b); }
+.sph-vb-emoji { font-size:18px; flex-shrink:0; }
+.sph-vb-info { flex:1; min-width:0; }
+.sph-vb-title { font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sph-vb-progress-mini { height:4px; background:var(--bg); border-radius:2px; margin-top:4px; overflow:hidden; }
+.sph-vb-progress-fill-mini { height:100%; border-radius:2px; }
+.sph-vb-add-btn {
+  display:flex; align-items:center; justify-content:center; gap:6px; padding:.625rem;
+  border-radius:var(--r-md); border:1.5px dashed var(--bd2); cursor:pointer; transition:all .15s;
+  font-size:11.5px; font-weight:700; color:var(--t3);
+}
+.sph-vb-add-btn:hover { border-color:var(--pu); color:var(--pu); background:var(--pu-l); border-style:solid; }
 </style>
 
-<!-- ════════════════════════════════════════════════════
-     HERO
-════════════════════════════════════════════════════ -->
-<div class="rit-hero">
-  <div class="rit-hero-icon">🌅</div>
-  <div style="flex:1;min-width:200px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#92400E">Rituel du matin</div>
-    <div style="font-size:15px;font-weight:700;color:var(--text);margin-top:2px" id="rit-status-text">Pas encore fait aujourd'hui</div>
-  </div>
-  <div style="text-align:center">
-    <div class="rit-streak-badge"><span id="rit-streak">0</span> 🔥</div>
-    <div style="font-size:10px;color:var(--t2)">jours de suite</div>
-  </div>
-</div>
-
-<div class="g2">
-
-  <!-- ════════ COLONNE GAUCHE : Le rituel ════════ -->
-  <div class="card hi">
-    <div class="card-header">
-      <span class="card-title"><i class="ti ti-sunrise"></i> <span data-aura-edit="rituel.title.1" data-aura-edit-label="Titre : Ton rituel d'aujourd'hui">Ton rituel d'aujourd'hui</span></span>
-      <span style="font-size:11px;color:var(--go);font-weight:700">+25 XP à l'ancrage</span>
-    </div>
-
-    <!-- Mood + Énergie -->
-    <div class="mood-energy-grid">
-      <div>
-        <label class="field-lbl">Humeur</label>
-        <div class="mood-row" id="rit-mood-row">
-          <div class="mood" data-mood="😴" onclick="Rituel.selectMood(this)">😴</div>
-          <div class="mood" data-mood="😕" onclick="Rituel.selectMood(this)">😕</div>
-          <div class="mood" data-mood="😐" onclick="Rituel.selectMood(this)">😐</div>
-          <div class="mood sel" data-mood="🙂" onclick="Rituel.selectMood(this)">🙂</div>
-          <div class="mood" data-mood="✨" onclick="Rituel.selectMood(this)">✨</div>
-        </div>
-      </div>
-      <div>
-        <label class="field-lbl">Niveau d'énergie</label>
-        <div class="energy-row" id="rit-energy-row">
-          <div class="energy-bar" data-level="1" onclick="Rituel.selectEnergy(this)">🪫</div>
-          <div class="energy-bar" data-level="2" onclick="Rituel.selectEnergy(this)">🔋</div>
-          <div class="energy-bar sel" data-level="3" onclick="Rituel.selectEnergy(this)">⚡</div>
-          <div class="energy-bar" data-level="4" onclick="Rituel.selectEnergy(this)">🔥</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Gratitudes -->
-    <div style="margin-top:1.25rem">
-      <label class="field-lbl">3 gratitudes du matin</label>
-      <div class="gratitude-input"><div class="gratitude-num">1</div><input type="text" id="rit-grat-1" placeholder="Je suis reconnaissante pour..."></div>
-      <div class="gratitude-input"><div class="gratitude-num">2</div><input type="text" id="rit-grat-2" placeholder="Je suis reconnaissante pour..."></div>
-      <div class="gratitude-input"><div class="gratitude-num">3</div><input type="text" id="rit-grat-3" placeholder="Je suis reconnaissante pour..."></div>
-    </div>
-
-    <!-- Intention -->
-    <div style="margin-top:1rem">
-      <label class="field-lbl">Mon intention du jour</label>
-      <textarea class="field-ta" id="rit-intention" rows="2" placeholder="Ce qui doit absolument se passer aujourd'hui..."></textarea>
-    </div>
-
-    <!-- Affirmation -->
-    <div>
-      <label class="field-lbl">Affirmation & visualisation</label>
-      <textarea class="field-ta" id="rit-affirmation" rows="2" placeholder="Je suis, je crée, je manifeste..." style="margin-bottom:.75rem"></textarea>
-      <button class="btn-pill pu" onclick="Rituel.generateAffirmationAI()" style="margin-bottom:.875rem"><i class="ti ti-sparkles" style="font-size:12px"></i> Générer avec l'IA</button>
-    </div>
-
-    <button class="btn-primary" onclick="Rituel.ancrer()" id="rit-ancrer-btn">
-      <i class="ti ti-star"></i> Ancrer ce rituel — +25 XP
-    </button>
-    <div class="success-msg" id="rit-success">✦ Rituel ancré avec amour. +25 XP gagnés. Belle journée. ✦</div>
-  </div>
-
-  <!-- ════════ COLONNE DROITE : Streak + Historique + Pratiques ════════ -->
-  <div style="display:flex;flex-direction:column;gap:1.25rem">
-
+<div id="sph-overview-panel">
+  <div class="spheres-overview">
     <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-flame"></i> <span data-aura-edit="rituel.title.2" data-aura-edit-label="Titre : Tes 7 derniers jours">Tes 7 derniers jours</span></span></div>
-      <div class="streak-calendar" id="streak-calendar"></div>
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-chart-radar"></i> <span>Vision d'ensemble</span></span>
+      </div>
+      <div class="radar-wrap">
+        <svg class="radar-svg" id="radar-svg" viewBox="0 0 320 320"></svg>
+        <div class="radar-tooltip" id="radar-tooltip"></div>
+      </div>
     </div>
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title"><i class="ti ti-history"></i> <span data-aura-edit="rituel.title.3" data-aura-edit-label="Titre : Historique">Historique</span></span>
+        <span class="card-title"><i class="ti ti-target"></i> <span>Score de vie global</span></span>
+        <button class="btn-ghost" onclick="Spheres.refreshAI()">✨ Analyse IA</button>
       </div>
-      <div id="rit-history-list"></div>
+      <div class="global-score-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="10"/>
+          <circle id="global-score-circle" cx="60" cy="60" r="52" fill="none" stroke="var(--pu)" stroke-width="10"
+            stroke-dasharray="327" stroke-dashoffset="80" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="global-score-val">
+          <div class="global-score-num" id="global-score-num">--</div>
+          <div class="global-score-lbl">/ 100</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;display:flex;flex-direction:column;gap:.5rem" id="global-top-bottom"></div>
+      <div id="sph-ia-resp" style="display:none;margin-top:.875rem;background:var(--pu-l);border:1px solid var(--pu-b);border-radius:var(--r-md);padding:.875rem;font-size:12px;color:var(--text);line-height:1.6"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-circles"></i> <span>Les 8 sphères de vie</span></span>
+      <button class="btn-ghost" onclick="Spheres.recalculateAll()">📊 Recalculer tout automatiquement</button>
+    </div>
+    <div class="sph-detail-grid" id="sph-grid"></div>
+  </div>
+</div>
+
+<div class="sph-detail-panel" id="sph-detail-panel">
+  <button class="sph-back-btn" onclick="Spheres.backToOverview()">
+    <i class="ti ti-arrow-left"></i> Retour aux 8 sphères
+  </button>
+
+  <div class="sph-detail-header" id="sph-detail-header">
+    <div class="sph-detail-icon-big" id="sph-detail-icon">❓</div>
+    <div>
+      <div class="sph-detail-title" id="sph-detail-title">--</div>
+      <div class="sph-detail-sub" id="sph-detail-sub">--</div>
+    </div>
+    <div class="sph-detail-score-big" id="sph-detail-score">0</div>
+  </div>
+
+  <div class="sph-vision-block">
+    <i class="ti ti-sparkles" style="color:var(--pu)"></i>
+    <input type="text" id="sph-vision-input" class="sph-vision-input" placeholder="Ancre ici ton affirmation active au présent pour cette sphère..." onchange="Spheres.saveVision(this.value)">
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-adjustments"></i> <span>Ajuster mon score</span></span>
+      </div>
+      <div id="sph-auto-calc-zone" style="display:none;margin-bottom:1rem;padding:.875rem;background:var(--gr-l);border:1px solid var(--gr-b);border-radius:var(--r-md)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem">
+          <i class="ti ti-chart-bar" style="color:#166534;font-size:15px"></i>
+          <span style="font-size:11.5px;font-weight:700;color:#166534">Calcul automatique disponible</span>
+        </div>
+        <div style="font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:.625rem" id="sph-auto-calc-detail"></div>
+        <button class="btn-pill" style="background:#166534;color:#fff;border:none;width:100%;justify-content:center" onclick="Spheres.applyAutoScore()">
+          <i class="ti ti-refresh"></i> Utiliser le score calculé : <span id="sph-auto-calc-val">--</span>/100
+        </button>
+      </div>
+      <div class="score-slider-wrap">
+        <input type="range" min="0" max="100" value="50" id="sph-score-slider" oninput="Spheres.onSliderChange(this.value)">
+        <span class="score-slider-val" id="sph-score-slider-val">50</span>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-top:.625rem;line-height:1.5">
+        Sois honnête avec toi-même — ajuste manuellement si le calcul automatique ne reflète pas ton ressenti réel.
+      </div>
+      <button class="btn-primary" style="margin-top:.875rem" onclick="Spheres.saveScore()">
+        <i class="ti ti-check"></i> Enregistrer ce score
+      </button>
+
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--bd)">
+        <label class="field-lbl">Note / réflexion du jour</label>
+        <textarea class="sph-note-input" id="sph-note" rows="3" placeholder="Comment je me sens sur cette sphère aujourd'hui..."></textarea>
+        <button class="btn-pill pu" style="margin-top:.625rem;width:100%;justify-content:center" onclick="Spheres.addNote()">
+          <i class="ti ti-plus"></i> Ajouter au journal
+        </button>
+      </div>
     </div>
 
     <div class="card">
-      <div class="card-header"><span class="card-title"><i class="ti ti-book-2"></i> <span data-aura-edit="rituel.title.4" data-aura-edit-label="Titre : Pratiques du coach">Pratiques du coach</span></span></div>
-      <div style="display:flex;flex-direction:column;gap:.75rem">
-        <div style="background:var(--pu-l);border-radius:var(--r-md);padding:.875rem;border:1px solid var(--pu-b)">
-          <div style="font-size:11px;font-weight:700;color:var(--pu-d);margin-bottom:4px">🧘 Cohérence cardiaque</div>
-          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">5 min · 5s inspiration / 5s expiration. Réduit le cortisol de 23%. Idéal avant ce rituel.</div>
+      <div style="margin-bottom: 1.25rem; padding: .875rem; background: var(--pu-l); border-radius: var(--r-md); border: 1px solid var(--pu-b);">
+        <label class="field-lbl" style="margin-bottom:6px; font-weight:700; color:var(--pu-d); display:flex; align-items:center; gap:4px; justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:4px"><i class="ti ti-target"></i> Mon Micro-Défi d'alignement</span>
+          <span class="defi-streak-badge" id="sph-defi-streak" style="display:none">🔥 0</span>
+        </label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="sph-defi-input" class="sph-note-input" style="padding:6px 10px; background:var(--white)" placeholder="Ex: Planifier 30 min de calme complet...">
+          <button class="btn-pill pu" onclick="Spheres.saveDefi()" style="padding:7px 12px; font-size:12px;">Fixer</button>
         </div>
-        <div style="background:var(--go-l);border-radius:var(--r-md);padding:.875rem;border:1px solid var(--go-b)">
-          <div style="font-size:11px;font-weight:700;color:#92400E;margin-bottom:4px">✍️ La règle des 3 intentions</div>
-          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Pas plus de 3 priorités par jour. Au-delà, la qualité chute de 40%.</div>
+        <div id="sph-defi-current" style="margin-top:10px; font-size:12.5px; display:none; align-items:center; gap:8px; padding:6px; background:var(--white); border-radius:var(--r-sm); border:1px solid var(--bd)">
+          <input type="checkbox" id="sph-defi-checkbox" onchange="Spheres.completeDefi()" style="cursor:pointer; width:15px; height:15px;">
+          <span id="sph-defi-text" style="font-weight:600; color:var(--text); flex:1;"></span>
         </div>
-        <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.875rem;border:1px solid #BBF7D0">
-          <div style="font-size:11px;font-weight:700;color:#065F46;margin-bottom:4px">🌅 La fenêtre matinale</div>
-          <div style="font-size:11.5px;color:var(--t2);line-height:1.5">Les 90 premières minutes après le réveil sont les plus précieuses pour la neuroplasticité.</div>
-        </div>
+        <div class="defi-history-list" id="sph-defi-history"></div>
       </div>
-    </div>
 
+      <button class="sph-coach-link-btn" onclick="Spheres.openCoachForSphere()">
+        <div class="sph-coach-link-icon"><i class="ti ti-sparkles" style="color:#fff;font-size:16px"></i></div>
+        <div class="sph-coach-link-text">
+          <div class="sph-coach-link-title">Approfondir avec le Coach IA</div>
+          <div class="sph-coach-link-sub" id="sph-coach-link-sub">Session ciblée sur cette sphère</div>
+        </div>
+        <i class="ti ti-arrow-right" style="color:var(--pu);flex-shrink:0"></i>
+      </button>
+
+      <div style="margin-top:1.125rem;margin-bottom:1.125rem">
+        <div class="card-header" style="padding-top:0">
+          <span class="card-title"><i class="ti ti-stars"></i> <span>Objectifs liés — Vision Board</span></span>
+        </div>
+        <div class="sph-vb-links" id="sph-vb-links"></div>
+      </div>
+
+      <div class="card-header" style="padding-top:0">
+        <span class="card-title"><i class="ti ti-list-details"></i> <span>Sous-catégories</span></span>
+      </div>
+      <div class="subcat-list" id="sph-subcats"></div>
+      <div style="margin-top:1rem;padding:.875rem;background:var(--bg);border-radius:var(--r-md);font-size:11px;color:var(--t2);line-height:1.5" id="sph-tip"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="ti ti-history"></i> <span>Historique & évolution</span></span>
+      <button class="btn-ghost" onclick="if(window.navigate) navigate('coach')">Approfondir avec le Coach →</button>
+    </div>
+    <div id="sph-history-list"></div>
   </div>
 </div>
 
 <script>
-window.initModule = function(name) {
-  if (name !== 'rituel') return;
-  Rituel.init();
+const SPHERES_DEF = {
+  famille:  { key:'famille',  name:'Famille & Relations',   icon:'👨‍👩‍👧', color:'#9D174D', bg:'#FDF2F8', border:'#F9A8D4',
+              subcats:['Couple & Vie à deux','Enfants & Éducation','Parents & Famille élargie','Amitiés profondes'],
+              tip:'Les relations nourrissantes se cultivent par la présence, pas par la quantité de temps passé ensemble.' },
+  maison:   { key:'maison',   name:'Maison & Intérieur',    icon:'🏡', color:'#1E40AF', bg:'#EFF6FF', border:'#BFDBFE',
+              subcats:['Entretien & Ménage','Décoration & Ambiance','Organisation des espaces','Sécurité du foyer'],
+              tip:'Un espace de vie ordonné reflète et nourrit la clarté mentale.' },
+  travail:  { key:'travail',  name:'Travail & Carrière',    icon:'💼', color:'#5B21B6', bg:'#F5F3FF', border:'#DDD6FE',
+              subcats:['Performance & Compétences','Évolution & Ambition','Relations professionnelles','Équilibre vie pro/perso'],
+              tip:'La carrière la plus épanouissante est celle alignée avec tes valeurs profondes, pas juste tes compétences.' },
+  finance:  { key:'finance',  name:'Finance & Abondance',   icon:'💰', color:'#166534', bg:'#F0FDF4', border:'#BBF7D0',
+              subcats:['Épargne & Sécurité','Investissement','Gestion du budget','Mentalité d\'abondance'],
+              tip:'La richesse réelle commence par la tranquillité d\'esprit financière, pas par les gros chiffres.' },
+  sante:    { key:'sante',    name:'Santé & Bien-être',     icon:'🌿', color:'#C2410C', bg:'#FFF7ED', border:'#FED7AA',
+              subcats:['Activité physique','Alimentation','Sommeil','Santé mentale'],
+              tip:'Le corps est le seul endroit où tu es obligée de vivre — prends-en soin en conséquence.' },
+  creation: { key:'creation', name:'Projets & Création',    icon:'🚀', color:'#92400E', bg:'#FEFCE8', border:'#FDE68A',
+              subcats:['Projets personnels','Créativité & Expression','Apprentissage nouveau','Side projects'],
+              tip:'Un projet créatif régulier, même petit, maintient ton sentiment d\'agentivité sur ta vie.' },
+  dev:      { key:'dev',      name:'Développement Personnel',icon:'🌱', color:'#0F766E', bg:'#F0FDFA', border:'#99F6E4',
+              subcats:['Lecture & Apprentissage','Méditation & Pleine conscience','Croissance émotionnelle','Routines & Discipline'],
+              tip:'La croissance personnelle n\'est jamais linéaire — les phases de plateau précèdent souvent les bonds.' },
+  vision:   { key:'vision',   name:'Vision & LOA',          icon:'✨', color:'#6D28D9', bg:'#F5F3FF', border:'#C4B5FD',
+              subcats:['Clarté de vision','Gratitude quotidienne','Visualisation & Manifestation','Alignement spirituel'],
+              tip:'Ce sur quoi tu portes ton attention de façon répétée devient progressivement ta réalité perçue.' },
 };
+const SPH_ORDER = ['famille','maison','travail','finance','sante','creation','dev','vision'];
 
-const RitStore = {
-  _key: 'aura_rituels_v1',
+const SphStore = {
+  _key: 'aura_spheres_v1',
   _data: null,
 
   get() {
     if (this._data) return this._data;
-    try { const r = localStorage.getItem(this._key); if (r) { this._data = JSON.parse(r); return this._data; } } catch(_) {}
-    const today = new Date();
-    const d = n => { const x=new Date(today); x.setDate(x.getDate()-n); return x.toISOString().slice(0,10); };
-    this._data = {
-      entries: [],
+    
+    const defaultData = {
+      scores: { famille:50, maison:50, travail:50, finance:50, sante:50, creation:50, dev:50, vision:50 },
+      trends: { famille:'flat', maison:'flat', travail:'flat', finance:'flat', sante:'flat', creation:'flat', dev:'flat', vision:'flat' },
+      subcatScores: {
+        famille:[3,3,3,3], maison:[3,3,3,3], travail:[3,3,3,3], finance:[3,3,3,3],
+        sante:[3,3,3,3], creation:[3,3,3,3], dev:[3,3,3,3], vision:[3,3,3,3]
+      },
+      defis: {},
+      defisHistory: { famille:[], maison:[], travail:[], finance:[], sante:[], creation:[], dev:[], vision:[] },
+      visions: {},
+      history: { famille:[], maison:[], travail:[], finance:[], sante:[], creation:[], dev:[], vision:[] }
     };
+
+    try {
+      const r = localStorage.getItem(this._key);
+      if (r) { 
+        const parsed = JSON.parse(r) || {};
+        this._data = {
+          scores: { ...defaultData.scores, ...parsed.scores },
+          trends: { ...defaultData.trends, ...parsed.trends },
+          subcatScores: { ...defaultData.subcatScores, ...parsed.subcatScores },
+          defis: { ...defaultData.defis, ...parsed.defis },
+          defisHistory: { ...defaultData.defisHistory, ...parsed.defisHistory },
+          visions: { ...defaultData.visions, ...parsed.visions },
+          history: { ...defaultData.history, ...parsed.history }
+        };
+        return this._data; 
+      }
+    } catch(e) { console.error("Erreur de lecture du store Sphères", e); }
+    
+    this._data = defaultData;
     this.save();
     return this._data;
   },
+
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 
-  todayEntry() {
-    const today = new Date().toISOString().slice(0,10);
-    return this.get().entries.find(e => e.date === today);
-  },
-
-  addOrUpdateToday(entry) {
+  setScore(key, val) {
     const d = this.get();
-    const today = new Date().toISOString().slice(0,10);
-    const idx = d.entries.findIndex(e => e.date === today);
-    entry.date = today;
-    if (idx >= 0) d.entries[idx] = entry;
-    else d.entries.unshift(entry);
+    const old = d.scores[key] || 50;
+    d.scores[key] = val;
+    d.trends[key] = val > old ? 'up' : val < old ? 'down' : 'flat';
     this.save();
   },
 
-  computeStreak() {
+  addHistory(key, text, score) {
     const d = this.get();
-    const dates = new Set(d.entries.map(e => e.date));
-    let streak = 0;
-    let cursor = new Date();
-    // Si pas fait aujourd'hui, on commence le compte à hier
-    if (!dates.has(cursor.toISOString().slice(0,10))) cursor.setDate(cursor.getDate()-1);
-    while (dates.has(cursor.toISOString().slice(0,10))) {
-      streak++;
-      cursor.setDate(cursor.getDate()-1);
+    if (!d.history[key]) d.history[key] = [];
+    d.history[key].unshift({ date: new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'}), text, score });
+    d.history[key] = d.history[key].slice(0, 15);
+    this.save();
+  },
+
+  setSubcat(key, idx, stars) {
+    const d = this.get();
+    if (!d.subcatScores[key]) d.subcatScores[key] = [3,3,3,3];
+    d.subcatScores[key][idx] = stars;
+    this.save();
+  },
+
+  globalScore() {
+    // Délègue à AuraScores.globalScore() — une seule source de calcul,
+    // maintenant que aura-scores.js est correctement chargé dans
+    // index.html. Repli sur le calcul local si jamais indisponible,
+    // plutôt qu'une dépendance dure qui casserait l'affichage.
+    if (window.AuraScores?.globalScore) {
+      const score = window.AuraScores.globalScore();
+      if (score !== null) return score;
     }
-    return streak;
+    const d = this.get();
+    const vals = Object.values(d.scores || {});
+    if(!vals.length) return 0;
+    return Math.round(vals.reduce((s,v)=>s+v,0) / vals.length);
   },
 };
 
-const Rituel = {
-  selectedMood: '🙂',
-  selectedEnergy: 3,
+const Spheres = {
+  current: null,
 
   init() {
-    this.loadTodayIfExists();
-    this.renderStatus();
-    this.renderStreak();
-    this.renderCalendar();
-    this.renderHistory();
+    this.renderOverview();
+    this.backToOverview();
     this.syncFromDB();
   },
 
-  loadTodayIfExists() {
-    const entry = RitStore.todayEntry();
-    if (!entry) return;
-    this.selectedMood = entry.mood;
-    this.selectedEnergy = entry.energy;
-    document.querySelectorAll('#rit-mood-row .mood').forEach(m => m.classList.toggle('sel', m.dataset.mood===entry.mood));
-    document.querySelectorAll('#rit-energy-row .energy-bar').forEach(e => e.classList.toggle('sel', parseInt(e.dataset.level)===entry.energy));
-    _val('rit-grat-1', entry.gratitudes?.[0]||'');
-    _val('rit-grat-2', entry.gratitudes?.[1]||'');
-    _val('rit-grat-3', entry.gratitudes?.[2]||'');
-    _val('rit-intention', entry.intention||'');
-    _val('rit-affirmation', entry.affirmation||'');
+  safeToast(msg) {
+    if (window.AuraUI && typeof window.AuraUI.showToast === 'function') { window.AuraUI.showToast(msg); } 
+    else { console.log("[Toast fallback]", msg); }
   },
 
-  selectMood(el) {
-    document.querySelectorAll('#rit-mood-row .mood').forEach(m => m.classList.remove('sel'));
-    el.classList.add('sel');
-    this.selectedMood = el.dataset.mood;
-  },
-
-  selectEnergy(el) {
-    document.querySelectorAll('#rit-energy-row .energy-bar').forEach(e => e.classList.remove('sel'));
-    el.classList.add('sel');
-    this.selectedEnergy = parseInt(el.dataset.level);
-  },
-
-  renderStatus() {
-    const done = !!RitStore.todayEntry();
-    _set('rit-status-text', done ? '✓ Rituel déjà ancré aujourd\'hui' : 'Pas encore fait aujourd\'hui');
-    const btn = document.getElementById('rit-ancrer-btn');
-    if (btn) btn.innerHTML = done ? '<i class="ti ti-refresh"></i> Mettre à jour le rituel' : '<i class="ti ti-star"></i> Ancrer ce rituel — +25 XP';
-  },
-
-  renderStreak() {
-    _set('rit-streak', RitStore.computeStreak());
-  },
-
-  renderCalendar() {
-    const d = RitStore.get();
-    const dates = new Set(d.entries.map(e => e.date));
-    const el = document.getElementById('streak-calendar');
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const dt = new Date(); dt.setDate(dt.getDate() - i);
-      const ds = dt.toISOString().slice(0,10);
-      days.push({ ds, label: dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,1).toUpperCase(), done: dates.has(ds) });
-    }
-    el.innerHTML = days.map(day => `<div class="streak-day ${day.done?'done':'miss'}">${day.label}</div>`).join('');
-  },
-
-  renderHistory() {
-    const d = RitStore.get();
-    const el = document.getElementById('rit-history-list');
-    const sorted = [...d.entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-    el.innerHTML = sorted.length ? sorted.map(e => `
-      <div class="rit-history-day" onclick="Rituel.viewEntry('${e.date}')">
-        <span class="rit-history-mood">${e.mood}</span>
-        <span class="rit-history-date">${new Date(e.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span>
-        <span class="rit-history-preview">${e.intention || (e.gratitudes?.[0]||'')}</span>
-      </div>`).join('') : '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px;font-style:italic">Aucune entrée encore</div>';
-  },
-
-  viewEntry(date) {
-    const entry = RitStore.get().entries.find(e => e.date === date);
-    if (!entry) return;
-    alert(`${date}\n\nHumeur : ${entry.mood}\nGratitudes :\n- ${entry.gratitudes?.join('\n- ')}\n\nIntention : ${entry.intention}\n\nAffirmation : ${entry.affirmation}`);
-  },
-
-  async generateAffirmationAI() {
-    const key = AuraStore.getGeminiKey();
-    if (!key || key==='VOTRE_CLE_GEMINI') { AuraUI.showToast('Configure ta clé Gemini dans Paramètres'); return; }
-    const intention = document.getElementById('rit-intention')?.value || '';
-    AuraUI.showToast('✨ Génération de ton affirmation...');
-    try {
-      AURA_GEMINI.API_KEY = key;
-      const text = await AURA_GEMINI.call({
-        system: 'Tu es un coach de vie inspirant. Réponds avec UNIQUEMENT une affirmation positive courte (1 phrase), sans guillemets ni markdown.',
-        prompt: `Génère une affirmation puissante pour quelqu'un dont l'intention du jour est : "${intention || 'avancer avec sérénité'}". Humeur actuelle : ${this.selectedMood}.`,
-        maxTokens: 80,
-      });
-      _val('rit-affirmation', text.trim());
-      earnXP(5, 'Affirmation générée par IA', '✨');
-    } catch(e) { AuraUI.showToast('Erreur génération — vérifie ta clé Gemini'); }
-  },
-
-  ancrer() {
-    const gratitudes = [
-      document.getElementById('rit-grat-1')?.value?.trim(),
-      document.getElementById('rit-grat-2')?.value?.trim(),
-      document.getElementById('rit-grat-3')?.value?.trim(),
-    ].filter(Boolean);
-    const intention = document.getElementById('rit-intention')?.value?.trim() || '';
-    const affirmation = document.getElementById('rit-affirmation')?.value?.trim() || '';
-
-    const wasAlreadyDone = !!RitStore.todayEntry();
-    const entry = { mood: this.selectedMood, energy: this.selectedEnergy, gratitudes, intention, affirmation };
-    RitStore.addOrUpdateToday(entry);
-
-    const btn = document.getElementById('rit-ancrer-btn');
-    const success = document.getElementById('rit-success');
-    btn.style.display = 'none';
-    success.style.display = 'block';
-
-    if (!wasAlreadyDone) {
-      earnXP(25, 'Rituel du matin ancré', '☀️');
-      const d = AuraStore.get();
-      d.stats = d.stats || {};
-      d.stats.rituels = (d.stats.rituels||0) + 1;
-      AuraStore.save();
+  /* ── Recalcule automatiquement toutes les sphères pour lesquelles on a des données réelles ── */
+  recalculateAll() {
+    if (!window.AuraScores) { this.safeToast('Calcul automatique indisponible'); return; }
+    let updated = 0;
+    SPH_ORDER.forEach(key => {
+      const result = AuraScores.computeAutoScore(key);
+      if (result) { SphStore.setScore(key, result.score); updated++; }
+    });
+    this.renderOverview();
+    if (this.current) this.renderDetail();
+    if (updated > 0) {
+      this.safeToast(`📊 ${updated} sphère${updated>1?'s':''} recalculée${updated>1?'s':''} à partir de tes données réelles`);
     } else {
-      AuraUI.showToast('✓ Rituel mis à jour');
+      this.safeToast('Pas encore assez de données dans les autres modules pour calculer — continue à utiliser AURA !');
     }
-
-    this.syncToDB(entry);
-    this.renderStatus();
-    this.renderStreak();
-    this.renderCalendar();
-    this.renderHistory();
-
-    setTimeout(() => { btn.style.display = ''; success.style.display = 'none'; }, 3000);
   },
 
-  /* ── Sync Supabase ── */
-  async syncToDB(entry) {
-    if (!window.AuraSync || !window.SupaClient?.isLoggedIn()) return;
-    try {
-      await AuraSync.saveRituel({
-        date: new Date().toISOString().slice(0,10),
-        humeur: this.moodToNum(entry.mood),
-        gratitudes: entry.gratitudes.join(' | '),
-        intention: entry.intention,
-        affirmation: entry.affirmation,
-        xp: 25,
+  renderOverview() {
+    this.renderRadar();
+    this.renderGlobalScore();
+    this.renderGrid();
+    this.renderTopBottom();
+  },
+
+  renderRadar() {
+    const d = SphStore.get();
+    const cx = 160, cy = 160, R = 120;
+    const n  = SPH_ORDER.length;
+    const angleStep = (2 * Math.PI) / n;
+
+    let svg = '';
+
+    [25,50,75,100].forEach(pct => {
+      const r = (pct/100) * R;
+      let pts = '';
+      for (let i=0;i<n;i++) {
+        const a = -Math.PI/2 + i*angleStep;
+        pts += `${cx + r*Math.cos(a)},${cy + r*Math.sin(a)} `;
+      }
+      svg += `<polygon points="${pts}" fill="none" stroke="var(--bd)" stroke-width="1"/>`;
+    });
+
+    for (let i=0;i<n;i++) {
+      const a = -Math.PI/2 + i*angleStep;
+      svg += `<line x1="${cx}" y1="${cy}" x2="${cx+R*Math.cos(a)}" y2="${cy+R*Math.sin(a)}" stroke="var(--bd)" stroke-width="1"/>`;
+    }
+
+    let dataPts = '';
+    SPH_ORDER.forEach((key,i) => {
+      const a = -Math.PI/2 + i*angleStep;
+      const scoreVal = d.scores[key] !== undefined ? d.scores[key] : 50;
+      const val = (scoreVal/100) * R;
+      dataPts += `${cx + val*Math.cos(a)},${cy + val*Math.sin(a)} `;
+    });
+    svg += `<polygon id="radar-data-poly" points="${dataPts}" fill="rgba(124,58,237,.14)" stroke="var(--pu)" stroke-width="2.5" style="opacity:0;transition:opacity .5s ease"/>`;
+
+    SPH_ORDER.forEach((key,i) => {
+      const a = -Math.PI/2 + i*angleStep;
+      const scoreVal = d.scores[key] !== undefined ? d.scores[key] : 50;
+      const val = (scoreVal/100) * R;
+      const px = cx + val*Math.cos(a), py = cy + val*Math.sin(a);
+      const lx = cx + (R+24)*Math.cos(a), ly = cy + (R+24)*Math.sin(a);
+      const def = SPHERES_DEF[key];
+      svg += `<circle class="radar-point" cx="${px}" cy="${py}" r="5" fill="${def.color}"
+                onclick="Spheres.openDetail('${key}')"
+                onmouseenter="Spheres.showRadarTooltip(event,'${key}',${scoreVal})"
+                onmouseleave="Spheres.hideRadarTooltip()"/>`;
+      svg += `<text class="radar-label" x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" onclick="Spheres.openDetail('${key}')">${def.icon}</text>`;
+    });
+
+    const el = document.getElementById('radar-svg');
+    if (el) {
+      el.innerHTML = svg;
+      // Animation d'entrée : le polygone de données apparaît en fondu après le tracé de la grille
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const poly = document.getElementById('radar-data-poly');
+          if (poly) poly.style.opacity = '1';
+        }, 80);
       });
-    } catch(e) { console.warn('[Rituel sync]', e.message); }
+    }
+  },
+
+  showRadarTooltip(evt, key, score) {
+    const tooltip = document.getElementById('radar-tooltip');
+    const wrap = document.querySelector('.radar-wrap');
+    if (!tooltip || !wrap) return;
+    const def = SPHERES_DEF[key];
+    const svgRect = document.getElementById('radar-svg').getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    // Position du point dans le SVG (viewBox 320x320) → ramenée en pixels réels
+    const target = evt.target;
+    const cx = parseFloat(target.getAttribute('cx')), cy = parseFloat(target.getAttribute('cy'));
+    const scaleX = svgRect.width / 320, scaleY = svgRect.height / 320;
+    const left = (svgRect.left - wrapRect.left) + cx * scaleX;
+    const top  = (svgRect.top  - wrapRect.top)  + cy * scaleY;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top  = top + 'px';
+    tooltip.textContent = `${def.icon} ${def.name} — ${score}/100`;
+    tooltip.classList.add('show');
+  },
+
+  hideRadarTooltip() {
+    document.getElementById('radar-tooltip')?.classList.remove('show');
+  },
+
+  renderGlobalScore() {
+    const score = SphStore.globalScore();
+    const circ  = 2 * Math.PI * 52;
+    const offset = circ - (score/100)*circ;
+    const numEl = document.getElementById('global-score-num');
+    const circEl = document.getElementById('global-score-circle');
+    if (numEl) numEl.textContent = score;
+    if (circEl) {
+      circEl.setAttribute('stroke-dasharray', circ.toFixed(0));
+      circEl.setAttribute('stroke-dashoffset', offset.toFixed(0));
+    }
+  },
+
+  renderTopBottom() {
+    const d = SphStore.get();
+    const sorted = SPH_ORDER.map(k=>({key:k,score:(d.scores[k] !== undefined ? d.scores[k] : 50)})).sort((a,b)=>b.score-a.score);
+    if(!sorted.length) return;
+    const top = sorted[0], bottom = sorted[sorted.length-1];
+    const el = document.getElementById('global-top-bottom');
+    if (!el) return;
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;padding:.625rem;background:var(--gr-l);border-radius:var(--r-md);border:1px solid var(--gr-b)">
+        <span style="font-size:18px">${SPHERES_DEF[top.key].icon}</span>
+        <div style="flex:1"><div style="font-size:11px;font-weight:700;color:#166534">Ta force actuelle</div><div style="font-size:12px;color:var(--text)">${SPHERES_DEF[top.key].name} — ${top.score}/100</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:.625rem;background:var(--am-l);border-radius:var(--r-md);border:1px solid var(--am-b)">
+        <span style="font-size:18px">${SPHERES_DEF[bottom.key].icon}</span>
+        <div style="flex:1"><div style="font-size:11px;font-weight:700;color:#92400E">Ton levier de croissance</div><div style="font-size:12px;color:var(--text)">${SPHERES_DEF[bottom.key].name} — ${bottom.score}/100</div></div>
+      </div>`;
+  },
+
+  renderGrid() {
+    const d   = SphStore.get();
+    const el  = document.getElementById('sph-grid');
+    if (!el) return;
+    el.innerHTML = SPH_ORDER.map(key => {
+      const def   = SPHERES_DEF[key];
+      const score = d.scores[key] !== undefined ? d.scores[key] : 50;
+      const trend = d.trends?.[key] || 'flat';
+      const trendIcon = trend==='up'?'↑':trend==='down'?'↓':'→';
+      return `
+      <div class="sph-card" style="background:${def.bg};border-color:${def.border};color:${def.color}" onclick="Spheres.openDetail('${key}')">
+        <div class="sph-card-top">
+          <span class="sph-card-icon">${def.icon}</span>
+          <span class="sph-card-trend ${trend}">${trendIcon}</span>
+        </div>
+        <div class="sph-card-name">${def.name}</div>
+        <div class="sph-card-score">${score}</div>
+        <div class="sph-card-bar"><div class="sph-card-fill" style="width:${score}%"></div></div>
+      </div>`;
+    }).join('');
+  },
+
+  openDetail(key) {
+    this.current = key;
+    const overviewEl = document.getElementById('sph-overview-panel');
+    const detailEl = document.getElementById('sph-detail-panel');
+    if (overviewEl) overviewEl.style.display = 'none';
+    if (detailEl) detailEl.classList.add('on');
+    this.renderDetail();
+  },
+
+  backToOverview() {
+    this.current = null;
+    const overviewEl = document.getElementById('sph-overview-panel');
+    const detailEl = document.getElementById('sph-detail-panel');
+    if (overviewEl) {
+      overviewEl.style.display = 'flex';
+      overviewEl.style.flexDirection = 'column';
+      overviewEl.style.gap = '1.25rem';
+    }
+    if (detailEl) detailEl.classList.remove('on');
+    this.renderOverview();
+  },
+
+  renderDetail() {
+    const key = this.current;
+    if (!key) return;
+    const def = SPHERES_DEF[key];
+    const d = SphStore.get();
+    const score = d.scores[key] !== undefined ? d.scores[key] : 50;
+
+    const hdr = document.getElementById('sph-detail-header');
+    if (hdr) {
+      hdr.style.background = def.bg;
+      hdr.style.border = `1px solid ${def.border}`;
+    }
+    
+    const iconEl  = document.getElementById('sph-detail-icon');
+    const titleEl = document.getElementById('sph-detail-title');
+    const subEl   = document.getElementById('sph-detail-sub');
+    const scoreEl = document.getElementById('sph-detail-score');
+
+    if (iconEl) iconEl.textContent = def.icon;
+    if (titleEl) { titleEl.textContent = def.name; titleEl.style.color = def.color; }
+    if (subEl) { subEl.textContent = `${def.subcats.length} sous-catégories · Alignement`; subEl.style.color = def.color; }
+    if (scoreEl) { scoreEl.textContent = score; scoreEl.style.color = def.color; }
+
+    const visionInput = document.getElementById('sph-vision-input');
+    if (visionInput) visionInput.value = d.visions?.[key] || '';
+
+    const slider = document.getElementById('sph-score-slider');
+    const sliderVal = document.getElementById('sph-score-slider-val');
+    if (slider) slider.value = score;
+    if (sliderVal) sliderVal.textContent = score;
+    
+    const noteEl = document.getElementById('sph-note');
+    if (noteEl) noteEl.value = '';
+    
+    const tipEl = document.getElementById('sph-tip');
+    if (tipEl) tipEl.innerHTML = `<strong style="color:${def.color}">💡 Réflexion :</strong> ${def.tip}`;
+
+    const subCatsEl = document.getElementById('sph-subcats');
+    if (subCatsEl) {
+      const subScores = d.subcatScores[key] || def.subcats.map(()=>3);
+      subCatsEl.innerHTML = def.subcats.map((name, idx) => {
+        const stars = subScores[idx] || 3;
+        const starsHtml = [1,2,3,4,5].map(s =>
+          `<span class="subcat-star" style="color:${s<=stars?'var(--go)':'var(--bd2)'}" onclick="Spheres.setSubcatStar('${key}',${idx},${s})">★</span>`
+        ).join('');
+        return `<div class="subcat-row">
+          <span class="subcat-icon">${['🎯','💫','🌟','⭐'][idx%4]}</span>
+          <span class="subcat-name">${name}</span>
+          <div class="subcat-stars">${starsHtml}</div>
+        </div>`;
+      }).join('');
+    }
+
+    const histEl = document.getElementById('sph-history-list');
+    if (histEl) {
+      const hist = d.history[key] || [];
+      histEl.innerHTML = hist.length ? hist.map(h => `
+        <div class="sph-history-item">
+          <span class="sph-history-date">${h.date}</span>
+          <span class="sph-history-text">${h.text}</span>
+          <span class="sph-history-score" style="color:${def.color}">${h.score}</span>
+        </div>`).join('') : '<div style="text-align:center;padding:1.25rem;color:var(--t3);font-size:12px;font-style:italic">Aucune entrée pour le moment — ajoute ta première réflexion ✦</div>';
+    }
+
+    this.renderDefiState();
+    this.renderVisionBoardLinks();
+    this.renderAutoCalc();
+  },
+
+  /* ── Affiche la zone de calcul automatique si des données réelles existent ── */
+  renderAutoCalc() {
+    const key = this.current;
+    const zone = document.getElementById('sph-auto-calc-zone');
+    if (!zone) return;
+
+    if (!window.AuraScores) { zone.style.display = 'none'; return; }
+    const result = AuraScores.computeAutoScore(key);
+
+    if (!result) {
+      zone.style.display = 'none';
+      this._lastAutoScore = null;
+      return;
+    }
+
+    zone.style.display = 'block';
+    document.getElementById('sph-auto-calc-detail').textContent = result.detail;
+    document.getElementById('sph-auto-calc-val').textContent = result.score;
+    this._lastAutoScore = result.score;
+  },
+
+  /* ── Applique le score calculé automatiquement, en gardant l'ajustement manuel possible après ── */
+  applyAutoScore() {
+    if (this._lastAutoScore === null || this._lastAutoScore === undefined) return;
+    const slider = document.getElementById('sph-score-slider');
+    const sliderVal = document.getElementById('sph-score-slider-val');
+    const scoreEl = document.getElementById('sph-detail-score');
+    if (slider) slider.value = this._lastAutoScore;
+    if (sliderVal) sliderVal.textContent = this._lastAutoScore;
+    if (scoreEl) scoreEl.textContent = this._lastAutoScore;
+    this.safeToast('📊 Score calculé appliqué — tu peux encore l\'ajuster avant d\'enregistrer');
+  },
+
+  /* ── Lien Coach IA — navigue et pré-sélectionne le domaine ── */
+  openCoachForSphere() {
+    const key = this.current;
+    if (!key) return;
+    const def = SPHERES_DEF[key];
+    const sub = document.getElementById('sph-coach-link-sub');
+    if (sub) sub.textContent = `Session ciblée sur ${def.name}`;
+
+    if (window.navigate) navigate('coach');
+    // Le module coach doit finir de s'initialiser avant qu'on puisse sélectionner son domaine
+    setTimeout(() => {
+      if (window.CoachHub && typeof window.CoachHub.selectDomain === 'function') {
+        window.CoachHub.selectDomain(key);
+      }
+    }, 180);
+  },
+
+  /* ── Vision Board lié — affiche les objectifs de cette sphère ── */
+  renderVisionBoardLinks() {
+    const key = this.current;
+    const el = document.getElementById('sph-vb-links');
+    if (!el || !key) return;
+
+    let cards = [];
+    try {
+      const vb = JSON.parse(localStorage.getItem('aura_visionboard_v1') || '{}');
+      cards = (vb.cards || []).filter(c => c.sphere === key);
+    } catch(e) { cards = []; }
+
+    const cardsHtml = cards.map(c => {
+      const pct = c.steps?.length ? Math.round((c.steps.filter(s=>s.done).length / c.steps.length) * 100) : 0;
+      const emoji = c.visual?.type === 'emoji' ? c.visual.value : '🎯';
+      return `<div class="sph-vb-card-mini" onclick="if(window.navigate) navigate('visionboard')">
+        <span class="sph-vb-emoji">${emoji}</span>
+        <div class="sph-vb-info">
+          <div class="sph-vb-title">${c.title}</div>
+          <div class="sph-vb-progress-mini"><div class="sph-vb-progress-fill-mini" style="width:${pct}%;background:${c.color||'#7C3AED'}"></div></div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:var(--t3);flex-shrink:0">${pct}%</span>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = cardsHtml + `
+      <div class="sph-vb-add-btn" onclick="if(window.navigate) navigate('visionboard')">
+        <i class="ti ti-plus"></i> ${cards.length ? 'Voir tout sur le Vision Board' : 'Créer un objectif pour cette sphère'}
+      </div>`;
+  },
+
+  onSliderChange(val) {
+    const valEl   = document.getElementById('sph-score-slider-val');
+    const scoreEl = document.getElementById('sph-detail-score');
+    if (valEl) valEl.textContent = val;
+    if (scoreEl) scoreEl.textContent = val;
+  },
+
+  saveScore() {
+    const key = this.current;
+    const slider = document.getElementById('sph-score-slider');
+    if (!slider) return;
+    const val = parseInt(slider.value);
+    
+    SphStore.setScore(key, val);
+    this.syncScoreToDB(key, val);
+    
+    this.renderGlobalScore();
+    this.renderRadar();
+    this.renderGrid();
+    this.renderTopBottom();
+    
+    this.safeToast(`✓ Score "${SPHERES_DEF[key].name}" mis à jour : ${val}`);
+    this.renderDetail();
+  },
+
+  addNote() {
+    const key = this.current;
+    const noteInput = document.getElementById('sph-note');
+    const text = noteInput ? noteInput.value.trim() : '';
+    if (!text) { this.safeToast('⚠ Écris une réflexion avant d\'ajouter'); return; }
+    
+    const slider = document.getElementById('sph-score-slider');
+    const score = slider ? parseInt(slider.value) : 50;
+    
+    SphStore.addHistory(key, text, score);
+    if (noteInput) noteInput.value = '';
+    
+    this.renderDetail();
+    this.safeToast('✓ Ajouté à ton journal de sphère');
+  },
+
+  setSubcatStar(key, idx, stars) {
+    SphStore.setSubcat(key, idx, stars);
+    this.renderDetail();
+  },
+
+  saveVision(val) {
+    const key = this.current;
+    if (!key) return;
+    const d = SphStore.get();
+    if(!d.visions) d.visions = {};
+    d.visions[key] = val.trim();
+    SphStore.save();
+    this.safeToast('✨ Affirmation / Vision mise à jour et ancrée.');
+  },
+
+  saveDefi() {
+    const key = this.current;
+    const input = document.getElementById('sph-defi-input');
+    const txt = input ? input.value.trim() : '';
+    if (!txt) return;
+    
+    const d = SphStore.get();
+    if(!d.defis) d.defis = {};
+    d.defis[key] = { text: txt, done: false, date: new Date().toISOString().slice(0,10) };
+    SphStore.save();
+    
+    if (input) input.value = '';
+    this.renderDefiState();
+    this.safeToast('🎯 Micro-défi fixé pour la semaine !');
+  },
+
+  completeDefi() {
+    const key = this.current;
+    const cb = document.getElementById('sph-defi-checkbox');
+    if (!cb || !cb.checked) return;
+    
+    const d = SphStore.get();
+    if (d.defis && d.defis[key]) {
+      d.defis[key].done = true;
+      SphStore.save();
+
+      // Archiver dans l'historique des défis
+      if (!d.defisHistory) d.defisHistory = {};
+      if (!d.defisHistory[key]) d.defisHistory[key] = [];
+      d.defisHistory[key].unshift({
+        text: d.defis[key].text,
+        done: true,
+        date: new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'}),
+      });
+      d.defisHistory[key] = d.defisHistory[key].slice(0, 20);
+      delete d.defis[key];
+      SphStore.save();
+      
+      this.safeToast('🔥 Défi validé : +3 sur cette sphère !');
+      
+      const currentScore = d.scores[key] || 50;
+      const newScore = Math.min(100, currentScore + 3);
+      SphStore.setScore(key, newScore);
+      this.syncScoreToDB(key, newScore);
+      
+      this.renderGlobalScore();
+      this.renderRadar();
+      this.renderGrid();
+      this.renderTopBottom();
+      this.renderDetail();
+    }
+  },
+
+  computeDefiStreak(key) {
+    const d = SphStore.get();
+    const hist = d.defisHistory?.[key] || [];
+    // Streak = nombre de défis validés consécutifs (sans distinction de semaine ici, simple compteur de validations récentes)
+    return hist.filter(h => h.done).length;
+  },
+
+  renderDefiState() {
+    const key = this.current;
+    const d = SphStore.get();
+    const currentBlock = document.getElementById('sph-defi-current');
+    const txtEl = document.getElementById('sph-defi-text');
+    const cb = document.getElementById('sph-defi-checkbox');
+    
+    if (d.defis && d.defis[key] && !d.defis[key].done) {
+      if (currentBlock && txtEl && cb) {
+        txtEl.textContent = d.defis[key].text;
+        cb.checked = false;
+        currentBlock.style.display = 'flex';
+      }
+    } else {
+      if (currentBlock) currentBlock.style.display = 'none';
+    }
+
+    // Streak badge
+    const streak = this.computeDefiStreak(key);
+    const streakEl = document.getElementById('sph-defi-streak');
+    if (streakEl) {
+      if (streak > 0) { streakEl.style.display = 'inline'; streakEl.textContent = `🔥 ${streak}`; }
+      else { streakEl.style.display = 'none'; }
+    }
+
+    // Historique des défis
+    const histEl = document.getElementById('sph-defi-history');
+    if (histEl) {
+      const hist = d.defisHistory?.[key] || [];
+      histEl.innerHTML = hist.length ? hist.slice(0,5).map(h => `
+        <div class="defi-history-item ${h.done?'done':''}">
+          <span class="defi-history-check">${h.done?'✓':'○'}</span>
+          <span class="defi-history-text ${h.done?'done':''}">${h.text}</span>
+          <span class="defi-history-date">${h.date}</span>
+        </div>`).join('') : '';
+    }
+  },
+
+  async refreshAI() {
+    const key = window.AuraStore?.getGeminiKey();
+    if (!key || key === 'VOTRE_CLE_GEMINI') { 
+      const resp = document.getElementById('sph-ia-resp');
+      if(resp) { resp.style.display='block'; resp.innerHTML = 'Clé Gemini absente ou invalide.'; }
+      return; 
+    }
+    const d    = SphStore.get();
+    const resp = document.getElementById('sph-ia-resp');
+    if (resp) {
+      resp.style.display = 'block';
+      resp.innerHTML = '<span style="color:#7C3AED">✦ Analyse de l\'équilibre de tes 8 sphères...</span>';
+    }
+    const scoresTxt = SPH_ORDER.map(k => `${SPHERES_DEF[k].name}: ${d.scores[k]}/100`).join(', ');
+    try {
+      window.AURA_GEMINI.API_KEY = key;
+      const text = await window.AURA_GEMINI.call({
+        system: 'Tu es le Coach AURA, bienveillant et perspicace, spécialiste de l\'équilibre de vie holistique.',
+        prompt: `Voici mes scores actuels sur mes 8 sphères de vie : ${scoresTxt}.\n\nAnalyse mon équilibre global en 3-4 phrases courtes, identifie le déséquilibre principal, et donne un conseil actionnable pour cette semaine.`,
+        maxTokens: 350,
+        force: true
+      });
+      if (resp) resp.innerHTML = text.replace(/\n/g,'<br>');
+    } catch(e) {
+      if (resp) resp.innerHTML = '<span style="color:var(--re)">Analyse indisponible pour le moment.</span>';
+    }
   },
 
   async syncFromDB() {
-    if (!window.AuraSync || !window.SupaClient?.isLoggedIn()) return;
+    if (!window.SupaClient?.isLoggedIn()) return;
     try {
-      const rows = await AuraSync.loadRituels(30);
-      if (rows?.length) {
-        const d = RitStore.get();
-        d.entries = rows.map(r => ({
-          date: r.date_rituel, mood: this.numToMood(r.humeur), energy: 3,
-          gratitudes: (r.gratitudes||'').split(' | ').filter(Boolean),
-          intention: r.intention, affirmation: r.affirmation,
-        }));
-        RitStore.save();
-        this.renderStreak(); this.renderCalendar(); this.renderHistory(); this.renderStatus();
+      if(window.AuraSync && window.AuraSync.loadSpheres) {
+        const rows = await window.AuraSync.loadSpheres();
+        if (rows?.length) {
+          const d = SphStore.get();
+          rows.forEach(r => { d.scores[r.sphere] = r.score; });
+          SphStore.save();
+          this.renderOverview();
+        }
       }
-    } catch(e) { console.warn('[Rituel pull]', e.message); }
+    } catch(e) { console.warn('[Spheres sync]', e.message); }
   },
 
-  moodToNum(mood) { return { '😴':1,'😕':2,'😐':3,'🙂':4,'✨':5 }[mood] || 3; },
-  numToMood(num) { return { 1:'😴',2:'😕',3:'😐',4:'🙂',5:'✨' }[num] || '🙂'; },
+  async syncScoreToDB(key, score) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try { 
+      if(window.AuraSync && window.AuraSync.saveSphere) {
+        await window.AuraSync.saveSphere(key, score); 
+      }
+    } catch(e) { console.warn('[Sphere score sync]', e.message); }
+  },
 };
 
-function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
-function _val(id,val){ const e=document.getElementById(id); if(e) e.value=val; }
+window.SphStore = SphStore;
+window.Spheres = Spheres;
 
-if (document.readyState !== 'loading') Rituel.init();
+if (document.readyState !== 'loading') {
+  window.Spheres.init();
+} else {
+  document.addEventListener('DOMContentLoaded', () => window.Spheres.init());
+}
+
+window.initModule = function(name) {
+  if (name !== 'spheres') return;
+  window.Spheres.init();
+};
 </script>
