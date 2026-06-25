@@ -89,6 +89,25 @@
 .facet-divider { width:1px; height:22px; background:var(--bd2); }
 .facet-clear { font-size:10.5px; color:var(--t3); background:none; border:none; cursor:pointer; text-decoration:underline; margin-left:auto; }
 .facet-count { font-size:11px; color:var(--t3); white-space:nowrap; }
+.cui-search-bar { display:flex; align-items:center; gap:8px; background:var(--bg); border-radius:12px; padding:.625rem .875rem; margin-bottom:.875rem; border:1.5px solid transparent; transition:border-color .15s; }
+.cui-search-bar:focus-within { border-color:var(--pu-b); background:var(--white); }
+.cui-search-bar input { flex:1; border:none; background:none; font-size:13px; outline:none; }
+
+/* ── Mode "En cuisine" — plein écran, étape par étape ── */
+.cui-cooking-overlay { position:fixed; inset:0; background:var(--night, #1A1D29); z-index:300; display:none; flex-direction:column; color:#fff; }
+.cui-cooking-overlay.open { display:flex; }
+.cui-cooking-close { position:absolute; top:1rem; right:1rem; width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.1); border:none; color:#fff; font-size:18px; cursor:pointer; z-index:5; }
+.cui-cooking-progress { height:4px; background:rgba(255,255,255,.12); }
+.cui-cooking-progress-fill { height:100%; background:linear-gradient(90deg,#F97316,#FB923C); transition:width .3s; }
+.cui-cooking-header { display:flex; align-items:center; gap:12px; padding:2rem 1.5rem 0; font-size:17px; font-weight:700; }
+.cui-cooking-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem 2rem; text-align:center; gap:1.25rem; }
+.cui-cooking-step-label { font-size:13px; font-weight:700; color:#F97316; text-transform:uppercase; letter-spacing:.6px; }
+.cui-cooking-step-text { font-size:clamp(22px,5vw,32px); font-weight:700; line-height:1.4; max-width:560px; }
+.cui-cooking-step-note { font-size:14px; color:rgba(255,255,255,.6); font-style:italic; max-width:480px; }
+.cui-cooking-nav { display:flex; gap:10px; padding:1.5rem 2rem 2.5rem; }
+.cui-cooking-nav-btn { flex:1; padding:1rem; border-radius:14px; border:1.5px solid rgba(255,255,255,.15); background:rgba(255,255,255,.08); color:#fff; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+.cui-cooking-nav-btn.primary { background:#F97316; border-color:#F97316; flex:2; }
+.cui-cooking-nav-btn:disabled { opacity:.3; cursor:default; }
 
 /* ══════════════════════════════════════════════════
    CARTES RECETTES — design "carnet vivant"
@@ -190,6 +209,9 @@
 .shop-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:13px; opacity:0; transition:opacity .12s; }
 .shop-item:hover .shop-del { opacity:1; }
 .shop-del:hover { color:var(--re); }
+.shop-cat-title-card { display:flex; align-items:center; gap:8px; padding:.5rem .75rem; border-radius:10px; margin-bottom:.5rem; font-size:11.5px; }
+.shop-item-card { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; background:var(--bg); margin-bottom:.375rem; transition:opacity .15s; }
+.shop-item-card.item-done { opacity:.55; }
 .shop-add-row { display:flex; gap:6px; margin-top:.875rem; }
 .shop-add-row input { flex:1; font-size:12.5px; padding:8px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; }
 .shop-add-row input:focus { border-color:var(--or); }
@@ -209,6 +231,68 @@
 .ia-mode-tabs { display:flex; gap:6px; margin-bottom:1rem; }
 .ia-mode-tab { font-size:11px; font-weight:700; padding:6px 13px; border-radius:20px; border:1px solid var(--pu-b); background:var(--white); color:var(--pu-d); cursor:pointer; transition:all .12s; }
 .ia-mode-tab.sel { background:var(--pu); color:#fff; border-color:var(--pu); }
+
+/* ══════════════════════════════════════════════════
+   PANNEAU LATÉRAL (DRAWER) — remplace le modal centré
+══════════════════════════════════════════════════ */
+.cui-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; display:none; }
+.cui-drawer-overlay.open { display:block; }
+.cui-drawer-panel {
+  position:fixed; top:0; right:0; bottom:0; width:92%; max-width:440px;
+  background:var(--white); z-index:201; transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1); overflow-y:auto;
+  box-shadow:-12px 0 32px rgba(0,0,0,.12); display:flex; flex-direction:column;
+}
+.cui-drawer-panel.open { transform:translateX(0); }
+.cui-drawer-header { padding:1.125rem 1.25rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--bd); flex-shrink:0; }
+.cui-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+.cui-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
+.cui-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
+.cui-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+
+/* ── Ingrédient / étape avec note repliable ── */
+.cui-item-card { border:1.5px solid var(--bd); border-radius:12px; padding:.625rem .75rem; margin-bottom:.5rem; }
+.cui-item-top { display:flex; align-items:center; gap:8px; }
+.cui-item-top input[type=text] { flex:1; border:none; background:none; font-size:13px; outline:none; }
+.cui-item-num { width:20px; height:20px; border-radius:50%; background:var(--pu-l); color:var(--pu-d); font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cui-item-note-toggle { font-size:10.5px; font-weight:700; color:var(--pu); cursor:pointer; background:none; border:none; padding:0; flex-shrink:0; }
+.cui-item-note-wrap { margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--bd2); display:none; }
+.cui-item-note-wrap.open { display:block; }
+.cui-item-note-wrap textarea { width:100%; border:1px solid var(--bd2); border-radius:8px; padding:.5rem; font-size:12px; font-family:inherit; resize:vertical; min-height:46px; outline:none; }
+.cui-item-note-wrap textarea:focus { border-color:var(--pu); }
+.cui-step-del, .cui-ing-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; flex-shrink:0; }
+
+/* ── Bibliothèque ingrédients/étapes ── */
+.cui-lib-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:.625rem; border-radius:10px; border:1.5px dashed var(--pu-b); background:var(--pu-l); color:var(--pu-d); font-size:12px; font-weight:700; cursor:pointer; margin-bottom:.625rem; }
+.cui-lib-panel { display:none; background:var(--bg); border-radius:12px; padding:.875rem; margin-bottom:.75rem; max-height:240px; overflow-y:auto; }
+.cui-lib-panel.open { display:block; }
+.cui-lib-section-title { font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.4px; margin:.625rem 0 .375rem; }
+.cui-lib-section-title:first-child { margin-top:0; }
+.cui-lib-item { display:flex; align-items:center; gap:8px; padding:.5rem .625rem; border-radius:8px; background:var(--white); cursor:pointer; margin-bottom:.375rem; font-size:12px; color:var(--text); transition:background .12s; }
+.cui-lib-item:hover { background:var(--pu-l); }
+.cui-lib-item i { font-size:13px; color:var(--pu); flex-shrink:0; }
+.cui-lib-empty { font-size:11px; color:var(--t3); text-align:center; padding:.5rem; font-style:italic; }
+
+/* ── Aperçu visuel + sections du formulaire recette (redesign) ── */
+.cui-recipe-preview { height:100px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:40px; margin-bottom:.75rem; box-shadow:0 8px 20px rgba(0,0,0,.1); }
+.cui-emoji-picker { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1.25rem; }
+.cui-emoji-btn { width:32px; height:32px; border-radius:9px; border:1.5px solid var(--bd2); background:var(--white); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .12s; }
+.cui-emoji-btn:hover, .cui-emoji-btn.sel { border-color:var(--pu); background:var(--pu-l); transform:scale(1.08); }
+.cui-form-section { background:var(--bg); border-radius:14px; padding:1rem; margin-bottom:1rem; }
+.cui-form-section:last-child { margin-bottom:0; }
+.cui-form-section-title { font-size:12px; font-weight:800; color:var(--text); margin-bottom:.875rem; display:flex; align-items:center; gap:6px; }
+.cui-add-row-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:.5rem; border-radius:10px; border:1.5px dashed var(--bd2); background:var(--white); color:var(--t2); font-size:11.5px; font-weight:700; cursor:pointer; margin-top:.5rem; transition:all .12s; }
+.cui-add-row-btn:hover { border-color:var(--pu); color:var(--pu); background:var(--pu-l); }
+
+/* ── Onglets des listes de courses ── */
+.cui-list-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:.75rem; margin-bottom:.5rem; border-bottom:1px solid var(--bd); }
+.cui-list-tab { display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:18px; border:1.5px solid var(--bd2); background:var(--white); color:var(--t2); font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all .12s; }
+.cui-list-tab:hover { border-color:var(--pu-b); }
+.cui-list-tab.active { background:var(--pu); color:#fff; border-color:var(--pu); }
+.cui-list-tab-count { font-size:9.5px; padding:1px 6px; border-radius:8px; background:rgba(255,255,255,.25); }
+.cui-list-tab:not(.active) .cui-list-tab-count { background:var(--bg); color:var(--t3); }
+.cui-list-tab-add { width:30px; height:30px; border-radius:50%; border:1.5px dashed var(--bd2); background:var(--white); color:var(--t3); cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.cui-list-tab-add:hover { border-color:var(--pu); color:var(--pu); }
 
 @media(max-width:768px) {
   .recipe-grid { grid-template-columns:1fr 1fr; }
@@ -275,6 +359,12 @@
       <button class="btn-pill pu" onclick="Cuisine.openRecipeModal()"><i class="ti ti-plus" style="font-size:12px"></i> Nouvelle recette</button>
     </div>
 
+    <!-- Recherche par nom ou ingrédient -->
+    <div class="cui-search-bar">
+      <i class="ti ti-search" style="font-size:15px;color:var(--t3)"></i>
+      <input type="text" id="recipe-search" placeholder="Rechercher une recette ou un ingrédient..." oninput="Cuisine.searchRecipes(this.value)">
+    </div>
+
     <!-- Filtres à facettes : Sucré/Salé × Temps -->
     <div class="facet-bar" style="margin-bottom:1.125rem">
       <div class="facet-group">
@@ -331,20 +421,17 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-shopping-cart"></i> Liste de courses</span>
-        <button class="btn-ghost" onclick="Cuisine.clearDoneCourses()">Effacer cochés</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn-ghost" id="shop-list-manage-btn" onclick="Cuisine.openListManager()" style="display:none"><i class="ti ti-list-details" style="font-size:13px"></i> Gérer</button>
+          <button class="btn-ghost" onclick="Cuisine.openCategoryManager()"><i class="ti ti-tags" style="font-size:13px"></i> Catégories</button>
+          <button class="btn-ghost" onclick="Cuisine.clearDoneCourses()">Effacer cochés</button>
+        </div>
       </div>
+      <div class="cui-list-tabs" id="shop-list-tabs"></div>
       <div id="shop-list"></div>
       <div class="shop-add-row">
         <input type="text" id="shop-new-item" placeholder="Ajouter un article..." onkeydown="if(event.key==='Enter')Cuisine.addShopItem()">
-        <select id="shop-new-cat">
-          <option value="Fruits & Légumes">🥦 Fruits & Légumes</option>
-          <option value="Viandes & Poissons">🥩 Viandes & Poissons</option>
-          <option value="Épicerie">🧂 Épicerie</option>
-          <option value="Frais & Laitiers">🧀 Frais & Laitiers</option>
-          <option value="Surgelés">🧊 Surgelés</option>
-          <option value="Boissons">🥤 Boissons</option>
-          <option value="Hygiène & Maison">🧴 Hygiène & Maison</option>
-        </select>
+        <select id="shop-new-cat"></select>
         <button onclick="Cuisine.addShopItem()">Ajouter</button>
       </div>
     </div>
@@ -478,14 +565,128 @@
 <!-- ════════════════════════════════════════════════════
      MODAL RECETTE
 ════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="recipe-modal-overlay" style="display:none" onclick="if(event.target===this)Cuisine.closeRecipeModal()">
-  <div class="modal-box" style="max-width:540px" onclick="event.stopPropagation()">
-    <div class="modal-title" id="recipe-modal-title"><i class="ti ti-plus"></i> Nouvelle recette</div>
-    <div class="recipe-modal-body" id="recipe-modal-body"></div>
-    <div class="modal-actions" id="recipe-modal-actions">
+<div class="cui-drawer-overlay" id="recipe-modal-overlay" onclick="if(event.target===this)Cuisine.closeRecipeModal()">
+  <div class="cui-drawer-panel" id="cui-drawer-panel" onclick="event.stopPropagation()">
+    <div class="cui-drawer-header">
+      <button class="cui-drawer-close" onclick="Cuisine.closeRecipeModal()">✕</button>
+      <div class="cui-drawer-title" id="recipe-modal-title"><i class="ti ti-plus"></i> Nouvelle recette</div>
+    </div>
+    <div class="cui-drawer-body recipe-modal-body" id="recipe-modal-body"></div>
+    <div class="cui-drawer-footer" id="recipe-modal-actions">
       <button class="modal-btn primary" onclick="Cuisine.saveRecipe()">Enregistrer</button>
       <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Annuler</button>
     </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Gestion des catégories produits
+════════════════════════════════════════════════════ -->
+<div class="cui-drawer-overlay" id="cat-modal-overlay" onclick="if(event.target===this)Cuisine.closeCategoryManager()">
+  <div class="cui-drawer-panel" id="cat-drawer-panel" onclick="event.stopPropagation()">
+    <div class="cui-drawer-header">
+      <button class="cui-drawer-close" onclick="Cuisine.closeCategoryManager()">✕</button>
+      <div class="cui-drawer-title"><i class="ti ti-tags"></i> Catégories produits</div>
+    </div>
+    <div class="cui-drawer-body">
+      <div id="cat-manager-list"></div>
+      <div class="cui-item-card" style="background:var(--bg);border-style:dashed">
+        <div class="cui-item-top">
+          <span style="font-size:18px" id="cat-new-emoji-preview">🏷️</span>
+          <input type="text" id="cat-new-name" placeholder="Nouvelle catégorie...">
+          <input type="color" id="cat-new-color" value="#1E40AF" style="width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;padding:0">
+        </div>
+        <div class="emoji-row" id="cat-new-emoji-row" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:.5rem"></div>
+        <button class="btn-ghost" onclick="Cuisine.addCategoryRow()" style="margin-top:.5rem;width:100%;text-align:center">+ Créer cette catégorie</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Édition d'un créneau de planning
+════════════════════════════════════════════════════ -->
+<div class="cui-drawer-overlay" id="plan-modal-overlay" onclick="if(event.target===this)Cuisine.closePlanningDrawer()">
+  <div class="cui-drawer-panel" id="plan-drawer-panel" onclick="event.stopPropagation()">
+    <div class="cui-drawer-header">
+      <button class="cui-drawer-close" onclick="Cuisine.closePlanningDrawer()">✕</button>
+      <div class="cui-drawer-title" id="plan-drawer-title"><i class="ti ti-calendar"></i> Repas du jour</div>
+    </div>
+    <div class="cui-drawer-body">
+      <div class="modal-field">
+        <label class="modal-lbl">Rechercher une recette</label>
+        <input class="modal-input" id="plan-search" placeholder="Tape pour filtrer tes recettes..." oninput="Cuisine.filterPlanningRecipes(this.value)">
+      </div>
+      <div id="plan-recipe-list" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
+      <div class="modal-field">
+        <label class="modal-lbl">Ou texte libre</label>
+        <input class="modal-input" id="plan-free-text" placeholder="Ex: Resto avec les amis, restes du frigo...">
+      </div>
+    </div>
+    <div class="cui-drawer-footer">
+      <button class="modal-btn primary" onclick="Cuisine.savePlanningSlot()">Enregistrer</button>
+      <button class="modal-btn" style="background:var(--re-l);color:var(--re)" onclick="Cuisine.clearPlanningSlot()"><i class="ti ti-trash"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Nouvelle liste de courses
+════════════════════════════════════════════════════ -->
+<div class="cui-drawer-overlay" id="new-list-overlay" onclick="if(event.target===this)Cuisine.closeNewListPrompt()">
+  <div class="cui-drawer-panel" id="new-list-panel" style="max-width:340px" onclick="event.stopPropagation()">
+    <div class="cui-drawer-header">
+      <button class="cui-drawer-close" onclick="Cuisine.closeNewListPrompt()">✕</button>
+      <div class="cui-drawer-title"><i class="ti ti-plus"></i> Nouvelle liste</div>
+    </div>
+    <div class="cui-drawer-body">
+      <div class="modal-field">
+        <label class="modal-lbl">Nom de la liste</label>
+        <input class="modal-input" id="new-list-name" placeholder="Ex: Apéro samedi, Anniversaire..." onkeydown="if(event.key==='Enter')Cuisine.confirmNewList()">
+      </div>
+    </div>
+    <div class="cui-drawer-footer">
+      <button class="modal-btn primary" onclick="Cuisine.confirmNewList()">Créer</button>
+      <button class="modal-btn cancel" onclick="Cuisine.closeNewListPrompt()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Gestion des listes (renommer / supprimer)
+════════════════════════════════════════════════════ -->
+<div class="cui-drawer-overlay" id="list-manage-overlay" onclick="if(event.target===this)Cuisine.closeListManager()">
+  <div class="cui-drawer-panel" id="list-manage-panel" style="max-width:380px" onclick="event.stopPropagation()">
+    <div class="cui-drawer-header">
+      <button class="cui-drawer-close" onclick="Cuisine.closeListManager()">✕</button>
+      <div class="cui-drawer-title"><i class="ti ti-list-details"></i> Mes listes de courses</div>
+    </div>
+    <div class="cui-drawer-body">
+      <div id="list-manage-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MODE "EN CUISINE" — plein écran, étape par étape
+════════════════════════════════════════════════════ -->
+<div class="cui-cooking-overlay" id="cooking-overlay">
+  <button class="cui-cooking-close" onclick="Cuisine.exitCookingMode()"><i class="ti ti-x"></i></button>
+  <div class="cui-cooking-progress">
+    <div class="cui-cooking-progress-fill" id="cooking-progress-fill"></div>
+  </div>
+  <div class="cui-cooking-header">
+    <span id="cooking-recipe-emoji" style="font-size:28px"></span>
+    <span id="cooking-recipe-name"></span>
+  </div>
+  <div class="cui-cooking-body">
+    <div class="cui-cooking-step-label" id="cooking-step-label">Étape 1/6</div>
+    <div class="cui-cooking-step-text" id="cooking-step-text"></div>
+    <div class="cui-cooking-step-note" id="cooking-step-note"></div>
+  </div>
+  <div class="cui-cooking-nav">
+    <button class="cui-cooking-nav-btn" id="cooking-prev-btn" onclick="Cuisine.cookingPrev()"><i class="ti ti-chevron-left"></i></button>
+    <button class="cui-cooking-nav-btn primary" id="cooking-next-btn" onclick="Cuisine.cookingNext()">Étape suivante <i class="ti ti-chevron-right"></i></button>
   </div>
 </div>
 
@@ -540,11 +741,30 @@ const CuiStore = {
       challengeDoneToday: partial.challengeDoneToday || false,
       recipes: partial.recipes && partial.recipes.length ? partial.recipes : DEFAULT_RECIPES,
       planning: partial.planning || {},
-      courses: partial.courses && partial.courses.length ? partial.courses : [
-        { id:1, name:'Champignons',  cat:'Fruits & Légumes',     qty:'500g', done:true  },
-        { id:2, name:'Avocat',       cat:'Fruits & Légumes',     qty:'×2',   done:false },
-        { id:3, name:'Saumon',       cat:'Viandes & Poissons',   qty:'×2',   done:true  },
-        { id:4, name:'Farine',       cat:'Épicerie',             qty:'500g', done:false },
+      // Plusieurs listes de courses indépendantes — chacune nommée
+      // librement (ex: "Courses de la semaine", "Apéro samedi"), sans
+      // lien avec les recettes ni le planning. Migration douce : si
+      // l'ancienne structure plate "courses" existe encore (avant cette
+      // mise à jour), elle devient la première liste par défaut.
+      shoppingLists: partial.shoppingLists && partial.shoppingLists.length ? partial.shoppingLists : [
+        { id:1, name:'Courses de la semaine', items: partial.courses && partial.courses.length ? partial.courses : [
+          { id:1, name:'Champignons',  cat:'Fruits & Légumes',     qty:'500g', done:true  },
+          { id:2, name:'Avocat',       cat:'Fruits & Légumes',     qty:'×2',   done:false },
+          { id:3, name:'Saumon',       cat:'Viandes & Poissons',   qty:'×2',   done:true  },
+          { id:4, name:'Farine',       cat:'Épicerie',             qty:'500g', done:false },
+        ]},
+      ],
+      // Catégories produits — entièrement éditables (créer, renommer,
+      // supprimer), migrées depuis les 7 valeurs autrefois codées en
+      // dur dans le <select> du formulaire d'ajout.
+      categories: partial.categories && partial.categories.length ? partial.categories : [
+        { id:1, name:'Fruits & Légumes',   emoji:'🥦', color:'#166534' },
+        { id:2, name:'Viandes & Poissons', emoji:'🥩', color:'#9D174D' },
+        { id:3, name:'Épicerie',           emoji:'🧂', color:'#92400E' },
+        { id:4, name:'Frais & Laitiers',   emoji:'🧀', color:'#1E40AF' },
+        { id:5, name:'Surgelés',           emoji:'🧊', color:'#0F766E' },
+        { id:6, name:'Boissons',           emoji:'🥤', color:'#7C3AED' },
+        { id:7, name:'Hygiène & Maison',   emoji:'🧴', color:'#5B21B6' },
       ],
       budget: partial.budget || { total:350, spent:312, breakdown:{ 'Courses alimentaires':210, 'Restaurants':62, 'Livraisons':40 } },
     };
@@ -553,13 +773,62 @@ const CuiStore = {
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 
   addRecipe(r) { const d=this.get(); r.id=d.recipes.length?Math.max(...d.recipes.map(x=>x.id))+1:1; d.recipes.unshift(r); this.save(); return r; },
+  updateRecipe(r) { const d=this.get(); const i=d.recipes.findIndex(x=>x.id===r.id); if(i>=0) d.recipes[i]={...d.recipes[i],...r}; this.save(); },
   toggleFav(id) { const d=this.get(); const r=d.recipes.find(x=>x.id===id); if(r){r.fav=!r.fav; this.save();} },
   deleteRecipe(id) { const d=this.get(); d.recipes=d.recipes.filter(x=>x.id!==id); this.save(); },
 
-  addCourse(item) { const d=this.get(); item.id=d.courses.length?Math.max(...d.courses.map(x=>x.id))+1:1; d.courses.push(item); this.save(); return item; },
-  toggleCourse(id) { const d=this.get(); const c=d.courses.find(x=>x.id===id); if(c){c.done=!c.done; this.save();} },
-  deleteCourse(id) { const d=this.get(); d.courses=d.courses.filter(x=>x.id!==id); this.save(); },
-  clearDone() { const d=this.get(); d.courses=d.courses.filter(x=>!x.done); this.save(); },
+  /* ── Listes de courses multiples ── */
+  getActiveListId() {
+    try { return parseInt(localStorage.getItem('aura_cuisine_active_list')) || this.get().shoppingLists[0]?.id; }
+    catch(_) { return this.get().shoppingLists[0]?.id; }
+  },
+  setActiveListId(id) { try { localStorage.setItem('aura_cuisine_active_list', id); } catch(_) {} },
+  getActiveList() {
+    const d = this.get();
+    const id = this.getActiveListId();
+    return d.shoppingLists.find(l=>l.id===id) || d.shoppingLists[0];
+  },
+  addShoppingList(name) {
+    const d = this.get();
+    const id = d.shoppingLists.length ? Math.max(...d.shoppingLists.map(x=>x.id))+1 : 1;
+    const list = { id, name, items:[] };
+    d.shoppingLists.push(list);
+    this.save();
+    this.setActiveListId(id);
+    return list;
+  },
+  renameShoppingList(id,name) { const l=this.get().shoppingLists.find(x=>x.id===id); if(l){l.name=name; this.save();} },
+  deleteShoppingList(id) {
+    const d = this.get();
+    if (d.shoppingLists.length <= 1) return false; // toujours garder au moins une liste
+    d.shoppingLists = d.shoppingLists.filter(l=>l.id!==id);
+    this.save();
+    if (this.getActiveListId() === id) this.setActiveListId(d.shoppingLists[0].id);
+    return true;
+  },
+
+  addCourse(item) { const l=this.getActiveList(); item.id=l.items.length?Math.max(...l.items.map(x=>x.id))+1:1; l.items.push(item); this.save(); return item; },
+  toggleCourse(id) { const l=this.getActiveList(); const c=l.items.find(x=>x.id===id); if(c){c.done=!c.done; this.save();} },
+  deleteCourse(id) { const l=this.getActiveList(); l.items=l.items.filter(x=>x.id!==id); this.save(); },
+  clearDone() { const l=this.getActiveList(); l.items=l.items.filter(x=>!x.done); this.save(); },
+
+  /* ── Catégories produits ── */
+  addCategory(c) { const d=this.get(); c.id=d.categories.length?Math.max(...d.categories.map(x=>x.id))+1:1; d.categories.push(c); this.save(); return c; },
+  updateCategory(c) { const d=this.get(); const i=d.categories.findIndex(x=>x.id===c.id); if(i>=0) d.categories[i]=c; this.save(); },
+  deleteCategory(id) {
+    const d=this.get();
+    const cat = d.categories.find(c=>c.id===id);
+    if (!cat) return;
+    d.categories = d.categories.filter(c=>c.id!==id);
+    // Les articles déjà rangés dans cette catégorie ne sont pas perdus —
+    // ils basculent vers une catégorie "Autre" plutôt que de disparaître
+    // silencieusement ou de référencer une catégorie qui n'existe plus.
+    // Toutes les listes sont parcourues — une catégorie est globale,
+    // pas propre à une seule liste de courses.
+    d.shoppingLists.forEach(list => list.items.forEach(item => { if (item.cat === cat.name) item.cat = 'Autre'; }));
+    this.save();
+  },
+  getCategory(name) { return this.get().categories.find(c=>c.name===name); },
 
   setPlanning(dateKey, recipeNameOrId) { const d=this.get(); d.planning[dateKey]=recipeNameOrId; this.save(); },
 };
@@ -659,12 +928,18 @@ const Cuisine = {
   facets: { cat: new Set(), time: new Set(), fav: false },
   editingRecipeId: null,
   iaMode: 'suggest',
+  ingRows: [],
+  stepRows: [],
+  _openIngNoteIdx: null,
+  _openStepNoteIdx: null,
+  searchQuery: '',
 
   init() {
     this.renderHero();
     this.renderChallenge();
     this.renderRecipes();
     this.renderPlanning();
+    this.fillCategorySelect();
     this.renderCourses();
     this.renderBudget();
     this.syncFromDB();
@@ -766,6 +1041,16 @@ const Cuisine = {
     if (this.facets.time.size) list = list.filter(r => this.facets.time.has(r.time));
     if (this.facets.fav)       list = list.filter(r => r.fav);
 
+    // Recherche par nom ou ingrédient — compatible avec les deux formats
+    // (string ancien, {text,note} nouveau).
+    if (this.searchQuery) {
+      const q = this.searchQuery.toLowerCase();
+      list = list.filter(r => {
+        if (r.name.toLowerCase().includes(q)) return true;
+        return (r.ingredients||[]).some(i => (typeof i === 'string' ? i : i.text).toLowerCase().includes(q));
+      });
+    }
+
     const count = document.getElementById('facet-count');
     const totalActive = this.facets.cat.size + this.facets.time.size + (this.facets.fav?1:0);
     count.textContent = totalActive ? `${list.length} recette${list.length!==1?'s':''}` : '';
@@ -802,6 +1087,11 @@ const Cuisine = {
     }).join('');
   },
 
+  searchRecipes(query) {
+    this.searchQuery = query.trim();
+    this.renderRecipes();
+  },
+
   toggleFav(id) { CuiStore.toggleFav(id); this.renderRecipes(); this.renderHero(); earnXP(3,'Recette favorite','❤️'); },
 
   openRecipeDetail(id) {
@@ -818,76 +1108,358 @@ const Cuisine = {
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin-bottom:.5rem">Ingrédients</div>
-        <div class="recipe-ingredients-list">${(r.ingredients||[]).map(i=>`<div class="recipe-ing-item"><i class="ti ti-point" style="color:var(--or);font-size:8px"></i> ${i}</div>`).join('')}</div>
+        <div class="recipe-ingredients-list">${(r.ingredients||[]).map(i=>{
+          const text = typeof i === 'string' ? i : i.text;
+          const note = typeof i === 'string' ? '' : i.note;
+          return `<div class="recipe-ing-item"><i class="ti ti-point" style="color:var(--or);font-size:8px"></i> ${text}${note?`<div style="font-size:10.5px;color:var(--t3);margin-left:14px;font-style:italic">${note}</div>`:''}</div>`;
+        }).join('')}</div>
       </div>
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t2);margin-bottom:.625rem">Étapes</div>
-        <div class="recipe-steps">${(r.steps||[]).map((s,i)=>`<div class="recipe-step"><span class="recipe-step-num">${i+1}</span><span class="recipe-step-text">${s}</span></div>`).join('')}</div>
+        <div class="recipe-steps">${(r.steps||[]).map((s,i)=>{
+          const text = typeof s === 'string' ? s : s.text;
+          const note = typeof s === 'string' ? '' : s.note;
+          return `<div class="recipe-step"><span class="recipe-step-num">${i+1}</span><span class="recipe-step-text">${text}${note?`<div style="font-size:10.5px;color:var(--t3);margin-top:3px;font-style:italic">💡 ${note}</div>`:''}</span></div>`;
+        }).join('')}</div>
       </div>`;
     document.getElementById('recipe-modal-actions').innerHTML = `
-      <button class="modal-btn primary" onclick="Cuisine.addToShoppingFromRecipe(${r.id})"><i class="ti ti-shopping-cart"></i> Ajouter aux courses</button>
-      <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Fermer</button>`;
-    document.getElementById('recipe-modal-overlay').style.display = 'flex';
+      <button class="modal-btn primary" onclick="Cuisine.startCookingMode(${r.id})"><i class="ti ti-chef-hat"></i> En cuisine</button>
+      <button class="modal-btn" style="background:var(--bl-l);color:var(--bl)" onclick="Cuisine.addToShoppingFromRecipe(${r.id})"><i class="ti ti-shopping-cart"></i></button>
+      <button class="modal-btn" style="background:var(--bg);color:var(--t2)" onclick="Cuisine.editRecipe(${r.id})"><i class="ti ti-edit"></i></button>
+      <button class="modal-btn" style="background:var(--re-l);color:var(--re)" onclick="Cuisine.confirmDeleteRecipe(${r.id})"><i class="ti ti-trash"></i></button>`;
+    document.getElementById('recipe-modal-overlay').classList.add('open');
+    document.getElementById('cui-drawer-panel').classList.add('open');
   },
 
   addToShoppingFromRecipe(id) {
     const r = CuiStore.get().recipes.find(x=>x.id===id);
     if (!r) return;
-    (r.ingredients||[]).forEach(ing => CuiStore.addCourse({ name:ing, cat:'Épicerie', qty:'', done:false }));
+    (r.ingredients||[]).forEach(ing => {
+      const name = typeof ing === 'string' ? ing : ing.text;
+      CuiStore.addCourse({ name, cat:'Épicerie', qty:'', done:false });
+    });
     this.renderCourses();
     this.closeRecipeModal();
-    AuraUI.showToast('✓ Ingrédients ajoutés à la liste de courses');
+    AuraUI.showToast(`✓ Ingrédients ajoutés à "${CuiStore.getActiveList().name}"`);
   },
 
-  openRecipeModal() {
-    this.editingRecipeId = null;
-    document.getElementById('recipe-modal-title').innerHTML = '<i class="ti ti-plus"></i> Nouvelle recette';
+  RECIPE_EMOJIS: ['🍰','🍕','🍝','🥘','🍲','🥗','🍳','🥞','🍔','🌮','🍜','🍱','🥧','🍞','🧁','🍗','🐟','🍤','🍛','🍣'],
+  recipeEmoji: '🍽️',
+  recipeColor: '#C2410C',
+
+  openRecipeModal(recipeToEdit) {
+    this.editingRecipeId = recipeToEdit ? recipeToEdit.id : null;
+    this.ingRows = recipeToEdit ? JSON.parse(JSON.stringify((recipeToEdit.ingredients||[]).map(i => typeof i === 'string' ? {text:i,note:''} : i))) : [];
+    this.stepRows = recipeToEdit ? JSON.parse(JSON.stringify((recipeToEdit.steps||[]).map(s => typeof s === 'string' ? {text:s,note:''} : s))) : [];
+    this.recipeEmoji = recipeToEdit?.emoji || '🍽️';
+    this.recipeColor = recipeToEdit?.color || '#C2410C';
+    document.getElementById('recipe-modal-title').innerHTML = recipeToEdit ? `<i class="ti ti-edit"></i> Modifier la recette` : '<i class="ti ti-plus"></i> Nouvelle recette';
     document.getElementById('recipe-modal-body').innerHTML = `
-      <div class="modal-field"><label class="modal-lbl">Nom de la recette</label><input class="modal-input" id="rm-name" placeholder="Ex: Tarte aux pommes"></div>
-      <div class="modal-field"><label class="modal-lbl">Emoji</label><input class="modal-input" id="rm-emoji" placeholder="🍰" maxlength="4" style="font-size:20px"></div>
-      <div class="g2" style="gap:.75rem">
-        <div class="modal-field"><label class="modal-lbl">Type</label>
-          <select class="modal-input" id="rm-cat"><option value="sale">🧂 Salé</option><option value="sucre">🍰 Sucré</option></select>
+      <div class="cui-recipe-preview" id="cui-recipe-preview" style="background:linear-gradient(135deg,${this.recipeColor}99,${this.recipeColor})">${this.recipeEmoji}</div>
+      <div class="cui-emoji-picker" id="cui-recipe-emoji-picker"></div>
+
+      <div class="cui-form-section">
+        <div class="cui-form-section-title">📋 Informations</div>
+        <div class="modal-field"><label class="modal-lbl">Nom de la recette</label><input class="modal-input" id="rm-name" placeholder="Ex: Tarte aux pommes" value="${_escAttr(recipeToEdit?.name||'')}"></div>
+        <div class="g2" style="gap:.75rem">
+          <div class="modal-field"><label class="modal-lbl">Couleur d'accent</label>
+            <select class="modal-input" id="rm-color" onchange="Cuisine.updateRecipeColor(this.value)">
+              <option value="#C2410C" ${this.recipeColor==='#C2410C'?'selected':''}>Orange</option>
+              <option value="#9D174D" ${this.recipeColor==='#9D174D'?'selected':''}>Rose</option>
+              <option value="#1E40AF" ${this.recipeColor==='#1E40AF'?'selected':''}>Bleu</option>
+              <option value="#0F766E" ${this.recipeColor==='#0F766E'?'selected':''}>Teal</option>
+              <option value="#5B21B6" ${this.recipeColor==='#5B21B6'?'selected':''}>Violet</option>
+              <option value="#166534" ${this.recipeColor==='#166534'?'selected':''}>Vert</option>
+            </select>
+          </div>
+          <div class="modal-field"><label class="modal-lbl">Type</label>
+            <select class="modal-input" id="rm-cat">
+              <option value="sale" ${recipeToEdit?.cat==='sale'?'selected':''}>🧂 Salé</option>
+              <option value="sucre" ${recipeToEdit?.cat==='sucre'?'selected':''}>🍰 Sucré</option>
+            </select>
+          </div>
         </div>
-        <div class="modal-field"><label class="modal-lbl">Temps</label>
-          <select class="modal-input" id="rm-time"><option value="rapide">⚡ Rapide (≤20min)</option><option value="moyen">⏱️ Moyen (20-45min)</option><option value="long">🍲 Long (45min+)</option></select>
+        <div class="g2" style="gap:.75rem">
+          <div class="modal-field"><label class="modal-lbl">Temps</label>
+            <select class="modal-input" id="rm-time">
+              <option value="rapide" ${recipeToEdit?.time==='rapide'?'selected':''}>⚡ Rapide (≤20min)</option>
+              <option value="moyen" ${!recipeToEdit||recipeToEdit?.time==='moyen'?'selected':''}>⏱️ Moyen (20-45min)</option>
+              <option value="long" ${recipeToEdit?.time==='long'?'selected':''}>🍲 Long (45min+)</option>
+            </select>
+          </div>
+          <div class="modal-field"><label class="modal-lbl">Durée (min)</label><input class="modal-input" id="rm-minutes" type="number" placeholder="30" value="${recipeToEdit?.minutes||''}"></div>
         </div>
+        <div class="modal-field"><label class="modal-lbl">Tags (séparés par virgule)</label><input class="modal-input" id="rm-tags" placeholder="Facile, Familial..." value="${_escAttr((recipeToEdit?.tags||[]).join(', '))}"></div>
       </div>
-      <div class="modal-field"><label class="modal-lbl">Durée précise (minutes)</label><input class="modal-input" id="rm-minutes" type="number" placeholder="30"></div>
-      <div class="modal-field"><label class="modal-lbl">Tags (séparés par virgule)</label><input class="modal-input" id="rm-tags" placeholder="Facile, Familial..."></div>
-      <div class="modal-field"><label class="modal-lbl">Ingrédients (un par ligne)</label><textarea class="modal-input" id="rm-ingredients" rows="3" style="resize:none" placeholder="200g farine&#10;3 oeufs&#10;..."></textarea></div>
-      <div class="modal-field"><label class="modal-lbl">Étapes (une par ligne)</label><textarea class="modal-input" id="rm-steps" rows="3" style="resize:none" placeholder="Préchauffer le four...&#10;Mélanger..."></textarea></div>`;
+
+      <div class="cui-form-section">
+        <div class="cui-form-section-title">🥕 Ingrédients</div>
+        <button class="cui-lib-btn" onclick="Cuisine.toggleIngLibrary()"><i class="ti ti-books" style="font-size:14px"></i> <span id="cui-ing-lib-btn-text">Choisir dans la bibliothèque</span></button>
+        <div class="cui-lib-panel" id="cui-ing-lib-panel"></div>
+        <div id="rm-ingredients-list"></div>
+        <button class="cui-add-row-btn" onclick="Cuisine.addIngRow()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter un ingrédient</button>
+      </div>
+
+      <div class="cui-form-section">
+        <div class="cui-form-section-title">👩‍🍳 Étapes</div>
+        <button class="cui-lib-btn" onclick="Cuisine.toggleStepLibrary()"><i class="ti ti-books" style="font-size:14px"></i> <span id="cui-step-lib-btn-text">Choisir dans la bibliothèque</span></button>
+        <div class="cui-lib-panel" id="cui-step-lib-panel"></div>
+        <div id="rm-steps-list"></div>
+        <button class="cui-add-row-btn" onclick="Cuisine.addStepRow()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter une étape</button>
+      </div>`;
     document.getElementById('recipe-modal-actions').innerHTML = `
       <button class="modal-btn primary" onclick="Cuisine.saveRecipe()">Enregistrer</button>
       <button class="modal-btn cancel" onclick="Cuisine.closeRecipeModal()">Annuler</button>`;
-    document.getElementById('recipe-modal-overlay').style.display = 'flex';
+    this.renderRecipeEmojiPicker();
+    this.renderIngRows();
+    this.renderStepRows();
+    document.getElementById('recipe-modal-overlay').classList.add('open');
+    document.getElementById('cui-drawer-panel').classList.add('open');
+  },
+
+  renderRecipeEmojiPicker() {
+    const el = document.getElementById('cui-recipe-emoji-picker');
+    if (!el) return;
+    el.innerHTML = this.RECIPE_EMOJIS.map(e => `<button class="cui-emoji-btn ${e===this.recipeEmoji?'sel':''}" onclick="Cuisine.selectRecipeEmoji('${e}')">${e}</button>`).join('');
+  },
+  selectRecipeEmoji(e) {
+    this.recipeEmoji = e;
+    document.getElementById('cui-recipe-preview').textContent = e;
+    this.renderRecipeEmojiPicker();
+  },
+  updateRecipeColor(color) {
+    this.recipeColor = color;
+    const preview = document.getElementById('cui-recipe-preview');
+    preview.style.background = `linear-gradient(135deg,${color}99,${color})`;
+  },
+
+  /* ── Ingrédients : lignes individuelles avec note repliable ── */
+  renderIngRows() {
+    const el = document.getElementById('rm-ingredients-list');
+    if (!el) return;
+    el.innerHTML = this.ingRows.map((ing,i) => `
+      <div class="cui-item-card">
+        <div class="cui-item-top">
+          <input type="text" value="${_escAttr(ing.text)}" placeholder="Ex: 200g de farine" onchange="Cuisine.updateIngText(${i},this.value)">
+          <button class="cui-item-note-toggle" onclick="Cuisine.toggleIngNote(${i})">${ing.note ? '📝' : '+ note'}</button>
+          <button class="cui-ing-del" onclick="Cuisine.removeIngRow(${i})"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="cui-item-note-wrap ${this._openIngNoteIdx===i?'open':''}">
+          <textarea placeholder="Ex: bio de préférence, ou substitut possible..." onchange="Cuisine.updateIngNote(${i},this.value)">${_escAttr(ing.note||'')}</textarea>
+        </div>
+      </div>`).join('');
+  },
+  addIngRow() { this.ingRows.push({text:'',note:''}); this.renderIngRows(); },
+  updateIngText(i,val) { this.ingRows[i].text = val; },
+  updateIngNote(i,val) { this.ingRows[i].note = val; },
+  toggleIngNote(i) { this._openIngNoteIdx = this._openIngNoteIdx===i ? null : i; this.renderIngRows(); },
+  removeIngRow(i) { this.ingRows.splice(i,1); this.renderIngRows(); },
+
+  /* ── Étapes : lignes individuelles numérotées avec note repliable ── */
+  renderStepRows() {
+    const el = document.getElementById('rm-steps-list');
+    if (!el) return;
+    el.innerHTML = this.stepRows.map((s,i) => `
+      <div class="cui-item-card">
+        <div class="cui-item-top">
+          <span class="cui-item-num">${i+1}</span>
+          <input type="text" value="${_escAttr(s.text)}" placeholder="Ex: Préchauffer le four à 180°C" onchange="Cuisine.updateStepText(${i},this.value)">
+          <button class="cui-item-note-toggle" onclick="Cuisine.toggleStepNote(${i})">${s.note ? '📝' : '+ note'}</button>
+          <button class="cui-step-del" onclick="Cuisine.removeStepRow(${i})"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="cui-item-note-wrap ${this._openStepNoteIdx===i?'open':''}">
+          <textarea placeholder="Ex: astuce, température exacte, point de vigilance..." onchange="Cuisine.updateStepNote(${i},this.value)">${_escAttr(s.note||'')}</textarea>
+        </div>
+      </div>`).join('');
+  },
+  addStepRow() { this.stepRows.push({text:'',note:''}); this.renderStepRows(); },
+  updateStepText(i,val) { this.stepRows[i].text = val; },
+  updateStepNote(i,val) { this.stepRows[i].note = val; },
+  toggleStepNote(i) { this._openStepNoteIdx = this._openStepNoteIdx===i ? null : i; this.renderStepRows(); },
+  removeStepRow(i) { this.stepRows.splice(i,1); this.renderStepRows(); },
+
+  /* ══════════════════════════════════════════════════════════════
+     BIBLIOTHÈQUES — ingrédients et étapes déjà utilisés dans
+     d'autres recettes, dédupliqués, plus des suggestions courantes.
+  ══════════════════════════════════════════════════════════════ */
+  STEP_SUGGESTIONS: [
+    'Préchauffer le four', 'Laisser reposer', 'Mélanger les ingrédients secs',
+    'Battre les œufs', 'Laisser refroidir', 'Assaisonner selon le goût',
+    'Couper en morceaux', 'Faire revenir à feu moyen', 'Réserver au frais',
+  ],
+
+  toggleIngLibrary() {
+    const panel = document.getElementById('cui-ing-lib-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) { panel.classList.remove('open'); _set('cui-ing-lib-btn-text','Choisir dans la bibliothèque'); return; }
+    this.renderIngLibrary();
+    panel.classList.add('open');
+    _set('cui-ing-lib-btn-text','Fermer la bibliothèque');
+  },
+  renderIngLibrary() {
+    const panel = document.getElementById('cui-ing-lib-panel');
+    const allRecipes = CuiStore.get().recipes;
+    const currentTexts = new Set(this.ingRows.map(i => i.text.trim().toLowerCase()).filter(Boolean));
+    const seen = new Set();
+    const ownIngs = [];
+    allRecipes.forEach(r => (r.ingredients||[]).forEach(ing => {
+      // ing peut être une chaîne (anciennes recettes) ou un objet {text,note}
+      const text = (typeof ing === 'string' ? ing : ing.text || '').trim();
+      const key = text.toLowerCase();
+      if (!key || seen.has(key) || currentTexts.has(key)) return;
+      seen.add(key);
+      ownIngs.push(text);
+    }));
+    panel.innerHTML = ownIngs.length
+      ? `<div class="cui-lib-section-title">Déjà utilisés dans tes recettes</div>` + ownIngs.map(t => `<div class="cui-lib-item" onclick="Cuisine.addIngFromLibrary('${_escAttr(t).replace(/'/g,"\\'")}')"><i class="ti ti-history"></i> ${t}</div>`).join('')
+      : `<div class="cui-lib-empty">Ajoute ta première recette pour commencer ta bibliothèque ✦</div>`;
+  },
+  addIngFromLibrary(text) {
+    this.ingRows.push({ text, note:'' });
+    this.renderIngRows();
+    this.renderIngLibrary();
+    AuraUI?.showToast?.(`+ "${text}" ajouté`);
+  },
+
+  toggleStepLibrary() {
+    const panel = document.getElementById('cui-step-lib-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) { panel.classList.remove('open'); _set('cui-step-lib-btn-text','Choisir dans la bibliothèque'); return; }
+    this.renderStepLibrary();
+    panel.classList.add('open');
+    _set('cui-step-lib-btn-text','Fermer la bibliothèque');
+  },
+  renderStepLibrary() {
+    const panel = document.getElementById('cui-step-lib-panel');
+    const allRecipes = CuiStore.get().recipes;
+    const currentTexts = new Set(this.stepRows.map(s => s.text.trim().toLowerCase()).filter(Boolean));
+    const seen = new Set();
+    const ownSteps = [];
+    allRecipes.forEach(r => (r.steps||[]).forEach(s => {
+      const text = (typeof s === 'string' ? s : s.text || '').trim();
+      const key = text.toLowerCase();
+      if (!key || seen.has(key) || currentTexts.has(key)) return;
+      seen.add(key);
+      ownSteps.push(text);
+    }));
+    const suggestions = this.STEP_SUGGESTIONS.filter(s => !currentTexts.has(s.toLowerCase()) && !seen.has(s.toLowerCase()));
+
+    let html = '';
+    if (ownSteps.length) html += `<div class="cui-lib-section-title">Déjà utilisées dans tes recettes</div>` + ownSteps.map(t => `<div class="cui-lib-item" onclick="Cuisine.addStepFromLibrary('${_escAttr(t).replace(/'/g,"\\'")}')"><i class="ti ti-history"></i> ${t}</div>`).join('');
+    html += `<div class="cui-lib-section-title">Suggestions courantes</div>`;
+    html += suggestions.length
+      ? suggestions.map(t => `<div class="cui-lib-item" onclick="Cuisine.addStepFromLibrary('${_escAttr(t).replace(/'/g,"\\'")}')"><i class="ti ti-sparkles"></i> ${t}</div>`).join('')
+      : `<div class="cui-lib-empty">Toutes les suggestions sont déjà dans ta liste ✓</div>`;
+    panel.innerHTML = html;
+  },
+  addStepFromLibrary(text) {
+    this.stepRows.push({ text, note:'' });
+    this.renderStepRows();
+    this.renderStepLibrary();
+    AuraUI?.showToast?.(`+ "${text}" ajoutée`);
+  },
+
+  editRecipe(id) {
+    const r = CuiStore.get().recipes.find(x=>x.id===id);
+    if (!r) return;
+    this.openRecipeModal(r);
   },
 
   saveRecipe() {
     const name = document.getElementById('rm-name')?.value?.trim();
     if (!name) { AuraUI.showToast('⚠ Saisis un nom'); return; }
+    const existing = this.editingRecipeId ? CuiStore.get().recipes.find(x=>x.id===this.editingRecipeId) : null;
     const r = {
       name,
-      emoji: document.getElementById('rm-emoji')?.value?.trim() || '🍽️',
+      emoji: this.recipeEmoji || '🍽️',
+      color: this.recipeColor || '#C2410C',
       cat:   document.getElementById('rm-cat')?.value || 'sale',
       time:  document.getElementById('rm-time')?.value || 'moyen',
       minutes: parseInt(document.getElementById('rm-minutes')?.value)||20,
-      difficulty: 2,
+      difficulty: existing?.difficulty || 2,
       tags:  (document.getElementById('rm-tags')?.value||'').split(',').map(s=>s.trim()).filter(Boolean),
-      ingredients: (document.getElementById('rm-ingredients')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
-      steps: (document.getElementById('rm-steps')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean),
-      fav: false,
+      ingredients: this.ingRows.filter(i=>i.text.trim()).map(i=>({text:i.text.trim(),note:i.note||''})),
+      steps: this.stepRows.filter(s=>s.text.trim()).map(s=>({text:s.text.trim(),note:s.note||''})),
+      fav: existing?.fav || false, // préserve le statut favori plutôt que de le réinitialiser à chaque modification
     };
-    CuiStore.addRecipe(r);
+    if (this.editingRecipeId) {
+      r.id = this.editingRecipeId;
+      CuiStore.updateRecipe(r);
+      AuraUI.showToast('✓ Recette mise à jour');
+    } else {
+      CuiStore.addRecipe(r);
+      earnXP(15,'Recette ajoutée au livre','📖');
+      AuraUI.showToast('✓ Recette ajoutée à ton livre de cuisine');
+    }
     this.closeRecipeModal();
     this.renderRecipes();
     this.renderHero();
-    earnXP(15,'Recette ajoutée au livre','📖');
-    AuraUI.showToast('✓ Recette ajoutée à ton livre de cuisine');
     this.syncRecipeToDB(r);
   },
 
-  closeRecipeModal() { document.getElementById('recipe-modal-overlay').style.display='none'; },
+  confirmDeleteRecipe(id) {
+    const r = CuiStore.get().recipes.find(x=>x.id===id);
+    if (!r) return;
+    if (!confirm(`Supprimer définitivement "${r.name}" de ton livre de cuisine ?`)) return;
+    CuiStore.deleteRecipe(id);
+    this.closeRecipeModal();
+    this.renderRecipes();
+    this.renderHero();
+    AuraUI.showToast('Recette supprimée');
+  },
+
+  closeRecipeModal() {
+    document.getElementById('recipe-modal-overlay').classList.remove('open');
+    document.getElementById('cui-drawer-panel').classList.remove('open');
+    document.getElementById('cui-ing-lib-panel')?.classList.remove('open');
+    document.getElementById('cui-step-lib-panel')?.classList.remove('open');
+  },
+
+  /* ══════════════════════════════════════════════════════════════
+     MODE "EN CUISINE" — plein écran, étapes une par une, pour
+     cuisiner mains occupées sans avoir à scroller/lire un bloc dense.
+  ══════════════════════════════════════════════════════════════ */
+  _cookingSteps: [],
+  _cookingIdx: 0,
+
+  startCookingMode(id) {
+    const r = CuiStore.get().recipes.find(x=>x.id===id);
+    if (!r || !(r.steps||[]).length) { AuraUI.showToast('⚠ Cette recette n\'a pas d\'étapes'); return; }
+    this.closeRecipeModal();
+    this._cookingSteps = r.steps.map(s => typeof s === 'string' ? { text:s, note:'' } : s);
+    this._cookingIdx = 0;
+    _set('cooking-recipe-emoji', r.emoji);
+    _set('cooking-recipe-name', r.name);
+    this.renderCookingStep();
+    document.getElementById('cooking-overlay').classList.add('open');
+  },
+
+  renderCookingStep() {
+    const steps = this._cookingSteps;
+    const i = this._cookingIdx;
+    const step = steps[i];
+    _set('cooking-step-label', `Étape ${i+1}/${steps.length}`);
+    _set('cooking-step-text', step.text);
+    _set('cooking-step-note', step.note ? `💡 ${step.note}` : '');
+    document.getElementById('cooking-progress-fill').style.width = `${((i+1)/steps.length)*100}%`;
+    document.getElementById('cooking-prev-btn').disabled = i===0;
+    const nextBtn = document.getElementById('cooking-next-btn');
+    nextBtn.innerHTML = i===steps.length-1 ? '<i class="ti ti-check"></i> Terminé !' : 'Étape suivante <i class="ti ti-chevron-right"></i>';
+  },
+
+  cookingNext() {
+    if (this._cookingIdx >= this._cookingSteps.length-1) { this.exitCookingMode(); earnXP(10,'Recette terminée','👩‍🍳'); AuraUI.showToast('✓ Bravo, recette terminée !'); return; }
+    this._cookingIdx++;
+    this.renderCookingStep();
+  },
+  cookingPrev() {
+    if (this._cookingIdx <= 0) return;
+    this._cookingIdx--;
+    this.renderCookingStep();
+  },
+  exitCookingMode() {
+    document.getElementById('cooking-overlay').classList.remove('open');
+  },
 
   /* ── Planning ── */
   renderPlanning() {
@@ -926,17 +1498,65 @@ const Cuisine = {
     }).join('') : '<div style="text-align:center;padding:1rem;color:var(--t3);font-size:12px;font-style:italic">Rien de planifié</div>';
   },
 
+  _planningKey: null,
+
   editPlanningSlot(key) {
+    this._planningKey = key;
     const d = CuiStore.get();
-    const recipeNames = d.recipes.map(r=>r.name);
-    const choice = prompt(`Repas pour ce créneau :\n(${recipeNames.slice(0,8).join(', ')}...)\nOu écris un texte libre :`, d.planning[key]||'');
-    if (choice===null) return;
-    if (choice.trim()==='') { delete d.planning[key]; }
-    else { d.planning[key] = choice.trim(); }
+    const [ds, moment] = key.split('_');
+    const dateLabel = new Date(ds).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    _set('plan-drawer-title', `${moment==='midi'?'☀️':'🌙'} ${moment==='midi'?'Midi':'Soir'} — ${dateLabel}`);
+    document.getElementById('plan-search').value = '';
+    document.getElementById('plan-free-text').value = d.planning[key] || '';
+    this.renderPlanningRecipeList(d.recipes);
+    document.getElementById('plan-modal-overlay').classList.add('open');
+    document.getElementById('plan-drawer-panel').classList.add('open');
+  },
+
+  renderPlanningRecipeList(recipes) {
+    const el = document.getElementById('plan-recipe-list');
+    const current = CuiStore.get().planning[this._planningKey];
+    el.innerHTML = recipes.length ? recipes.map(r => `
+      <div class="cui-lib-item ${r.name===current?'item-done':''}" onclick="Cuisine.pickPlanningRecipe('${_escAttr(r.name).replace(/'/g,"\\'")}')" style="${r.name===current?'background:var(--pu-l);border:1.5px solid var(--pu-b)':''}">
+        <span style="font-size:15px">${r.emoji}</span> ${r.name}
+      </div>`).join('') : `<div class="cui-lib-empty">Aucune recette ne correspond</div>`;
+  },
+
+  filterPlanningRecipes(query) {
+    const all = CuiStore.get().recipes;
+    const filtered = query.trim() ? all.filter(r => r.name.toLowerCase().includes(query.trim().toLowerCase())) : all;
+    this.renderPlanningRecipeList(filtered);
+  },
+
+  pickPlanningRecipe(name) {
+    document.getElementById('plan-free-text').value = name;
+    AuraUI?.showToast?.(`"${name}" sélectionnée`);
+  },
+
+  savePlanningSlot() {
+    const val = document.getElementById('plan-free-text')?.value?.trim();
+    const d = CuiStore.get();
+    if (val) d.planning[this._planningKey] = val;
+    else delete d.planning[this._planningKey];
     CuiStore.save();
+    this.closePlanningDrawer();
     this.renderPlanning();
     this.renderHero();
     earnXP(5,'Planning repas mis à jour','📅');
+  },
+
+  clearPlanningSlot() {
+    const d = CuiStore.get();
+    delete d.planning[this._planningKey];
+    CuiStore.save();
+    this.closePlanningDrawer();
+    this.renderPlanning();
+    this.renderHero();
+  },
+
+  closePlanningDrawer() {
+    document.getElementById('plan-modal-overlay').classList.remove('open');
+    document.getElementById('plan-drawer-panel').classList.remove('open');
   },
 
   async generatePlanningAI() {
@@ -973,28 +1593,203 @@ const Cuisine = {
   },
 
   /* ── Courses ── */
+  /* ══════════════════════════════════════════════════════════════
+     GESTION DES CATÉGORIES PRODUITS — créer, renommer, changer
+     emoji/couleur, supprimer librement.
+  ══════════════════════════════════════════════════════════════ */
+  CAT_EMOJIS: ['🏷️','🥦','🥩','🧂','🧀','🧊','🥤','🧴','🍞','🐟','🌶️','🍫','☕','🥚','🧄'],
+
+  openCategoryManager() {
+    this.renderCategoryManager();
+    document.getElementById('cat-modal-overlay').classList.add('open');
+    document.getElementById('cat-drawer-panel').classList.add('open');
+  },
+  closeCategoryManager() {
+    document.getElementById('cat-modal-overlay').classList.remove('open');
+    document.getElementById('cat-drawer-panel').classList.remove('open');
+  },
+
+  renderCategoryManager() {
+    const cats = CuiStore.get().categories;
+    const el = document.getElementById('cat-manager-list');
+    el.innerHTML = cats.map(c => `
+      <div class="cui-item-card">
+        <div class="cui-item-top">
+          <select onchange="Cuisine.updateCategoryEmoji(${c.id},this.value)" style="width:48px;font-size:16px;border:none;background:none">
+            ${this.CAT_EMOJIS.map(e => `<option ${e===c.emoji?'selected':''}>${e}</option>`).join('')}
+          </select>
+          <input type="text" value="${_escAttr(c.name)}" onchange="Cuisine.updateCategoryName(${c.id},this.value)">
+          <input type="color" value="${c.color}" onchange="Cuisine.updateCategoryColor(${c.id},this.value)" style="width:28px;height:28px;border:none;border-radius:7px;cursor:pointer;padding:0;flex-shrink:0">
+          <button class="cui-step-del" onclick="Cuisine.removeCategoryRow(${c.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+
+    // Picker d'emoji cliquable pour la nouvelle catégorie
+    const pickerEl = document.getElementById('cat-new-emoji-row');
+    if (pickerEl) {
+      pickerEl.innerHTML = this.CAT_EMOJIS.map(e => `<button class="emoji-btn" onclick="Cuisine.selectNewCatEmoji('${e}')" style="width:30px;height:30px;border-radius:8px;border:1.5px solid var(--bd2);background:var(--white);font-size:14px;cursor:pointer">${e}</button>`).join('');
+    }
+  },
+
+  selectNewCatEmoji(e) { _set('cat-new-emoji-preview', e); },
+
+  updateCategoryName(id,val) {
+    const c = CuiStore.get().categories.find(x=>x.id===id);
+    if (!c || !val.trim()) return;
+    const oldName = c.name;
+    c.name = val.trim();
+    CuiStore.updateCategory(c);
+    // Les articles déjà classés sous l'ancien nom suivent le renommage,
+    // plutôt que de se retrouver orphelins sous un nom qui n'existe plus.
+    const d = CuiStore.get();
+    d.shoppingLists.forEach(list => list.items.forEach(item => { if (item.cat === oldName) item.cat = c.name; }));
+    CuiStore.save();
+    this.renderCourses();
+    this.fillCategorySelect();
+  },
+  updateCategoryEmoji(id,val) { const c=CuiStore.get().categories.find(x=>x.id===id); if(c){c.emoji=val; CuiStore.updateCategory(c); this.renderCourses();} },
+  updateCategoryColor(id,val) { const c=CuiStore.get().categories.find(x=>x.id===id); if(c){c.color=val; CuiStore.updateCategory(c); this.renderCourses();} },
+
+  addCategoryRow() {
+    const name = document.getElementById('cat-new-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Donne un nom à la catégorie'); return; }
+    const emoji = document.getElementById('cat-new-emoji-preview')?.textContent || '🏷️';
+    const color = document.getElementById('cat-new-color')?.value || '#1E40AF';
+    CuiStore.addCategory({ name, emoji, color });
+    document.getElementById('cat-new-name').value = '';
+    this.renderCategoryManager();
+    this.fillCategorySelect();
+    AuraUI.showToast(`✓ "${name}" créée`);
+  },
+
+  removeCategoryRow(id) {
+    const c = CuiStore.get().categories.find(x=>x.id===id);
+    if (!c) return;
+    if (!confirm(`Supprimer "${c.name}" ? Les articles déjà classés ici basculeront vers "Autre".`)) return;
+    CuiStore.deleteCategory(id);
+    this.renderCategoryManager();
+    this.renderCourses();
+    this.fillCategorySelect();
+    AuraUI.showToast('Catégorie supprimée');
+  },
+
+  /* ── Remplit dynamiquement le <select> du formulaire d'ajout
+       depuis les vraies catégories, au lieu des 7 valeurs figées. ── */
+  fillCategorySelect() {
+    const sel = document.getElementById('shop-new-cat');
+    if (!sel) return;
+    const cats = CuiStore.get().categories;
+    const prevVal = sel.value;
+    sel.innerHTML = cats.map(c => `<option value="${_escAttr(c.name)}">${c.emoji} ${c.name}</option>`).join('')
+      + `<option value="Autre">🏷️ Autre</option>`;
+    if (cats.some(c=>c.name===prevVal)) sel.value = prevVal;
+  },
+
+  /* ── Navigation entre listes de courses ── */
+  switchShoppingList(id) {
+    CuiStore.setActiveListId(id);
+    this.renderCourses();
+  },
+
+  openNewListPrompt() {
+    document.getElementById('new-list-name').value = '';
+    document.getElementById('new-list-overlay').classList.add('open');
+    document.getElementById('new-list-panel').classList.add('open');
+    setTimeout(()=>document.getElementById('new-list-name')?.focus(),50);
+  },
+  closeNewListPrompt() {
+    document.getElementById('new-list-overlay').classList.remove('open');
+    document.getElementById('new-list-panel').classList.remove('open');
+  },
+  confirmNewList() {
+    const name = document.getElementById('new-list-name')?.value?.trim();
+    if (!name) { this.closeNewListPrompt(); return; }
+    CuiStore.addShoppingList(name);
+    this.closeNewListPrompt();
+    this.renderCourses();
+    AuraUI.showToast(`✓ Liste "${name}" créée`);
+  },
+
+  openListManager() {
+    this.renderListManager();
+    document.getElementById('list-manage-overlay').classList.add('open');
+    document.getElementById('list-manage-panel').classList.add('open');
+  },
+  closeListManager() {
+    document.getElementById('list-manage-overlay').classList.remove('open');
+    document.getElementById('list-manage-panel').classList.remove('open');
+  },
+  renderListManager() {
+    const d = CuiStore.get();
+    const el = document.getElementById('list-manage-content');
+    el.innerHTML = d.shoppingLists.map(l => `
+      <div class="cui-item-card">
+        <div class="cui-item-top">
+          <input type="text" value="${_escAttr(l.name)}" onchange="Cuisine.renameList(${l.id},this.value)">
+          ${d.shoppingLists.length>1 ? `<button class="cui-step-del" onclick="Cuisine.removeList(${l.id})"><i class="ti ti-trash"></i></button>` : ''}
+        </div>
+      </div>`).join('');
+  },
+  renameList(id,name) {
+    if (!name.trim()) return;
+    CuiStore.renameShoppingList(id,name.trim());
+    this.renderCourses();
+  },
+  removeList(id) {
+    const d = CuiStore.get();
+    const l = d.shoppingLists.find(x=>x.id===id);
+    if (!confirm(`Supprimer la liste "${l.name}" et tous ses articles ?`)) return;
+    CuiStore.deleteShoppingList(id);
+    this.renderListManager();
+    this.renderCourses();
+    AuraUI.showToast('Liste supprimée');
+  },
+
   renderCourses() {
     const d = CuiStore.get();
+    const activeList = CuiStore.getActiveList();
+
+    // Onglets des listes — switcher rapidement, plus bouton pour en créer une
+    const tabsEl = document.getElementById('shop-list-tabs');
+    if (tabsEl) {
+      tabsEl.innerHTML = d.shoppingLists.map(l => `
+        <button class="cui-list-tab ${l.id===activeList.id?'active':''}" onclick="Cuisine.switchShoppingList(${l.id})">
+          ${l.name} <span class="cui-list-tab-count">${l.items.filter(i=>!i.done).length}</span>
+        </button>`).join('') + `<button class="cui-list-tab-add" onclick="Cuisine.openNewListPrompt()"><i class="ti ti-plus" style="font-size:13px"></i></button>`;
+    }
+    // Affiche le bouton de gestion (renommer/supprimer) seulement s'il y a plus d'une liste
+    const manageBtn = document.getElementById('shop-list-manage-btn');
+    if (manageBtn) manageBtn.style.display = d.shoppingLists.length > 1 ? 'flex' : 'none';
+
     const el = document.getElementById('shop-list');
-    const cats = [...new Set(d.courses.map(c=>c.cat))];
-    el.innerHTML = cats.map(cat => {
-      const items = d.courses.filter(c=>c.cat===cat);
+    const items = activeList.items;
+    const cats = [...new Set(items.map(c=>c.cat))];
+    el.innerHTML = cats.map(catName => {
+      const catDef = CuiStore.getCategory(catName) || { emoji:'🏷️', color:'#94A3B8' };
+      const catItems = items.filter(c=>c.cat===catName);
+      const remaining = catItems.filter(i=>!i.done).length;
       return `<div class="shop-cat-section">
-        <div class="shop-cat-title">${cat} <span style="color:var(--t3);font-weight:500">${items.filter(i=>!i.done).length} restants</span></div>
-        ${items.map(item => `
-        <div class="shop-item">
+        <div class="shop-cat-title-card" style="background:${catDef.color}14;border-left:3px solid ${catDef.color}">
+          <span style="font-size:15px">${catDef.emoji}</span>
+          <span style="color:${catDef.color};font-weight:700">${catName}</span>
+          <span style="color:var(--t3);font-weight:500;margin-left:auto;font-size:11px">${remaining} restant${remaining!==1?'s':''}</span>
+        </div>
+        ${catItems.map(item => `
+        <div class="shop-item-card ${item.done?'item-done':''}" style="border-left:3px solid ${item.done?'var(--bd)':catDef.color}">
           <div class="shop-cb ${item.done?'on':''}" onclick="Cuisine.toggleCourse(${item.id})"><i class="ti ti-check"></i></div>
           <span class="shop-name ${item.done?'done':''}">${item.name}</span>
           <span class="shop-qty">${item.qty||''}</span>
           <button class="shop-del" onclick="Cuisine.deleteCourse(${item.id})"><i class="ti ti-trash"></i></button>
         </div>`).join('')}
       </div>`;
-    }).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">Liste vide</div>';
+    }).join('') || `<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:12px">"${activeList.name}" est vide</div>`;
 
+    // Suggestions auto — restent globales (planning/recettes), mais la
+    // déduplication se fait contre la liste active uniquement.
     const planValues = Object.values(d.planning);
     const suggestEl = document.getElementById('shop-suggestions');
-    const allRecipeIngs = d.recipes.filter(r=>planValues.includes(r.name)).flatMap(r=>r.ingredients||[]);
-    const existing = new Set(d.courses.map(c=>c.name.toLowerCase()));
+    const allRecipeIngs = d.recipes.filter(r=>planValues.includes(r.name)).flatMap(r=>r.ingredients||[]).map(i => typeof i === 'string' ? i : i.text);
+    const existing = new Set(items.map(c=>c.name.toLowerCase()));
     const missing = [...new Set(allRecipeIngs)].filter(i=>!existing.has(i.toLowerCase())).slice(0,6);
     suggestEl.innerHTML = missing.length ? missing.map(i=>`
       <div style="display:flex;align-items:center;gap:8px;padding:.4rem 0;font-size:12px;color:var(--text)">
@@ -1003,7 +1798,7 @@ const Cuisine = {
     this._lastSuggestions = missing;
   },
 
-  toggleCourse(id) { CuiStore.toggleCourse(id); this.renderCourses(); if(CuiStore.get().courses.find(c=>c.id===id)?.done) ; },
+  toggleCourse(id) { CuiStore.toggleCourse(id); this.renderCourses(); },
   deleteCourse(id) { CuiStore.deleteCourse(id); this.renderCourses(); },
   clearDoneCourses() { CuiStore.clearDone(); this.renderCourses(); AuraUI.showToast('Articles cochés effacés ✓'); },
 
@@ -1021,7 +1816,7 @@ const Cuisine = {
   addAllSuggestions() {
     (this._lastSuggestions||[]).forEach(name => CuiStore.addCourse({ name, cat:'Épicerie', qty:'', done:false }));
     this.renderCourses();
-    AuraUI.showToast('✓ Suggestions ajoutées à la liste');
+    AuraUI.showToast(`✓ Suggestions ajoutées à "${CuiStore.getActiveList().name}"`);
     earnXP(5,'Suggestions ajoutées','🛒');
   },
 
@@ -1137,19 +1932,27 @@ const Cuisine = {
   async syncRecipeToDB(r) {
     if (!window.SupaClient?.isLoggedIn()) return;
     try {
-      const res = await SupaClient.insert('recettes', {
+      const payload = {
         user_id: SupaClient.userId(), nom: r.name, icone: r.emoji,
         cat: r.cat, time_cat: r.time, duree_min: r.minutes, difficulte: r.difficulty,
         tags: r.tags || [], favori: r.fav || false,
         ingredients_json: r.ingredients || [], steps_json: r.steps || [],
-      });
-      if (res?.id) { r.db_id = res.id; CuiStore.save(); }
+      };
+      if (r.db_id) {
+        // Recette déjà synchronisée — on met à jour le même enregistrement
+        // distant plutôt que d'en créer un doublon à chaque modification.
+        await SupaClient.update('recettes', payload, `id=eq.${r.db_id}`);
+      } else {
+        const res = await SupaClient.insert('recettes', payload);
+        if (res?.id) { r.db_id = res.id; CuiStore.save(); }
+      }
     } catch(e) { console.warn('[Cuisine push]', e.message); }
   },
 };
 
 /* ── Helpers ── */
 function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function _escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function _css(id,p,v){ const e=document.getElementById(id); if(e) e.style[p]=v; }
 
 if (document.readyState !== 'loading') Cuisine.init();
