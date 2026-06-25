@@ -91,6 +91,45 @@
 
 @media(max-width:900px) { .mai-canvas { grid-template-columns:repeat(3,1fr); } }
 @media(max-width:768px) { .mai-canvas { grid-template-columns:1fr 1fr; } }
+
+/* ══════════════════════════════════════════════════
+   PANNEAU LATÉRAL (DRAWER) — remplace le modal centré
+══════════════════════════════════════════════════ */
+.mai-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; display:none; }
+.mai-drawer-overlay.open { display:block; }
+.mai-drawer-panel {
+  position:fixed; top:0; right:0; bottom:0; width:92%; max-width:420px;
+  background:var(--white); z-index:201; transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1); overflow-y:auto;
+  box-shadow:-12px 0 32px rgba(0,0,0,.12); display:flex; flex-direction:column;
+}
+.mai-drawer-panel.open { transform:translateX(0); }
+.mai-drawer-header { padding:1.125rem 1.25rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--bd); flex-shrink:0; }
+.mai-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+.mai-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
+.mai-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
+.mai-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+
+/* ── Tâches avec note repliable ── */
+.mai-task-card { border:1.5px solid var(--bd); border-radius:12px; padding:.625rem .75rem; margin-bottom:.5rem; }
+.mai-task-top { display:flex; align-items:center; gap:8px; }
+.mai-task-top input[type=text] { flex:1; border:none; background:none; font-size:13px; outline:none; }
+.mai-task-note-toggle { font-size:10.5px; font-weight:700; color:var(--pu); cursor:pointer; background:none; border:none; padding:0; flex-shrink:0; }
+.mai-task-note-wrap { margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--bd2); display:none; }
+.mai-task-note-wrap.open { display:block; }
+.mai-task-note-wrap textarea { width:100%; border:1px solid var(--bd2); border-radius:8px; padding:.5rem; font-size:12px; font-family:inherit; resize:vertical; min-height:50px; outline:none; }
+.mai-task-note-wrap textarea:focus { border-color:var(--pu); }
+
+/* ── Bibliothèque de tâches ── */
+.mai-lib-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:.625rem; border-radius:10px; border:1.5px dashed var(--pu-b); background:var(--pu-l); color:var(--pu-d); font-size:12px; font-weight:700; cursor:pointer; margin-bottom:.625rem; }
+.mai-lib-panel { display:none; background:var(--bg); border-radius:12px; padding:.875rem; margin-bottom:.75rem; max-height:260px; overflow-y:auto; }
+.mai-lib-panel.open { display:block; }
+.mai-lib-section-title { font-size:10px; font-weight:700; color:var(--t3); text-transform:uppercase; letter-spacing:.4px; margin:.625rem 0 .375rem; }
+.mai-lib-section-title:first-child { margin-top:0; }
+.mai-lib-item { display:flex; align-items:center; gap:8px; padding:.5rem .625rem; border-radius:8px; background:var(--white); cursor:pointer; margin-bottom:.375rem; font-size:12px; color:var(--text); transition:background .12s; }
+.mai-lib-item:hover { background:var(--pu-l); }
+.mai-lib-item i { font-size:13px; color:var(--pu); flex-shrink:0; }
+.mai-lib-empty { font-size:11px; color:var(--t3); text-align:center; padding:.5rem; font-style:italic; }
 </style>
 
 <!-- ════════════════════════════════════════════════════
@@ -147,71 +186,80 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════
-     MODAL CARTE — création/détail, adapté au type
+     DRAWER CARTE — création/détail, adapté au type
 ════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="mai-modal-overlay" style="display:none" onclick="if(event.target===this)Maison.closeModal()">
-  <div class="modal-box" style="max-width:480px" onclick="event.stopPropagation()">
-    <div class="modal-title" id="mai-modal-title"><i class="ti ti-plus"></i> Nouvelle carte</div>
-
-    <!-- Type de carte -->
-    <div class="mai-type-tabs" id="mai-type-tabs-wrap">
-      <button class="mai-type-tab sel" id="mai-type-tab-piece" onclick="Maison.setCardType('piece')">🏠 Pièce</button>
-      <button class="mai-type-tab" id="mai-type-tab-projet" onclick="Maison.setCardType('projet')">🔨 Projet</button>
-      <button class="mai-type-tab" id="mai-type-tab-equipement" onclick="Maison.setCardType('equipement')">📦 Équipement</button>
+<div class="mai-drawer-overlay" id="mai-modal-overlay" onclick="if(event.target===this)Maison.closeModal()">
+  <div class="mai-drawer-panel" id="mai-drawer-panel" onclick="event.stopPropagation()">
+    <div class="mai-drawer-header">
+      <button class="mai-drawer-close" onclick="Maison.closeModal()">✕</button>
+      <div class="mai-drawer-title" id="mai-modal-title"><i class="ti ti-plus"></i> Nouvelle carte</div>
     </div>
 
-    <!-- Visuel -->
-    <div class="mai-modal-visual-preview" id="mai-visual-preview" style="background:linear-gradient(135deg,#93C5FD,#1E40AF)">🏠</div>
-    <div class="mai-emoji-picker" id="mai-emoji-picker"></div>
-
-    <div class="modal-field" style="margin-top:1rem"><label class="modal-lbl">Nom</label><input class="modal-input" id="mai-name" placeholder="Ex: Salon, Repeindre le couloir, Lave-linge..."></div>
-
-    <div class="g2" style="gap:.75rem">
-      <div class="modal-field"><label class="modal-lbl">Couleur d'accent</label>
-        <select class="modal-input" id="mai-color">
-          <option value="#1E40AF">Bleu</option><option value="#C2410C">Orange</option><option value="#9D174D">Rose</option>
-          <option value="#0F766E">Teal</option><option value="#5B21B6">Violet</option><option value="#166534">Vert</option>
-        </select>
+    <div class="mai-drawer-body">
+      <!-- Type de carte -->
+      <div class="mai-type-tabs" id="mai-type-tabs-wrap">
+        <button class="mai-type-tab sel" id="mai-type-tab-piece" onclick="Maison.setCardType('piece')">🏠 Pièce</button>
+        <button class="mai-type-tab" id="mai-type-tab-projet" onclick="Maison.setCardType('projet')">🔨 Projet</button>
+        <button class="mai-type-tab" id="mai-type-tab-equipement" onclick="Maison.setCardType('equipement')">📦 Équipement</button>
       </div>
-      <div class="modal-field" id="mai-deadline-field"><label class="modal-lbl">Échéance / date</label><input class="modal-input" id="mai-deadline" type="date"></div>
-    </div>
 
-    <!-- Section PIÈCE : tâches + désencombrement -->
-    <div class="mai-type-section on" id="mai-section-piece">
-      <div class="modal-field">
-        <label class="modal-lbl">Tâches récurrentes de cette pièce</label>
-        <div id="mai-tasks-list"></div>
-        <button class="btn-ghost" onclick="Maison.addTaskRow()" style="text-align:left;margin-top:.375rem">+ Ajouter une tâche</button>
+      <!-- Visuel -->
+      <div>
+        <div class="mai-modal-visual-preview" id="mai-visual-preview" style="background:linear-gradient(135deg,#93C5FD,#1E40AF)">🏠</div>
+        <div class="mai-emoji-picker" id="mai-emoji-picker"></div>
       </div>
-      <div class="modal-field">
-        <label class="modal-lbl">Checklist de désencombrement</label>
-        <div id="mai-declutter-list"></div>
-        <button class="btn-ghost" onclick="Maison.addDeclutterRow()" style="text-align:left;margin-top:.375rem">+ Ajouter un élément</button>
-      </div>
-    </div>
 
-    <!-- Section PROJET : statut + budget + progression -->
-    <div class="mai-type-section" id="mai-section-projet">
+      <div class="modal-field"><label class="modal-lbl">Nom</label><input class="modal-input" id="mai-name" placeholder="Ex: Salon, Repeindre le couloir, Lave-linge..."></div>
+
       <div class="g2" style="gap:.75rem">
-        <div class="modal-field"><label class="modal-lbl">Statut</label>
-          <select class="modal-input" id="mai-pstatus">
-            <option value="todo">À faire</option><option value="progress">En cours</option><option value="done">Terminé</option>
+        <div class="modal-field"><label class="modal-lbl">Couleur d'accent</label>
+          <select class="modal-input" id="mai-color">
+            <option value="#1E40AF">Bleu</option><option value="#C2410C">Orange</option><option value="#9D174D">Rose</option>
+            <option value="#0F766E">Teal</option><option value="#5B21B6">Violet</option><option value="#166534">Vert</option>
           </select>
         </div>
-        <div class="modal-field"><label class="modal-lbl">Budget (€)</label><input class="modal-input" id="mai-pbudget" type="number" min="0" value="0"></div>
+        <div class="modal-field" id="mai-deadline-field"><label class="modal-lbl">Échéance / date</label><input class="modal-input" id="mai-deadline" type="date"></div>
       </div>
-      <div class="modal-field"><label class="modal-lbl">Avancement (%)</label><input class="modal-input" id="mai-pprogress" type="number" min="0" max="100" value="0"></div>
+
+      <!-- Section PIÈCE : tâches + désencombrement -->
+      <div class="mai-type-section on" id="mai-section-piece">
+        <div class="modal-field">
+          <label class="modal-lbl">Tâches récurrentes de cette pièce</label>
+          <button class="mai-lib-btn" onclick="Maison.toggleLibrary()"><i class="ti ti-books" style="font-size:14px"></i> <span id="mai-lib-btn-text">Choisir dans la bibliothèque</span></button>
+          <div class="mai-lib-panel" id="mai-lib-panel"></div>
+          <div id="mai-tasks-list"></div>
+          <button class="btn-ghost" onclick="Maison.addTaskRow()" style="text-align:left;margin-top:.375rem">+ Ajouter une tâche</button>
+        </div>
+        <div class="modal-field">
+          <label class="modal-lbl">Checklist de désencombrement</label>
+          <div id="mai-declutter-list"></div>
+          <button class="btn-ghost" onclick="Maison.addDeclutterRow()" style="text-align:left;margin-top:.375rem">+ Ajouter un élément</button>
+        </div>
+      </div>
+
+      <!-- Section PROJET : statut + budget + progression -->
+      <div class="mai-type-section" id="mai-section-projet">
+        <div class="g2" style="gap:.75rem">
+          <div class="modal-field"><label class="modal-lbl">Statut</label>
+            <select class="modal-input" id="mai-pstatus">
+              <option value="todo">À faire</option><option value="progress">En cours</option><option value="done">Terminé</option>
+            </select>
+          </div>
+          <div class="modal-field"><label class="modal-lbl">Budget (€)</label><input class="modal-input" id="mai-pbudget" type="number" min="0" value="0"></div>
+        </div>
+        <div class="modal-field"><label class="modal-lbl">Avancement (%)</label><input class="modal-input" id="mai-pprogress" type="number" min="0" max="100" value="0"></div>
+      </div>
+
+      <!-- Section ÉQUIPEMENT : achat + garantie -->
+      <div class="mai-type-section" id="mai-section-equipement">
+        <div class="g2" style="gap:.75rem">
+          <div class="modal-field"><label class="modal-lbl">Date d'achat</label><input class="modal-input" id="mai-ipurchase" type="date"></div>
+          <div class="modal-field"><label class="modal-lbl">Garantie jusqu'au</label><input class="modal-input" id="mai-iwarranty" type="date"></div>
+        </div>
+      </div>
     </div>
 
-    <!-- Section ÉQUIPEMENT : achat + garantie -->
-    <div class="mai-type-section" id="mai-section-equipement">
-      <div class="g2" style="gap:.75rem">
-        <div class="modal-field"><label class="modal-lbl">Date d'achat</label><input class="modal-input" id="mai-ipurchase" type="date"></div>
-        <div class="modal-field"><label class="modal-lbl">Garantie jusqu'au</label><input class="modal-input" id="mai-iwarranty" type="date"></div>
-      </div>
-    </div>
-
-    <div class="modal-actions" id="mai-modal-actions">
+    <div class="mai-drawer-footer" id="mai-modal-actions">
       <button class="modal-btn primary" onclick="Maison.saveCard()">Enregistrer</button>
       <button class="modal-btn cancel" onclick="Maison.closeModal()">Annuler</button>
     </div>
@@ -286,7 +334,7 @@ const MaiStore = {
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 
   addCard(c) { const d=this.get(); c.id=d.cards.length?Math.max(...d.cards.map(x=>x.id))+1:1; d.cards.unshift(c); this.save(); return c; },
-  updateCard(c) { const d=this.get(); const idx=d.cards.findIndex(x=>x.id===c.id); if(idx>=0) d.cards[idx]=c; this.save(); },
+  updateCard(c) { const d=this.get(); const idx=d.cards.findIndex(x=>x.id===c.id); if(idx>=0) d.cards[idx]={...d.cards[idx],...c}; this.save(); },
   deleteCard(id) { const d=this.get(); d.cards=d.cards.filter(x=>x.id!==id); this.save(); },
 
   /* ── Une tâche récurrente reste "faite" seulement pendant sa période
@@ -334,6 +382,7 @@ const Maison = {
   cardType: 'piece',
   selectedEmoji: '🏠',
   taskRows: [],
+  _openNoteIdx: null,
   declutterRows: [],
 
   init() {
@@ -517,6 +566,7 @@ const Maison = {
     this.selectedEmoji = '🏠';
     this.taskRows = [];
     this.declutterRows = [];
+    this._openNoteIdx = null;
     document.getElementById('mai-modal-title').innerHTML = '<i class="ti ti-plus"></i> Nouvelle carte';
     document.getElementById('mai-name').value = '';
     document.getElementById('mai-color').value = '#1E40AF';
@@ -531,7 +581,8 @@ const Maison = {
     this.renderEmojiPicker();
     this.renderTaskRows();
     this.renderDeclutterRows();
-    document.getElementById('mai-modal-overlay').style.display = 'flex';
+    document.getElementById('mai-modal-overlay').classList.add('open');
+    document.getElementById('mai-drawer-panel').classList.add('open');
   },
 
   openDetail(id) {
@@ -542,6 +593,7 @@ const Maison = {
     this.selectedEmoji = c.emoji || '🏠';
     this.taskRows = JSON.parse(JSON.stringify(c.tasks || []));
     this.declutterRows = JSON.parse(JSON.stringify(c.declutter || []));
+    this._openNoteIdx = null; // évite qu'une note ouverte sur une autre carte reste référencée par erreur
 
     document.getElementById('mai-modal-title').innerHTML = `<i class="ti ti-edit"></i> ${c.name}`;
     document.getElementById('mai-name').value = c.name;
@@ -565,10 +617,15 @@ const Maison = {
       <button class="modal-btn cancel" onclick="Maison.closeModal()">Fermer</button>
       <button class="modal-btn" style="background:var(--re-l);color:var(--re)" onclick="Maison.deleteCard(${id})"><i class="ti ti-trash"></i></button>
     `;
-    document.getElementById('mai-modal-overlay').style.display = 'flex';
+    document.getElementById('mai-modal-overlay').classList.add('open');
+    document.getElementById('mai-drawer-panel').classList.add('open');
   },
 
-  closeModal() { document.getElementById('mai-modal-overlay').style.display = 'none'; },
+  closeModal() {
+    document.getElementById('mai-modal-overlay').classList.remove('open');
+    document.getElementById('mai-drawer-panel').classList.remove('open');
+    document.getElementById('mai-lib-panel')?.classList.remove('open');
+  },
 
   setCardType(type) {
     this.cardType = type;
@@ -598,20 +655,87 @@ const Maison = {
   renderTaskRows() {
     const el = document.getElementById('mai-tasks-list');
     el.innerHTML = this.taskRows.map((t,i) => `
-      <div class="mai-step-row">
-        <input type="text" class="modal-input" value="${_escAttr(t.text)}" placeholder="Nom de la tâche..." onchange="Maison.updateTaskText(${i},this.value)">
-        <select class="modal-input" style="max-width:120px" onchange="Maison.updateTaskFreq(${i},this.value)">
-          <option value="Quotidien" ${t.freq==='Quotidien'?'selected':''}>Quotidien</option>
-          <option value="Hebdomadaire" ${t.freq==='Hebdomadaire'?'selected':''}>Hebdo</option>
-          <option value="Mensuel" ${t.freq==='Mensuel'?'selected':''}>Mensuel</option>
-        </select>
-        <button class="mai-step-del" onclick="Maison.removeTaskRow(${i})"><i class="ti ti-x"></i></button>
+      <div class="mai-task-card">
+        <div class="mai-task-top">
+          <input type="text" value="${_escAttr(t.text)}" placeholder="Nom de la tâche..." onchange="Maison.updateTaskText(${i},this.value)">
+          <select class="modal-input" style="max-width:108px;padding:6px 8px;font-size:12px" onchange="Maison.updateTaskFreq(${i},this.value)">
+            <option value="Quotidien" ${t.freq==='Quotidien'?'selected':''}>Quotidien</option>
+            <option value="Hebdomadaire" ${t.freq==='Hebdomadaire'?'selected':''}>Hebdo</option>
+            <option value="Mensuel" ${t.freq==='Mensuel'?'selected':''}>Mensuel</option>
+          </select>
+          <button class="mai-task-note-toggle" onclick="Maison.toggleTaskNote(${i})">${t.note ? '📝' : '+ note'}</button>
+          <button class="mai-step-del" onclick="Maison.removeTaskRow(${i})"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="mai-task-note-wrap ${this._openNoteIdx===i?'open':''}" id="mai-task-note-${i}">
+          <textarea placeholder="Petit détail, astuce, produit à utiliser..." onchange="Maison.updateTaskNote(${i},this.value)">${_escAttr(t.note||'')}</textarea>
+        </div>
       </div>`).join('');
   },
-  addTaskRow() { this.taskRows.push({text:'',freq:'Hebdomadaire',doneAt:null}); this.renderTaskRows(); },
+  addTaskRow() { this.taskRows.push({text:'',freq:'Hebdomadaire',doneAt:null,note:''}); this.renderTaskRows(); },
   updateTaskText(i,val) { this.taskRows[i].text = val; },
   updateTaskFreq(i,val) { this.taskRows[i].freq = val; },
+  updateTaskNote(i,val) { this.taskRows[i].note = val; },
+  toggleTaskNote(i) { this._openNoteIdx = this._openNoteIdx===i ? null : i; this.renderTaskRows(); },
   removeTaskRow(i) { this.taskRows.splice(i,1); this.renderTaskRows(); },
+
+  /* ══════════════════════════════════════════════════════════════
+     BIBLIOTHÈQUE DE TÂCHES — combine des suggestions pré-écrites
+     (toujours disponibles, même sur une app neuve) et les tâches déjà
+     créées par l'utilisateur sur d'autres cartes (s'enrichit avec le
+     temps, jamais besoin de retaper ce qu'on a déjà écrit ailleurs).
+  ══════════════════════════════════════════════════════════════ */
+  TASK_SUGGESTIONS: [
+    'Passer l\'aspirateur','Laver les sols','Dépoussiérer','Aérer la pièce',
+    'Nettoyer les vitres','Changer les draps','Faire la lessive',
+    'Nettoyer le frigo','Vider les poubelles','Détartrer','Ranger',
+  ],
+
+  toggleLibrary() {
+    const panel = document.getElementById('mai-lib-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) { panel.classList.remove('open'); _set('mai-lib-btn-text','Choisir dans la bibliothèque'); return; }
+    this.renderLibrary();
+    panel.classList.add('open');
+    _set('mai-lib-btn-text','Fermer la bibliothèque');
+  },
+
+  renderLibrary() {
+    const panel = document.getElementById('mai-lib-panel');
+
+    // Tâches déjà créées sur d'autres cartes — dédupliquées par texte,
+    // en excluant celles déjà présentes dans le formulaire en cours.
+    const allCards = MaiStore.get().cards;
+    const currentTexts = new Set(this.taskRows.map(t => t.text.trim().toLowerCase()).filter(Boolean));
+    const seen = new Set();
+    const ownTasks = [];
+    allCards.forEach(c => (c.tasks||[]).forEach(t => {
+      const key = t.text.trim().toLowerCase();
+      if (!key || seen.has(key) || currentTexts.has(key)) return;
+      seen.add(key);
+      ownTasks.push(t.text.trim());
+    }));
+
+    const suggestions = this.TASK_SUGGESTIONS.filter(s => !currentTexts.has(s.toLowerCase()) && !seen.has(s.toLowerCase()));
+
+    let html = '';
+    if (ownTasks.length) {
+      html += `<div class="mai-lib-section-title">Tes tâches déjà créées</div>`;
+      html += ownTasks.map(t => `<div class="mai-lib-item" onclick="Maison.addTaskFromLibrary('${_escAttr(t).replace(/'/g,"\\'")}')"><i class="ti ti-history"></i> ${t}</div>`).join('');
+    }
+    html += `<div class="mai-lib-section-title">Suggestions courantes</div>`;
+    html += suggestions.length
+      ? suggestions.map(t => `<div class="mai-lib-item" onclick="Maison.addTaskFromLibrary('${_escAttr(t).replace(/'/g,"\\'")}')"><i class="ti ti-sparkles"></i> ${t}</div>`).join('')
+      : `<div class="mai-lib-empty">Toutes les suggestions sont déjà dans ta liste ✓</div>`;
+
+    panel.innerHTML = html;
+  },
+
+  addTaskFromLibrary(text) {
+    this.taskRows.push({ text, freq:'Hebdomadaire', doneAt:null, note:'' });
+    this.renderTaskRows();
+    this.renderLibrary(); // retire l'item ajouté de la liste affichée
+    AuraUI?.showToast?.(`+ "${text}" ajoutée`);
+  },
 
   /* ── Désencombrement (section Pièce) ── */
   renderDeclutterRows() {
