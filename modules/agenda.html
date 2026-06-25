@@ -1078,8 +1078,15 @@ const Cal = {
   _selectedCat: 'perso',
 
   saveEvent() {
+    // Protection anti-double-clic : un deuxième appel pendant que le
+    // premier traite encore la sauvegarde créait un événement en double
+    // (cas fréquent sur mobile : double-tap accidentel sur "Enregistrer").
+    if (this._savingEvent) return;
+    this._savingEvent = true;
+    setTimeout(() => { this._savingEvent = false; }, 800);
+
     const title  = document.getElementById('ev-title')?.value?.trim();
-    if (!title) { AuraUI.showToast('⚠ Saisis un titre'); return; }
+    if (!title) { AuraUI.showToast('⚠ Saisis un titre'); this._savingEvent = false; return; }
     const ev = {
       title,
       cat:     Cal._selectedCat || 'perso',
@@ -1093,6 +1100,8 @@ const Cal = {
     };
     if (this.editingId) {
       ev.id = this.editingId;
+      const existing = EvStore.get().find(x=>x.id===this.editingId);
+      ev.db_id = existing?.db_id; // sans ça, chaque modification créait un nouvel enregistrement distant en doublon plutôt que de mettre à jour l'existant
       EvStore.update(ev);
       AuraUI.showToast('✓ Événement modifié');
       this.syncSanteEntry(ev); // garde le RDV médical lié à jour si déjà synchronisé
@@ -1175,9 +1184,21 @@ const Cal = {
     if (!window.SupaClient?.isLoggedIn()) return;
     try {
       const rows = await SupaClient.select('events', `user_id=eq.${SupaClient.userId()}`, '&order=date.asc');
-      if (rows?.length) {
-        EvStore._data = rows.map(r=>({
-          id:      r.id,
+      if (!rows) return;
+
+      // Fusion par db_id plutôt qu'un remplacement complet — un simple
+      // écrasement de EvStore._data perdait tout événement local créé
+      // juste avant que sa requête de synchro n'ait eu le temps de finir
+      // (race condition), donnant l'impression de doublons ou d'un
+      // événement "qui ne se modifie pas" après un rechargement.
+      const local = EvStore.get();
+      const remoteById = new Map(rows.map(r => [r.id, r]));
+      const localByDbId = new Map(local.filter(e=>e.db_id).map(e => [e.db_id, e]));
+
+      const merged = rows.map(r => {
+        const existing = localByDbId.get(r.id);
+        return {
+          id:      existing ? existing.id : r.id,
           db_id:   r.id,
           title:   r.title,
           cat:     r.categorie,
@@ -1188,10 +1209,16 @@ const Cal = {
           lieu:    r.lieu||'',
           note:    r.note||'',
           recur:   r.recurrence||'none',
-        }));
-        EvStore.save();
-        this.render(); this.renderMiniCal(); this.renderSide(); this.renderUpcoming(); this.renderMonthStats();
-      }
+        };
+      });
+
+      // Les événements locaux pas encore synchronisés (jamais de db_id,
+      // requête encore en cours ou ayant échoué) sont conservés tels
+      // quels plutôt que d'être silencieusement supprimés.
+      const pendingLocal = local.filter(e => !e.db_id && !remoteById.has(e.id));
+      EvStore._data = [...merged, ...pendingLocal];
+      EvStore.save();
+      this.render(); this.renderMiniCal(); this.renderSide(); this.renderUpcoming(); this.renderMonthStats();
     } catch(e) { console.warn('[Agenda sync]', e.message); }
   },
 
