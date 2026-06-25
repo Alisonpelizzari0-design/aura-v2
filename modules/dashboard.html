@@ -15,7 +15,35 @@
 .score-ring     { position:relative; width:80px; height:80px; flex-shrink:0; }
 .score-ring svg { transform:rotate(-90deg); }
 .score-ring-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:var(--pu-d); }
+
+/* ── Habitudes interactives sur le Dashboard ── */
+.dash-hab-item { display:flex; align-items:center; gap:10px; padding:.5rem .25rem; border-bottom:1px solid var(--bd); cursor:pointer; transition:background .12s; border-radius:var(--r-sm); }
+.dash-hab-item:last-child { border-bottom:none; }
+.dash-hab-item:hover { background:var(--bg); }
+.dash-hab-check { width:22px; height:22px; border-radius:50%; border:2px solid var(--bd2); display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; transition:all .15s; }
+.dash-hab-check.done { background:var(--gr); border-color:var(--gr); color:#fff; }
+.dash-hab-name { flex:1; font-size:12.5px; font-weight:600; color:var(--text); }
+.dash-hab-name.done { color:var(--t3); text-decoration:line-through; }
+.dash-hab-streak { font-size:11px; font-weight:700; color:var(--or); flex-shrink:0; }
+
+/* ── Personnalisation des cartes du Dashboard ── */
+.dash-customize-bar { display:flex; justify-content:flex-end; margin-bottom:.5rem; }
+.dash-customize-btn { font-size:11px; font-weight:600; color:var(--t3); background:none; border:1px solid var(--bd2); border-radius:14px; padding:5px 12px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .12s; }
+.dash-customize-btn:hover { color:var(--pu); border-color:var(--pu-b); background:var(--pu-l); }
+.dash-customize-panel { display:none; position:fixed; z-index:50; background:var(--white); border:1px solid var(--bd); border-radius:var(--r-lg); padding:1rem; box-shadow:0 12px 32px rgba(0,0,0,.16); width:240px; }
+.dash-customize-panel.open { display:block; }
+.dash-customize-title { font-size:11px; font-weight:700; color:var(--t2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:.625rem; }
+.dash-customize-row { display:flex; align-items:center; justify-content:space-between; padding:.375rem 0; font-size:12.5px; color:var(--text); }
 </style>
+
+<!-- ── Barre de personnalisation ── -->
+<div class="dash-customize-bar">
+  <button class="dash-customize-btn" onclick="toggleDashCustomize(event)"><i class="ti ti-layout-grid" style="font-size:13px"></i> Personnaliser l'accueil</button>
+</div>
+<div class="dash-customize-panel" id="dash-customize-panel">
+  <div class="dash-customize-title">Cartes visibles</div>
+  <div id="dash-customize-list"></div>
+</div>
 
 <!-- ── Ancre du jour ── -->
 <div class="ancre-card">
@@ -50,13 +78,13 @@
   </div>
   <div class="stat-mini" onclick="navigate('habitudes')">
     <div class="lbl">Habitudes</div>
-    <div class="val">5<span style="font-size:14px;color:var(--t3)">/7</span></div>
-    <div class="hint">Streak 12 jours 🔥</div>
+    <div class="val" id="dash-hab-val">--<span style="font-size:14px;color:var(--t3)" id="dash-hab-target"></span></div>
+    <div class="hint" id="dash-hab-hint">Chargement...</div>
   </div>
   <div class="stat-mini" onclick="navigate('budget')">
     <div class="lbl">Épargne du mois</div>
-    <div class="val">618 €</div>
-    <div class="hint">Taux : 18,2%</div>
+    <div class="val" id="dash-epargne-val">-- €</div>
+    <div class="hint" id="dash-epargne-hint">Chargement...</div>
   </div>
 </div>
 
@@ -64,7 +92,7 @@
 <div class="g2">
 
   <!-- Horoscope -->
-  <div class="card">
+  <div class="card" data-dash-card="horoscope">
     <div class="card-header">
       <span class="card-title"><i class="ti ti-stars"></i> <span data-aura-edit="dashboard.horo.title" data-aura-edit-label="Titre carte Horoscope">Horoscope du jour</span></span>
       <div style="display:flex;gap:6px;align-items:center">
@@ -97,7 +125,7 @@
   <!-- Sphères + XP progression -->
   <div style="display:flex;flex-direction:column;gap:1.25rem">
 
-    <div class="card">
+    <div class="card" data-dash-card="spheres">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-circles"></i> <span data-aura-edit="dashboard.spheres.title" data-aura-edit-label="Titre carte Sphères">Sphères de vie</span></span>
         <button class="btn-ghost" onclick="navigate('spheres')">Voir tout →</button>
@@ -150,7 +178,7 @@
     </div>
 
     <!-- XP mini -->
-    <div class="card">
+    <div class="card" data-dash-card="scoretrend">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-chart-line"></i> <span data-aura-edit="dashboard.scoretrend.title" data-aura-edit-label="Titre carte évolution score">Évolution du score de vie</span></span>
         <button class="btn-ghost" onclick="navigate('spheres')">Détail →</button>
@@ -159,73 +187,65 @@
       <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--t3)" id="dash-score-chart-labels"></div>
     </div>
 
+    <!-- Habitudes du jour — checklist interactive, cocher sans changer de page -->
+    <div class="card" data-dash-card="habitudes">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-repeat"></i> Habitudes du jour</span>
+        <button class="btn-ghost" onclick="navigate('habitudes')">Toutes →</button>
+      </div>
+      <div id="dash-hab-checklist"><div style="font-size:11px;color:var(--t3);text-align:center;padding:.75rem 0">Chargement...</div></div>
+    </div>
+
   </div>
 </div>
 
 <!-- ── Patrimoine + Recette du soir ── -->
 <div class="g2">
 
-  <div class="card">
+  <div class="card" data-dash-card="patrimoine">
     <div class="card-header">
       <span class="card-title"><i class="ti ti-building-bank"></i> <span data-aura-edit="dashboard.patrimoine.title" data-aura-edit-label="Titre carte Patrimoine">Patrimoine net</span></span>
       <button class="btn-ghost" onclick="navigate('patrimoine')">Détail →</button>
     </div>
-    <div style="font-size:28px;font-weight:800;color:var(--gr);margin-bottom:4px">47 340 €</div>
-    <div style="font-size:11px;color:var(--t2);margin-bottom:.875rem">+2 100 € ce trimestre · +4,6% ↑</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:4px">
+      <div style="font-size:28px;font-weight:800;color:var(--gr)" id="dash-pat-net">-- €</div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:32px" id="dash-pat-sparkline"></div>
+    </div>
+    <div style="font-size:11px;color:var(--t2);margin-bottom:.875rem" id="dash-pat-evol">Chargement...</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
       <div style="background:var(--gr-l);border-radius:var(--r-md);padding:.625rem;text-align:center">
         <div style="font-size:10px;color:var(--gr);font-weight:700;text-transform:uppercase">Actifs</div>
-        <div style="font-size:15px;font-weight:800;color:var(--gr)">52 340 €</div>
+        <div style="font-size:15px;font-weight:800;color:var(--gr)" id="dash-pat-actifs">-- €</div>
       </div>
       <div style="background:var(--re-l);border-radius:var(--r-md);padding:.625rem;text-align:center">
         <div style="font-size:10px;color:var(--re);font-weight:700;text-transform:uppercase">Dettes</div>
-        <div style="font-size:15px;font-weight:800;color:var(--re)">5 000 €</div>
+        <div style="font-size:15px;font-weight:800;color:var(--re)" id="dash-pat-passifs">-- €</div>
       </div>
       <div style="background:var(--pu-l);border-radius:var(--r-md);padding:.625rem;text-align:center">
         <div style="font-size:10px;color:var(--pu);font-weight:700;text-transform:uppercase">Épargne</div>
-        <div style="font-size:15px;font-weight:800;color:var(--pu)">618 €/m</div>
+        <div style="font-size:15px;font-weight:800;color:var(--pu)" id="dash-pat-epargnemois">-- €/m</div>
       </div>
     </div>
     <!-- Mini budget -->
     <div style="margin-top:.875rem;padding-top:.875rem;border-top:1px solid var(--bd)">
-      <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.4px">Budget juin</div>
-      <div class="env-row">
-        <div class="env-ic" style="background:var(--bl-l)"><i class="ti ti-home-2" style="color:var(--bl)"></i></div>
-        <div style="flex:1"><div class="env-name">Logement</div><div class="env-bar"><div class="env-fill ok" style="width:100%"></div></div></div>
-        <span class="env-pct ok">100%</span>
-      </div>
-      <div class="env-row">
-        <div class="env-ic" style="background:var(--or-l)"><i class="ti ti-shopping-cart" style="color:var(--or)"></i></div>
-        <div style="flex:1"><div class="env-name">Alimentation</div><div class="env-bar"><div class="env-fill mid" style="width:89%"></div></div></div>
-        <span class="env-pct mid">89%</span>
-      </div>
-      <div class="env-row" style="margin-bottom:0">
-        <div class="env-ic" style="background:var(--re-l)"><i class="ti ti-confetti" style="color:var(--re)"></i></div>
-        <div style="flex:1"><div class="env-name">Loisirs</div><div class="env-bar"><div class="env-fill ov" style="width:100%"></div></div></div>
-        <span class="env-pct ov">119% ⚠</span>
-      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.4px" id="dash-budget-month-label">Budget du mois</div>
+      <div id="dash-budget-envelopes"><div style="font-size:11px;color:var(--t3);text-align:center;padding:.5rem 0">Chargement...</div></div>
     </div>
   </div>
 
   <div style="display:flex;flex-direction:column;gap:1.25rem">
 
     <!-- Recette du soir -->
-    <div class="card">
+    <div class="card" data-dash-card="recette">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-chef-hat"></i> <span data-aura-edit="dashboard.cuisine.title" data-aura-edit-label="Titre carte Cuisine">Ce soir — Air Fryer</span></span>
         <button class="btn-ghost" onclick="navigate('cuisine')">Cuisine →</button>
       </div>
-      <div class="rec" onclick="navigate('cuisine')">
-        <div class="rec-ic" style="background:var(--or-l)"><i class="ti ti-flame" style="color:var(--or)"></i></div>
-        <div class="rec-info">
-          <div class="rec-name">Ailes de poulet croustillantes</div>
-          <div class="rec-tags"><span class="tag or">Air fryer</span><span class="tag gr">25 min</span><span class="tag gr">Facile</span></div>
+      <div id="dash-recette-card">
+        <div class="rec" style="opacity:.5">
+          <div class="rec-ic" style="background:var(--bg)"><i class="ti ti-loader-2"></i></div>
+          <div class="rec-info"><div class="rec-name">Chargement...</div></div>
         </div>
-        <span style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:2px"><i class="ti ti-clock"></i> 25 min</span>
-      </div>
-      <div class="rec" onclick="navigate('cuisine')" style="margin-top:0">
-        <div class="rec-ic" style="background:var(--bg)"><i class="ti ti-plus" style="color:var(--t3)"></i></div>
-        <div class="rec-info"><div class="rec-name" style="color:var(--t3);font-style:italic">Choisir une autre recette ↗</div></div>
       </div>
     </div>
 
@@ -239,27 +259,13 @@
     </div>
 
     <!-- Alertes -->
-    <div class="card">
+    <div class="card" data-dash-card="alertes">
       <div class="card-header">
         <span class="card-title"><i class="ti ti-bell"></i> Alertes</span>
         <button class="btn-ghost" onclick="navigate('budget')">Budget →</button>
       </div>
-      <div class="aura-alert red" id="al-dash-1">
-        <div class="alert-ic red"><i class="ti ti-alert-triangle"></i></div>
-        <div class="alert-body">
-          <div class="alert-title">Loisirs dépassés +19%</div>
-          <div class="alert-sub">Enveloppe épuisée · J-13 avant clôture</div>
-          <button class="alert-action" onclick="navigate('coach')">Voir un plan →</button>
-        </div>
-        <button class="alert-dismiss" onclick="AuraUI.dismissAlert('al-dash-1')" aria-label="Fermer"><i class="ti ti-x"></i></button>
-      </div>
-      <div class="aura-alert green" id="al-dash-2">
-        <div class="alert-ic green"><i class="ti ti-check"></i></div>
-        <div class="alert-body">
-          <div class="alert-title">Livret A +300 € · 79% de l'objectif</div>
-          <div class="alert-sub">Encore 2 mois à ce rythme ✦</div>
-        </div>
-        <button class="alert-dismiss" onclick="AuraUI.dismissAlert('al-dash-2')" aria-label="Fermer"><i class="ti ti-x"></i></button>
+      <div id="dash-alerts-list">
+        <div style="font-size:11px;color:var(--t3);text-align:center;padding:.75rem 0">Chargement...</div>
       </div>
     </div>
 
@@ -337,16 +343,104 @@ function initDashboard() {
   // Mini calendrier : prochain événement de l'agenda
   renderNextEvent();
 
+  // Habitudes du jour (vraies données — calcul identique à habitudes.html)
+  renderDashHabitudes();
+
+  // Patrimoine net + épargne du mois + enveloppes budgétaires réelles
+  renderDashPatrimoine();
+  renderDashBudgetEnvelopes();
+
+  // Recette du soir — planning réel si renseigné, sinon favori Air Fryer
+  renderDashRecette();
+
+  // Alertes réelles — dépassement d'enveloppe, objectifs d'épargne
+  renderDashAlerts();
+
   // Météo du jour (géolocalisation + Open-Meteo, gratuit, sans clé)
   loadDashWeather();
 
   // Appliquer les textes personnalisés via le Studio (sécurité si appelé hors navigate())
   if (window.AuraEditor) AuraEditor.applyOverrides('dashboard');
+
+  // Applique les préférences d'affichage des cartes (masquer/montrer)
+  applyDashCardVisibility();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PERSONNALISATION DE L'ACCUEIL — masquer/montrer des cartes
+   selon ce qui intéresse la personne ce jour-là. État sauvegardé
+   localement, indépendant de toute autre donnée de module.
+══════════════════════════════════════════════════════════════ */
+const DASH_CUSTOMIZABLE_CARDS = [
+  { id: 'horoscope',  label: '🌟 Horoscope du jour' },
+  { id: 'spheres',    label: '🔮 Sphères de vie' },
+  { id: 'scoretrend', label: '📈 Évolution du score' },
+  { id: 'habitudes',  label: '🔁 Habitudes du jour' },
+  { id: 'patrimoine', label: '🏦 Patrimoine & Budget' },
+  { id: 'recette',    label: '🍳 Recette du soir' },
+  { id: 'alertes',    label: '🔔 Alertes' },
+];
+
+function _dashCardPrefs() {
+  try { return JSON.parse(localStorage.getItem('aura_dash_cards_v1') || '{}'); } catch(_) { return {}; }
+}
+function _dashSaveCardPrefs(prefs) {
+  try { localStorage.setItem('aura_dash_cards_v1', JSON.stringify(prefs)); } catch(_) {}
+}
+
+function applyDashCardVisibility() {
+  const prefs = _dashCardPrefs();
+  DASH_CUSTOMIZABLE_CARDS.forEach(c => {
+    const el = document.querySelector(`[data-dash-card="${c.id}"]`);
+    if (el) el.style.display = prefs[c.id] === false ? 'none' : '';
+  });
+  renderDashCustomizeList();
+}
+
+function renderDashCustomizeList() {
+  const wrap = document.getElementById('dash-customize-list');
+  if (!wrap) return;
+  const prefs = _dashCardPrefs();
+  wrap.innerHTML = DASH_CUSTOMIZABLE_CARDS.map(c => {
+    const visible = prefs[c.id] !== false;
+    return `<div class="dash-customize-row">
+      <span>${c.label}</span>
+      <button class="toggle ${visible?'on':'off'}" onclick="toggleDashCard('${c.id}')" aria-label="toggle"></button>
+    </div>`;
+  }).join('');
+}
+
+function toggleDashCard(cardId) {
+  const prefs = _dashCardPrefs();
+  prefs[cardId] = prefs[cardId] === false ? true : false;
+  _dashSaveCardPrefs(prefs);
+  applyDashCardVisibility();
+}
+
+function toggleDashCustomize(evt) {
+  const panel = document.getElementById('dash-customize-panel');
+  const isOpen = panel.classList.contains('open');
+  if (isOpen) { panel.classList.remove('open'); return; }
+
+  renderDashCustomizeList();
+  panel.classList.add('open');
+  const btn = evt.currentTarget;
+  const r = btn.getBoundingClientRect();
+  panel.style.top = `${r.bottom + 8}px`;
+  panel.style.right = `${window.innerWidth - r.right}px`;
+
+  const closeOnOutside = (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+      document.removeEventListener('click', closeOnOutside);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutside), 10);
 }
 
 /* ── Score de vie réel + scores de sphères (lit aura_spheres_v1, source unique) ── */
 function renderDashScores() {
-  let sphData = null;
+  var sphData = null;
   try { sphData = JSON.parse(localStorage.getItem('aura_spheres_v1') || 'null'); } catch(_) {}
   if (!sphData?.scores) { renderScoreTrendChart([]); return; }
 
@@ -367,7 +461,7 @@ function renderDashScores() {
   }
 
   // Historique 7 jours : on lit un journal léger qu'on alimente nous-mêmes au fil des visites
-  let history = [];
+  var history = [];
   try { history = JSON.parse(localStorage.getItem('aura_score_history_v1') || '[]'); } catch(_) {}
   const today = new Date().toISOString().slice(0,10);
   if (!history.length || history[history.length-1].date !== today) {
@@ -410,16 +504,15 @@ function renderScoreTrendChart(history) {
 
 /* ── Mini calendrier : prochain événement de l'agenda ── */
 function renderNextEvent() {
-  let events = [];
+  var events = [];
   try {
-    const ag = JSON.parse(localStorage.getItem('aura_agenda_v1') || '{}');
-    events = ag.events || [];
+    events = JSON.parse(localStorage.getItem('aura_events_v1') || '[]');
   } catch(_) {}
 
   const now = new Date();
   const upcoming = events
-    .filter(e => e.date && new Date(`${e.date}T${e.time||'23:59'}`) >= now)
-    .sort((a,b) => new Date(`${a.date}T${a.time||'00:00'}`) - new Date(`${b.date}T${b.time||'00:00'}`));
+    .filter(e => e.date && new Date(`${e.date}T${e.hend || e.hstart || '23:59'}`) >= now)
+    .sort((a,b) => new Date(`${a.date}T${a.hstart||'00:00'}`) - new Date(`${b.date}T${b.hstart||'00:00'}`));
 
   const valEl  = document.getElementById('dash-next-event');
   const hintEl = document.getElementById('dash-next-event-hint');
@@ -434,9 +527,328 @@ function renderNextEvent() {
   const next = upcoming[0];
   const eventDate = new Date(next.date);
   const isToday = eventDate.toDateString() === now.toDateString();
-  const dateLabel = isToday ? `Aujourd'hui ${next.time||''}` : eventDate.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+  const dateLabel = isToday ? `Aujourd'hui ${next.hstart||''}` : eventDate.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
   valEl.textContent = dateLabel;
-  if (hintEl) hintEl.textContent = next.title || next.label || 'Événement';
+  if (hintEl) hintEl.textContent = next.title || 'Événement';
+}
+
+/* ── Habitudes du jour — même calcul de streak que habitudes.html ── */
+function _dashComputeStreak(habit) {
+  const dates = new Set(habit.log || []);
+  let streak = 0;
+  let cursor = new Date();
+  if (!dates.has(cursor.toISOString().slice(0,10))) cursor.setDate(cursor.getDate()-1);
+  while (dates.has(cursor.toISOString().slice(0,10))) {
+    streak++;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return streak;
+}
+
+function renderDashHabitudes() {
+  const valEl = document.getElementById('dash-hab-val');
+  const targetEl = document.getElementById('dash-hab-target');
+  const hintEl = document.getElementById('dash-hab-hint');
+  if (!valEl) return;
+
+  let habits = [];
+  try {
+    const d = JSON.parse(localStorage.getItem('aura_habitudes_v1') || '{}');
+    habits = d.habits || [];
+  } catch(_) {}
+
+  if (!habits.length) {
+    valEl.textContent = '--';
+    if (targetEl) targetEl.textContent = '';
+    if (hintEl) hintEl.textContent = 'Aucune habitude créée';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  const doneToday = habits.filter(h => (h.log||[]).includes(today)).length;
+  valEl.textContent = doneToday;
+  if (targetEl) targetEl.textContent = `/${habits.length}`;
+
+  const bestStreak = Math.max(0, ...habits.map(_dashComputeStreak));
+  if (hintEl) hintEl.textContent = bestStreak > 0 ? `Meilleur streak ${bestStreak} jours 🔥` : 'Coche ta première habitude';
+
+  renderDashHabChecklist(habits);
+}
+
+/* ── Checklist interactive : coche directement depuis le Dashboard,
+     écrit dans la vraie structure aura_habitudes_v1 (même format que
+     habitudes.html), pas de donnée parallèle propre au Dashboard. ── */
+function renderDashHabChecklist(habits) {
+  const wrap = document.getElementById('dash-hab-checklist');
+  if (!wrap) return;
+
+  if (!habits || !habits.length) {
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--t3);text-align:center;padding:.75rem 0">Aucune habitude créée — <a href="#" onclick="event.preventDefault();navigate(\'habitudes\')" style="color:var(--pu);font-weight:600">en créer une</a></div>';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  wrap.innerHTML = habits.slice(0, 6).map(h => {
+    const done = (h.log||[]).includes(today);
+    const streak = _dashComputeStreak(h);
+    return `<div class="dash-hab-item" onclick="dashToggleHabit(${h.id})">
+      <div class="dash-hab-check ${done?'done':''}">${done?'<i class="ti ti-check"></i>':''}</div>
+      <div class="dash-hab-name ${done?'done':''}">${h.icon||'⭐'} ${h.name}</div>
+      ${streak > 0 ? `<span class="dash-hab-streak">${streak}🔥</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ── Coche une habitude sans changer de page — réutilise la même
+     fonction d'écriture que le module Habitudes lui-même. ── */
+function dashToggleHabit(habitId) {
+  let d = { habits: [] };
+  try { d = JSON.parse(localStorage.getItem('aura_habitudes_v1') || '{}'); } catch(_) {}
+  const h = d.habits.find(x => x.id === habitId);
+  if (!h) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  h.log = h.log || [];
+  const idx = h.log.indexOf(today);
+  if (idx >= 0) { h.log.splice(idx, 1); } else { h.log.push(today); earnXP(3, `${h.name} cochée`, '✅'); }
+
+  try { localStorage.setItem('aura_habitudes_v1', JSON.stringify(d)); } catch(_) {}
+  renderDashHabitudes();
+  AuraUI?.showToast?.(idx >= 0 ? `${h.name} décochée` : `✓ ${h.name} cochée !`);
+}
+
+/* ── Patrimoine net réel — même calcul que patrimoine.html ── */
+function renderDashPatrimoine() {
+  let d = { actifs:[], passifs:[], history:{} };
+  try { d = JSON.parse(localStorage.getItem('aura_patrimoine_v1') || '{}'); } catch(_) {}
+  const actifs  = d.actifs  || [];
+  const passifs = d.passifs || [];
+
+  const totalActifs  = actifs.reduce((s,x)=>s+(x.montant||0), 0);
+  const totalPassifs = passifs.reduce((s,x)=>s+(x.montant||0), 0);
+  const net = totalActifs - totalPassifs;
+  const lastQuarter = d.history?.lastQuarterNet;
+  const evol = lastQuarter ? net - lastQuarter : null;
+  const evolPct = (lastQuarter && lastQuarter !== 0) ? ((evol/lastQuarter)*100).toFixed(1) : null;
+
+  _setSafe('dash-pat-net', fmtE(net));
+  _setSafe('dash-pat-actifs', fmtE(totalActifs));
+  _setSafe('dash-pat-passifs', fmtE(totalPassifs));
+
+  // Historique honnête : on enregistre une fois par jour la vraie valeur
+  // observée (même principe que le score de vie), plutôt que de dépendre
+  // de lastQuarterNet qui n'est jamais réellement alimenté par le module
+  // Patrimoine — l'historique démarre vide et se construit avec le temps.
+  if (totalActifs > 0 || totalPassifs > 0) {
+    let netHistory = [];
+    try { netHistory = JSON.parse(localStorage.getItem('aura_patrimoine_history_v1') || '[]'); } catch(_) {}
+    const today = new Date().toISOString().slice(0,10);
+    if (!netHistory.length || netHistory[netHistory.length-1].date !== today) {
+      netHistory.push({ date: today, net });
+      netHistory = netHistory.slice(-14);
+      try { localStorage.setItem('aura_patrimoine_history_v1', JSON.stringify(netHistory)); } catch(_) {}
+    }
+    renderDashPatSparkline(netHistory);
+  } else {
+    renderDashPatSparkline([]);
+  }
+
+  const evolEl = document.getElementById('dash-pat-evol');
+  if (evolEl) {
+    if (evol === null) {
+      evolEl.textContent = actifs.length || passifs.length ? 'Pas encore d\'historique trimestriel' : 'Renseigne ton patrimoine pour suivre son évolution';
+      evolEl.style.color = 'var(--t2)';
+    } else {
+      evolEl.textContent = `${evol>=0?'+':''}${fmtE(evol)} ce trimestre · ${evol>=0?'+':''}${evolPct}% ${evol>=0?'↑':'↓'}`;
+      evolEl.style.color = evol>=0 ? 'var(--gr)' : 'var(--re)';
+    }
+  }
+
+  // Épargne du mois — calculée depuis les vraies enveloppes Finance
+  // (revenus du mois moins toutes les dépenses déjà enregistrées)
+  let fin = { revenus:[], depenses:[] };
+  try { fin = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}'); } catch(_) {}
+  // Épargne du mois — même définition exacte que budget.html : la somme
+  // des versements mensuels prévus vers les cagnottes (d.epargne[].mensuel),
+  // pas un solde net. C'est cette définition que aura-scores.js utilise
+  // aussi pour calculer le score de la sphère Finance — rester cohérent
+  // avec les deux plutôt que d'inventer une troisième métrique ici.
+  const revenusMois  = (fin.revenus||[]).reduce((s,r)=>s+(r.montant||0), 0);
+  const epargneMois  = (fin.epargne||[]).reduce((s,x)=>s+(x.mensuel||0), 0);
+  const tauxEpargne  = revenusMois > 0 ? Math.round((epargneMois/revenusMois)*100) : null;
+
+  _setSafe('dash-pat-epargnemois', fmtE(epargneMois) + '/m');
+  _setSafe('dash-epargne-val', fmtE(epargneMois));
+  const epHintEl = document.getElementById('dash-epargne-hint');
+  if (epHintEl) epHintEl.textContent = tauxEpargne !== null ? `Taux : ${tauxEpargne}%` : 'Ajoute tes revenus dans Finance';
+}
+
+/* ── Petit graphique en barres de l'évolution du patrimoine net ── */
+function renderDashPatSparkline(history) {
+  const el = document.getElementById('dash-pat-sparkline');
+  if (!el) return;
+  if (!history.length) { el.innerHTML = ''; return; }
+
+  const values = history.map(h => h.net);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const range = max - min || 1;
+
+  el.innerHTML = history.map((h, i) => {
+    const heightPct = Math.max(10, ((h.net - min) / range) * 100);
+    const isLast = i === history.length - 1;
+    return `<div style="width:4px;height:${heightPct}%;background:${isLast?'var(--gr)':'var(--gr-b)'};border-radius:2px 2px 0 0" title="${fmtE(h.net)}"></div>`;
+  }).join('');
+}
+
+/* ── Enveloppes budgétaires réelles — même logique que getEnvSpent() de budget.html ── */
+function _dashGetEnvSpent(label, depenses) {
+  const map = { 'Alimentation':['alimentation','restaurant'], 'Loisirs':['loisirs','beaute'], 'Transport':['transport'], 'Santé':['sante'], 'Vêtements':['vetements'], 'Restaurant':['restaurant'] };
+  const cats = map[label] || [];
+  return (depenses||[]).filter(d=>cats.includes(d.cat)).reduce((s,x)=>s+(x.montant||0), 0);
+}
+
+function renderDashBudgetEnvelopes() {
+  const wrap = document.getElementById('dash-budget-envelopes');
+  const labelEl = document.getElementById('dash-budget-month-label');
+  if (!wrap) return;
+
+  if (labelEl) {
+    const moisLabel = new Date().toLocaleDateString('fr-FR', { month:'long' });
+    labelEl.textContent = `Budget ${moisLabel}`;
+  }
+
+  let fin = { enveloppes:[], depenses:[] };
+  try { fin = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}'); } catch(_) {}
+  const enveloppes = fin.enveloppes || [];
+
+  if (!enveloppes.length) {
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--t3);text-align:center;padding:.5rem 0">Configure tes enveloppes dans Budget ou Paramètres</div>';
+    return;
+  }
+
+  // On affiche les 3 enveloppes les plus consommées en pourcentage —
+  // c'est l'info la plus utile en un coup d'œil sur le Dashboard.
+  const withSpent = enveloppes.map(env => {
+    const spent = _dashGetEnvSpent(env.label, fin.depenses);
+    const pct = env.budget > 0 ? Math.round((spent/env.budget)*100) : 0;
+    return { ...env, spent, pct };
+  }).sort((a,b) => b.pct - a.pct).slice(0, 3);
+
+  wrap.innerHTML = withSpent.map(env => {
+    const cls = env.pct >= 100 ? 'ov' : env.pct >= 80 ? 'mid' : 'ok';
+    const barWidth = Math.min(100, env.pct);
+    return `<div class="env-row" onclick="navigate('budget')" style="cursor:pointer">
+      <div class="env-ic" style="background:${env.bg||'var(--bg)'}"><i class="${env.ic||'ti-tag'}" style="color:${env.ic2||'var(--t2)'}"></i></div>
+      <div style="flex:1"><div class="env-name">${env.label}</div><div class="env-bar"><div class="env-fill ${cls}" style="width:${barWidth}%"></div></div></div>
+      <span class="env-pct ${cls}">${env.pct}%${env.pct >= 100 ? ' ⚠' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ── Recette du soir — planning réel du jour, sinon favori taggé Air fryer ── */
+function renderDashRecette() {
+  const card = document.getElementById('dash-recette-card');
+  if (!card) return;
+
+  let cui = { recipes:[], planning:{} };
+  try { cui = JSON.parse(localStorage.getItem('aura_cuisine_v2') || localStorage.getItem('aura_cuisine_v1') || '{}'); } catch(_) {}
+  const recipes  = cui.recipes  || [];
+  const planning = cui.planning || {};
+
+  const todayKey = new Date().toISOString().slice(0,10) + '_soir';
+  const plannedValue = planning[todayKey];
+
+  let recipe = null;
+  let isPlanned = false;
+  if (plannedValue) {
+    // plannedValue peut être l'id, le nom d'une recette, ou un texte libre
+    recipe = recipes.find(r => r.id === plannedValue || r.name === plannedValue);
+    isPlanned = true;
+    if (!recipe && typeof plannedValue === 'string') {
+      // Texte libre saisi manuellement dans Cuisine — on l'affiche tel quel
+      card.innerHTML = `<div class="rec" onclick="navigate('cuisine')">
+        <div class="rec-ic" style="background:var(--or-l)"><i class="ti ti-chef-hat" style="color:var(--or)"></i></div>
+        <div class="rec-info"><div class="rec-name">${plannedValue}</div><div class="rec-tags"><span class="tag gr">Prévu ce soir</span></div></div>
+      </div>`;
+      return;
+    }
+  }
+  if (!recipe) {
+    recipe = recipes.find(r => r.fav && (r.tags||[]).includes('Air fryer')) || recipes.find(r => r.fav) || recipes[0];
+  }
+
+  if (!recipe) {
+    card.innerHTML = `<div class="rec" onclick="navigate('cuisine')" style="cursor:pointer">
+      <div class="rec-ic" style="background:var(--bg)"><i class="ti ti-plus" style="color:var(--t3)"></i></div>
+      <div class="rec-info"><div class="rec-name" style="color:var(--t3);font-style:italic">Ajoute tes premières recettes ↗</div></div>
+    </div>`;
+    return;
+  }
+
+  card.innerHTML = `<div class="rec" onclick="navigate('cuisine')">
+    <div class="rec-ic" style="background:var(--or-l)"><i class="ti ti-flame" style="color:var(--or)"></i></div>
+    <div class="rec-info">
+      <div class="rec-name">${recipe.emoji||''} ${recipe.name}</div>
+      <div class="rec-tags">${(recipe.tags||[]).slice(0,2).map(t=>`<span class="tag or">${t}</span>`).join('')}${isPlanned?'<span class="tag gr">Prévu ce soir</span>':''}</div>
+    </div>
+    <span style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:2px"><i class="ti ti-clock"></i> ${recipe.minutes||'?'} min</span>
+  </div>
+  <div class="rec" onclick="navigate('cuisine')" style="margin-top:0">
+    <div class="rec-ic" style="background:var(--bg)"><i class="ti ti-plus" style="color:var(--t3)"></i></div>
+    <div class="rec-info"><div class="rec-name" style="color:var(--t3);font-style:italic">Choisir une autre recette ↗</div></div>
+  </div>`;
+}
+
+/* ── Alertes réelles — dépassement d'enveloppe budgétaire détecté ── */
+function renderDashAlerts() {
+  const list = document.getElementById('dash-alerts-list');
+  if (!list) return;
+
+  let fin = { enveloppes:[], depenses:[] };
+  try { fin = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}'); } catch(_) {}
+  const enveloppes = fin.enveloppes || [];
+
+  const overspent = enveloppes
+    .map(env => {
+      const spent = _dashGetEnvSpent(env.label, fin.depenses);
+      const pct = env.budget > 0 ? Math.round((spent/env.budget)*100) : 0;
+      return { ...env, pct };
+    })
+    .filter(env => env.pct >= 90)
+    .sort((a,b) => b.pct - a.pct);
+
+  if (!overspent.length) {
+    list.innerHTML = `<div class="aura-alert green">
+      <div class="alert-ic green"><i class="ti ti-check"></i></div>
+      <div class="alert-body">
+        <div class="alert-title">Aucun dépassement détecté</div>
+        <div class="alert-sub">Tes enveloppes budgétaires sont sous contrôle ✦</div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = overspent.slice(0, 2).map((env, i) => {
+    const isOver = env.pct >= 100;
+    return `<div class="aura-alert ${isOver?'red':'am'}" id="al-dash-${i}">
+      <div class="alert-ic ${isOver?'red':'am'}"><i class="ti ti-alert-triangle"></i></div>
+      <div class="alert-body">
+        <div class="alert-title">${env.label} ${isOver?'dépassé':'proche de la limite'} (${env.pct}%)</div>
+        <div class="alert-sub">${isOver ? 'Enveloppe épuisée ce mois-ci' : 'Approche du plafond fixé'}</div>
+        <button class="alert-action" onclick="navigate('coach')">Voir un plan →</button>
+      </div>
+      <button class="alert-dismiss" onclick="AuraUI.dismissAlert('al-dash-${i}')" aria-label="Fermer"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function _setSafe(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function fmtE(n) {
+  return Number(n||0).toLocaleString('fr-FR', { minimumFractionDigits:0, maximumFractionDigits:0 }) + ' €';
 }
 
 /* ── Météo du jour — Open-Meteo, gratuit, sans clé API ──
@@ -484,7 +896,7 @@ function renderVisionBoardReminders() {
   const list = document.getElementById('dash-vb-reminders-list');
   if (!card || !list) return;
 
-  let cards = [];
+  var cards = [];
   try {
     const vb = JSON.parse(localStorage.getItem('aura_visionboard_v1') || '{}');
     cards = vb.cards || [];
@@ -508,16 +920,21 @@ function renderVisionBoardReminders() {
   list.innerHTML = upcoming.map(c => {
     const urgent = c.daysLeft <= 7;
     const emoji = c.visual?.type === 'emoji' ? c.visual.value : '🎯';
-    return `<div class="vb-dash-reminder" onclick="navigate('visionboard')" style="cursor:pointer">
-      <span class="vb-dash-reminder-dot" style="background:${urgent?'var(--re)':'var(--am)'}"></span>
-      <span class="vb-dash-reminder-text">${emoji} ${c.title}</span>
-      <span class="vb-dash-reminder-days" style="color:${urgent?'var(--re)':'var(--am)'}">J-${c.daysLeft}</span>
+    return `<div class="vb-dash-reminder" onclick="navigate('visionboard')" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:4px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="vb-dash-reminder-dot" style="background:${urgent?'var(--re)':'var(--am)'}"></span>
+        <span class="vb-dash-reminder-text" style="flex:1">${emoji} ${c.title}</span>
+        <span class="vb-dash-reminder-days" style="color:${urgent?'var(--re)':'var(--am)'}">J-${c.daysLeft}</span>
+      </div>
+      <div style="height:4px;background:var(--bd);border-radius:2px;overflow:hidden;margin-left:14px">
+        <div style="height:100%;width:${c.pct}%;background:${urgent?'var(--re)':'var(--am)'};border-radius:2px;transition:width .4s"></div>
+      </div>
     </div>`;
   }).join('');
 }
 
 /* ── Ajout rapide : dépense ou note, sans changer de page ── */
-let _quickAddType = 'depense';
+var _quickAddType = 'depense';
 
 function openQuickAddModal() {
   document.getElementById('dash-quickadd-overlay').style.display = 'flex';
