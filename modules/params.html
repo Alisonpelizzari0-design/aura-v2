@@ -1,23 +1,41 @@
 <!-- ============================================================
      AURA — params.html  (fragment SPA)
-     Centre de paramètres complet :
-     - Google Gemini IA
-     - Compte (connexion / déconnexion)
-     - Profil personnel
-     - Enveloppes budgétaires personnalisables (source unique,
-       partagée avec le module Budget via aura_finance_v1)
-     - Alertes & notifications
-     - Liens & intégrations
-     - Apparence & préférences
-     - Réinitialisation
+     Centre de paramètres en système de cartes (façon Maison/Cuisine) :
+     chaque carte donne un aperçu rapide et s'ouvre dans un panneau
+     latéral (drawer) pour la modification complète.
      ============================================================ -->
 
 <style>
-.params-section { margin-bottom:1.5rem; }
-.params-section:last-child { margin-bottom:0; }
-.params-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--t3); margin-bottom:.75rem; display:flex; align-items:center; gap:6px; padding-bottom:.5rem; border-bottom:1px solid var(--bd); }
-.params-section-title i { font-size:14px; }
-.params-section-title .section-hint { margin-left:auto; font-size:10px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--t3); }
+/* ── Cartes-aperçu ── */
+.par-canvas { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.par-card { border-radius:18px; padding:1.125rem; cursor:pointer; transition:all .2s; border:1px solid var(--bd); background:var(--white); display:flex; flex-direction:column; gap:.5rem; }
+.par-card:hover { transform:translateY(-3px); box-shadow:0 12px 28px rgba(0,0,0,.08); }
+.par-card-icon { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:19px; }
+.par-card-title { font-size:13px; font-weight:800; color:var(--text); }
+.par-card-sub { font-size:11px; color:var(--t3); line-height:1.4; }
+.par-card-status { display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:8px; margin-top:auto; align-self:flex-start; }
+.par-card-status.ok  { background:var(--gr-l); color:var(--gr); }
+.par-card-status.ko  { background:var(--am-l); color:var(--am); }
+.par-card-status.neutral { background:var(--bg); color:var(--t3); }
+@media(max-width:900px) { .par-canvas { grid-template-columns:1fr 1fr; } }
+@media(max-width:768px) { .par-canvas { grid-template-columns:1fr 1fr; gap:.75rem; } }
+
+/* ── Drawer latéral (Option A, même pattern que Maison/Cuisine) ── */
+.par-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; display:none; }
+.par-drawer-overlay.open { display:block; }
+.par-drawer-panel {
+  position:fixed; top:0; right:0; bottom:0; width:92%; max-width:440px;
+  background:var(--white); z-index:201; transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1); overflow-y:auto;
+  box-shadow:-12px 0 32px rgba(0,0,0,.12); display:flex; flex-direction:column;
+}
+.par-drawer-panel.open { transform:translateX(0); }
+.par-drawer-header { padding:1.125rem 1.25rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--bd); flex-shrink:0; }
+.par-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+.par-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
+.par-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
+.par-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+
 .key-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:10px; }
 .key-status.ok  { background:var(--gr-l); color:var(--gr); border:1px solid var(--gr-b); }
 .key-status.ko  { background:var(--am-l); color:var(--am); border:1px solid var(--am-b); }
@@ -33,6 +51,13 @@
 .swatch:hover { transform:scale(1.15); }
 .swatch.active { outline:2.5px solid var(--text); outline-offset:2px; }
 
+/* ── Onglets internes (carte Liens & Apparence, fusionnées) ── */
+.par-subtabs { display:flex; gap:6px; margin-bottom:.5rem; }
+.par-subtab { flex:1; font-size:11.5px; font-weight:700; padding:8px; border-radius:10px; border:1.5px solid var(--bd2); background:var(--white); color:var(--t2); cursor:pointer; text-align:center; }
+.par-subtab.sel { background:var(--pu); color:#fff; border-color:var(--pu); }
+.par-subpane { display:none; }
+.par-subpane.on { display:flex; flex-direction:column; gap:1.125rem; }
+
 /* ── Enveloppes budgétaires ── */
 .env-list { display:flex; flex-direction:column; gap:8px; margin-bottom:.875rem; }
 .env-row { display:flex; align-items:center; gap:10px; padding:.625rem .75rem; border-radius:var(--r-md); background:var(--bg); border:1px solid var(--bd); }
@@ -47,7 +72,7 @@
 .env-action-btn { width:28px; height:28px; border-radius:var(--r-sm); border:none; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--t3); transition:background .12s,color .12s; }
 .env-action-btn:hover { background:var(--bd); color:var(--text); }
 .env-action-btn.danger:hover { background:var(--re-l); color:var(--re); }
-.env-color-picker { position:fixed; z-index:30; background:var(--white); border:1px solid var(--bd); border-radius:var(--r-md); padding:.625rem; box-shadow:0 8px 24px rgba(0,0,0,.14); display:flex; flex-wrap:wrap; gap:6px; width:168px; }
+.env-color-picker { position:fixed; z-index:230; background:var(--white); border:1px solid var(--bd); border-radius:var(--r-md); padding:.625rem; box-shadow:0 8px 24px rgba(0,0,0,.14); display:flex; flex-wrap:wrap; gap:6px; width:168px; }
 .env-color-picker .swatch { width:22px; height:22px; }
 .env-add-form { display:flex; align-items:center; gap:8px; padding:.625rem .75rem; border-radius:var(--r-md); border:1.5px dashed var(--bd2); }
 .env-total-row { display:flex; justify-content:space-between; align-items:center; padding-top:.75rem; border-top:1px solid var(--bd); margin-top:.25rem; }
@@ -55,6 +80,16 @@
 .env-total-value { font-size:15px; font-weight:800; color:var(--pu); }
 .env-sync-note { font-size:10px; color:var(--t3); line-height:1.5; margin-top:.625rem; display:flex; gap:5px; align-items:flex-start; }
 .env-sync-note i { font-size:12px; margin-top:1px; flex-shrink:0; }
+
+/* ── Reset par module ── */
+.reset-module-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.reset-module-card { border:1px solid var(--bd); border-radius:var(--r-md); padding:.75rem; background:var(--bg); display:flex; flex-direction:column; gap:6px; }
+.reset-module-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.reset-module-name { font-size:12px; font-weight:700; color:var(--text); }
+.reset-module-shared { font-size:9px; color:var(--t3); line-height:1.3; }
+.reset-module-btn { font-size:11px; font-weight:700; padding:6px; border-radius:var(--r-sm); border:1px solid var(--re-b); background:var(--white); color:var(--re); cursor:pointer; margin-top:auto; transition:background .12s; }
+.reset-module-btn:hover { background:var(--re-l); }
+@media(max-width:768px) { .reset-module-grid { grid-template-columns:1fr 1fr; } }
 </style>
 
 <!-- ── En-tête ── -->
@@ -64,20 +99,48 @@
   </div>
   <div>
     <div style="font-size:15px;font-weight:700;color:var(--pu-d)">Paramètres AURA</div>
-    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Configure ton expérience, connecte l'IA et personnalise ton app</div>
+    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Touche une carte pour la configurer</div>
   </div>
 </div>
 
-<div class="g2">
+<!-- ── Canvas de cartes ── -->
+<div class="par-canvas" id="par-canvas"></div>
 
-  <!-- Colonne gauche -->
-  <div style="display:flex;flex-direction:column;gap:1.25rem">
+<!-- ── Réinitialiser par module ── -->
+<div class="card" style="border-color:var(--re-b)">
+  <div class="params-section-title" style="color:var(--re);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:6px;padding-bottom:.5rem;border-bottom:1px solid var(--bd);margin-bottom:.75rem"><i class="ti ti-eraser"></i> Réinitialiser un module</div>
+  <div style="font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:1rem">
+    Efface uniquement les données que tu as toi-même saisies dans ce module — ton profil, ta connexion et ta personnalisation restent intacts.
+  </div>
+  <div class="reset-module-grid" id="reset-module-grid"></div>
+</div>
 
-    <!-- Gemini IA -->
-    <div class="card glow">
-      <div class="params-section-title"><i class="ti ti-sparkles"></i> Google Gemini IA <span class="key-status" id="key-status-badge">⚠ Non configurée</span></div>
+<!-- ── Réinitialisation complète ── -->
+<div class="card" style="border-color:var(--re-b);background:var(--re-l)">
+  <div style="color:var(--re);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:6px;padding-bottom:.5rem;border-bottom:1px solid rgba(220,38,38,.25);margin-bottom:.75rem"><i class="ti ti-alert-triangle"></i> Réinitialisation complète</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#7F1D1D">Tout effacer — profil, connexion, tous les modules</div>
+      <div style="font-size:11px;color:#991B1B;margin-top:2px">Remet AURA à zéro comme au premier lancement. Irréversible.</div>
+    </div>
+    <button onclick="resetAura()" style="font-size:12px;padding:7px 14px;border-radius:var(--r-md);border:1px solid var(--re);background:var(--re);color:#fff;cursor:pointer;font-weight:700">
+      <i class="ti ti-trash"></i> Réinitialiser AURA
+    </button>
+  </div>
+</div>
 
-      <div style="background:var(--bl-l);border:1px solid var(--bl-b);border-radius:var(--r-md);padding:.875rem;margin-bottom:1rem">
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Google Gemini IA
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-gemini-overlay" onclick="if(event.target===this)closeDrawer('gemini')">
+  <div class="par-drawer-panel" id="drawer-gemini-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('gemini')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-sparkles"></i> Google Gemini IA</div>
+      <span class="key-status" id="key-status-badge" style="margin-left:auto">⚠ Non configurée</span>
+    </div>
+    <div class="par-drawer-body">
+      <div style="background:var(--bl-l);border:1px solid var(--bl-b);border-radius:var(--r-md);padding:.875rem">
         <div style="font-size:12px;font-weight:700;color:#1E40AF;margin-bottom:.375rem">🎁 Gratuit — Google AI Studio</div>
         <div style="font-size:11px;color:var(--t2);line-height:1.6">
           1. Va sur <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--pu);font-weight:700">aistudio.google.com/app/apikey</a><br>
@@ -86,18 +149,16 @@
           <span style="color:var(--gr);font-weight:600">✓ Quota gratuit : 15 req/min · 1 million tokens/jour</span>
         </div>
       </div>
-
-      <div style="margin-bottom:.75rem">
+      <div>
         <label class="field-lbl">Ta clé API Gemini</label>
         <div class="key-input-wrap">
           <input type="password" id="gemini-key-input" placeholder="AIzaSy..." autocomplete="off">
           <button class="save-btn" onclick="saveGeminiKey()"><i class="ti ti-check"></i> Sauvegarder</button>
         </div>
         <div style="font-size:10px;color:var(--t3);margin-top:5px">
-          Stockée localement dans ton navigateur. Jamais envoyée ailleurs que Google.
+          Stockée localement et sur ton compte AURA si connectée. Jamais envoyée ailleurs que Google.
         </div>
       </div>
-
       <div style="display:flex;gap:8px;align-items:center">
         <button class="save-btn secondary" onclick="testGemini()" style="font-size:11px;padding:6px 12px">
           <i class="ti ti-player-play"></i> Tester la connexion
@@ -106,13 +167,21 @@
           <i class="ti ti-trash"></i> Supprimer
         </button>
       </div>
-      <div id="gemini-test-result" style="margin-top:.625rem;font-size:12px;display:none"></div>
+      <div id="gemini-test-result" style="font-size:12px;display:none"></div>
     </div>
+  </div>
+</div>
 
-    <!-- Mon compte -->
-    <div class="card" id="account-status-card">
-      <div class="params-section-title"><i class="ti ti-shield-lock"></i> Mon compte</div>
-
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Mon compte
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-compte-overlay" onclick="if(event.target===this)closeDrawer('compte')">
+  <div class="par-drawer-panel" id="drawer-compte-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('compte')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-shield-lock"></i> Mon compte</div>
+    </div>
+    <div class="par-drawer-body">
       <div id="account-status-connected" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;padding:.875rem;background:var(--gr-l);border:1px solid var(--gr-b);border-radius:var(--r-md);margin-bottom:.875rem">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--gr);display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -130,7 +199,6 @@
           <i class="ti ti-logout"></i> Se déconnecter de ce compte
         </button>
       </div>
-
       <div id="account-status-local" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;padding:.875rem;background:var(--am-l);border:1px solid var(--am-b);border-radius:var(--r-md);margin-bottom:.875rem">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--am);display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -149,11 +217,19 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Profil -->
-    <div class="card">
-      <div class="params-section-title"><i class="ti ti-user"></i> Mon profil</div>
-
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Mon profil
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-profil-overlay" onclick="if(event.target===this)closeDrawer('profil')">
+  <div class="par-drawer-panel" id="drawer-profil-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('profil')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-user"></i> Mon profil</div>
+    </div>
+    <div class="par-drawer-body">
       <div class="param-row">
         <div><div class="param-lbl">Prénom / pseudo</div></div>
         <input class="field-input" id="p-name" type="text" style="width:150px;text-align:right" placeholder="Mon AURA">
@@ -182,10 +258,7 @@
       <div class="param-row">
         <div><div class="param-lbl">Personnes au foyer</div></div>
         <select class="field-select" id="p-foyer" style="width:80px">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4+</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4+</option>
         </select>
       </div>
       <div class="param-row">
@@ -196,52 +269,57 @@
           <label style="font-size:11px;display:flex;align-items:center;gap:5px;color:var(--t2);cursor:pointer"><input type="checkbox" id="p-thermomix"> Thermomix</label>
         </div>
       </div>
-
-      <button class="save-btn" onclick="saveProfile()" style="width:100%;margin-top:.875rem">
+    </div>
+    <div class="par-drawer-footer">
+      <button class="save-btn" onclick="saveProfile()" style="width:100%">
         <i class="ti ti-device-floppy"></i> Sauvegarder le profil
       </button>
     </div>
-
   </div>
+</div>
 
-  <!-- Colonne droite -->
-  <div style="display:flex;flex-direction:column;gap:1.25rem">
-
-    <!-- Enveloppes budgétaires -->
-    <div class="card" style="position:relative">
-      <div class="params-section-title">
-        <i class="ti ti-chart-pie"></i> Enveloppes budgétaires
-        <span class="section-hint">partagées avec le module Budget</span>
-      </div>
-
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Enveloppes budgétaires
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-enveloppes-overlay" onclick="if(event.target===this)closeDrawer('enveloppes')">
+  <div class="par-drawer-panel" id="drawer-enveloppes-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('enveloppes')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-chart-pie"></i> Enveloppes budgétaires</div>
+    </div>
+    <div class="par-drawer-body">
+      <div style="font-size:11px;color:var(--t2)">Partagées avec le module Budget — toute modification ici apparaît là-bas aussi.</div>
       <div class="env-list" id="env-list"></div>
-
       <div class="env-add-form">
         <input type="text" id="env-new-label" placeholder="Nouvelle catégorie..." class="env-label-input" style="font-weight:500">
         <div class="env-amount-wrap">
           <input type="number" id="env-new-amount" placeholder="0" min="0" class="env-amount-input" style="width:56px">
           <span style="font-size:11px;color:var(--t2)">€</span>
         </div>
-        <button class="env-action-btn" onclick="addEnvelope()" title="Ajouter" style="background:var(--pu-l);color:var(--pu)">
-          <i class="ti ti-plus"></i>
-        </button>
+        <button class="env-action-btn" onclick="addEnvelope()" title="Ajouter" style="background:var(--pu-l);color:var(--pu)"><i class="ti ti-plus"></i></button>
       </div>
-
       <div class="env-total-row">
         <span class="env-total-label">Total enveloppes</span>
         <span class="env-total-value" id="env-total-display">0 €</span>
       </div>
-
       <div class="env-sync-note">
         <i class="ti ti-info-circle"></i>
-        <span>Ajoute, renomme ou supprime tes catégories ici — elles apparaîtront automatiquement dans le module Budget au prochain chargement. Couleur et icône personnalisables par catégorie (clique sur le rond coloré).</span>
+        <span>Couleur et icône personnalisables par catégorie (clique sur le rond coloré).</span>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Alertes -->
-    <div class="card">
-      <div class="params-section-title"><i class="ti ti-bell"></i> Alertes & notifications</div>
-
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Alertes & notifications
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-alertes-overlay" onclick="if(event.target===this)closeDrawer('alertes')">
+  <div class="par-drawer-panel" id="drawer-alertes-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('alertes')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-bell"></i> Alertes & notifications</div>
+    </div>
+    <div class="par-drawer-body">
       <div class="param-row">
         <div><div class="param-lbl">Dépassement budget</div><div class="param-sub">Quand une enveloppe dépasse 90%</div></div>
         <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.budgetDepassement" aria-label="toggle"></button>
@@ -267,112 +345,92 @@
         <button class="toggle" onclick="toggleSwitch(this)" data-pref="notif.coachProactif" aria-label="toggle"></button>
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- ── Liens & Apparence ── -->
-<div class="g2">
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Liens & Apparence (fusionnés, avec onglets)
+════════════════════════════════════════════════════ -->
+<div class="par-drawer-overlay" id="drawer-liensapp-overlay" onclick="if(event.target===this)closeDrawer('liensapp')">
+  <div class="par-drawer-panel" id="drawer-liensapp-panel" onclick="event.stopPropagation()">
+    <div class="par-drawer-header">
+      <button class="par-drawer-close" onclick="closeDrawer('liensapp')">✕</button>
+      <div class="par-drawer-title"><i class="ti ti-link"></i> Liens & Apparence</div>
+    </div>
+    <div class="par-drawer-body">
+      <div class="par-subtabs">
+        <button class="par-subtab sel" id="subtab-liens" onclick="switchSubtab('liens')">🔗 Liens</button>
+        <button class="par-subtab" id="subtab-app" onclick="switchSubtab('app')">🎨 Apparence</button>
+      </div>
 
-  <!-- Liens externes -->
-  <div class="card">
-    <div class="params-section-title"><i class="ti ti-link"></i> Liens & intégrations</div>
+      <div class="par-subpane on" id="subpane-liens">
+        <div class="param-row">
+          <div><div class="param-lbl">Application bancaire</div></div>
+          <input class="field-input" id="l-bank" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
+        </div>
+        <div class="param-row">
+          <div><div class="param-lbl">Livret A / épargne</div></div>
+          <input class="field-input" id="l-livret" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
+        </div>
+        <div class="param-row">
+          <div class="param-lbl">Marmiton</div>
+          <a href="https://www.marmiton.org/recettes/recherche.aspx?aqt=air+fryer" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700">marmiton.org <i class="ti ti-external-link" style="font-size:11px"></i></a>
+        </div>
+        <div class="param-row">
+          <div class="param-lbl">YouTube Air Fryer</div>
+          <a href="https://www.youtube.com/results?search_query=recette+air+fryer+facile" target="_blank" style="font-size:11px;color:#DC2626;display:flex;align-items:center;gap:4px;font-weight:700"><i class="ti ti-brand-youtube"></i> YouTube <i class="ti ti-external-link" style="font-size:11px"></i></a>
+        </div>
+        <div class="param-row">
+          <div class="param-lbl">Google AI Studio</div>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:#4285F4;display:flex;align-items:center;gap:4px;font-weight:700"><i class="ti ti-brand-google"></i> Clé gratuite <i class="ti ti-external-link" style="font-size:11px"></i></a>
+        </div>
+        <div class="param-row">
+          <div class="param-lbl">Mon AURA (Vercel)</div>
+          <a href="https://auraos-tau.vercel.app" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700"><i class="ti ti-sun"></i> auraos-tau.vercel.app <i class="ti ti-external-link" style="font-size:11px"></i></a>
+        </div>
+        <button class="save-btn secondary" onclick="saveLinks()" style="width:100%">
+          <i class="ti ti-device-floppy"></i> Sauvegarder les liens
+        </button>
+      </div>
 
-    <div class="param-row">
-      <div><div class="param-lbl">Application bancaire</div></div>
-      <input class="field-input" id="l-bank" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
-    </div>
-    <div class="param-row">
-      <div><div class="param-lbl">Livret A / épargne</div></div>
-      <input class="field-input" id="l-livret" type="url" placeholder="https://..." style="width:160px;text-align:right;font-size:11px">
-    </div>
-    <div class="param-row">
-      <div class="param-lbl">Marmiton</div>
-      <a href="https://www.marmiton.org/recettes/recherche.aspx?aqt=air+fryer" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700">
-        marmiton.org <i class="ti ti-external-link" style="font-size:11px"></i>
-      </a>
-    </div>
-    <div class="param-row">
-      <div class="param-lbl">YouTube Air Fryer</div>
-      <a href="https://www.youtube.com/results?search_query=recette+air+fryer+facile" target="_blank" style="font-size:11px;color:#DC2626;display:flex;align-items:center;gap:4px;font-weight:700">
-        <i class="ti ti-brand-youtube"></i> YouTube <i class="ti ti-external-link" style="font-size:11px"></i>
-      </a>
-    </div>
-    <div class="param-row">
-      <div class="param-lbl">Google AI Studio</div>
-      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:#4285F4;display:flex;align-items:center;gap:4px;font-weight:700">
-        <i class="ti ti-brand-google"></i> Clé gratuite <i class="ti ti-external-link" style="font-size:11px"></i>
-      </a>
-    </div>
-    <div class="param-row">
-      <div class="param-lbl">Mon AURA (Vercel)</div>
-      <a href="https://auraos-tau.vercel.app" target="_blank" style="font-size:11px;color:var(--pu);display:flex;align-items:center;gap:4px;font-weight:700">
-        <i class="ti ti-sun"></i> auraos-tau.vercel.app <i class="ti ti-external-link" style="font-size:11px"></i>
-      </a>
-    </div>
-
-    <button class="save-btn secondary" onclick="saveLinks()" style="width:100%;margin-top:.875rem">
-      <i class="ti ti-device-floppy"></i> Sauvegarder les liens
-    </button>
-  </div>
-
-  <!-- Apparence -->
-  <div class="card">
-    <div class="params-section-title"><i class="ti ti-palette"></i> Apparence & préférences</div>
-
-    <div class="param-row">
-      <div class="param-lbl">Thème</div>
-      <div style="display:flex;gap:6px">
-        <button onclick="setTheme('light')" id="btn-theme-light" class="save-btn secondary" style="font-size:11px;padding:5px 10px">☀️ Clair</button>
-        <button onclick="setTheme('dark')"  id="btn-theme-dark"  class="save-btn secondary" style="font-size:11px;padding:5px 10px">🌙 Sombre</button>
+      <div class="par-subpane" id="subpane-app">
+        <div class="param-row">
+          <div class="param-lbl">Thème</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="setTheme('light')" id="btn-theme-light" class="save-btn secondary" style="font-size:11px;padding:5px 10px">☀️ Clair</button>
+            <button onclick="setTheme('dark')"  id="btn-theme-dark"  class="save-btn secondary" style="font-size:11px;padding:5px 10px">🌙 Sombre</button>
+          </div>
+        </div>
+        <div class="param-row">
+          <div class="param-lbl">Couleur principale</div>
+          <div class="color-swatches" id="color-swatches">
+            <div class="swatch" style="background:#7C3AED" data-color="#7C3AED" onclick="setAccent('#7C3AED','#F5F3FF','#DDD6FE')" title="Violet"></div>
+            <div class="swatch" style="background:#0D9488" data-color="#0D9488" onclick="setAccent('#0D9488','#F0FDFA','#99F6E4')" title="Teal"></div>
+            <div class="swatch" style="background:#DB2777" data-color="#DB2777" onclick="setAccent('#DB2777','#FDF2F8','#F9A8D4')" title="Rose"></div>
+            <div class="swatch" style="background:#EA580C" data-color="#EA580C" onclick="setAccent('#EA580C','#FFF7ED','#FED7AA')" title="Orange"></div>
+            <div class="swatch" style="background:#2563EB" data-color="#2563EB" onclick="setAccent('#2563EB','#EFF6FF','#BFDBFE')" title="Bleu"></div>
+            <div class="swatch" style="background:#16A34A" data-color="#16A34A" onclick="setAccent('#16A34A','#F0FDF4','#BBF7D0')" title="Vert"></div>
+          </div>
+        </div>
+        <div class="param-row">
+          <div><div class="param-lbl">Page d'accueil</div></div>
+          <select class="field-select" id="p-home" style="width:130px">
+            <option value="dashboard">Ancre du jour</option>
+            <option value="rituel">Rituel du matin</option>
+            <option value="habitudes">Habitudes</option>
+            <option value="budget">Finances</option>
+            <option value="coach">Coach IA</option>
+          </select>
+        </div>
+        <div class="param-row">
+          <div><div class="param-lbl">Toasts de confirmation</div><div class="param-sub">Afficher les messages "✓ Sauvegardé"</div></div>
+          <button class="toggle" onclick="toggleSwitch(this)" data-pref="prefs.showToasts" id="t-toasts" aria-label="toggle"></button>
+        </div>
+        <button class="save-btn secondary" onclick="saveAppearance()" style="width:100%">
+          <i class="ti ti-device-floppy"></i> Sauvegarder l'apparence
+        </button>
       </div>
     </div>
-
-    <div class="param-row">
-      <div class="param-lbl">Couleur principale</div>
-      <div class="color-swatches" id="color-swatches">
-        <div class="swatch" style="background:#7C3AED" data-color="#7C3AED" onclick="setAccent('#7C3AED','#F5F3FF','#DDD6FE')" title="Violet"></div>
-        <div class="swatch" style="background:#0D9488" data-color="#0D9488" onclick="setAccent('#0D9488','#F0FDFA','#99F6E4')" title="Teal"></div>
-        <div class="swatch" style="background:#DB2777" data-color="#DB2777" onclick="setAccent('#DB2777','#FDF2F8','#F9A8D4')" title="Rose"></div>
-        <div class="swatch" style="background:#EA580C" data-color="#EA580C" onclick="setAccent('#EA580C','#FFF7ED','#FED7AA')" title="Orange"></div>
-        <div class="swatch" style="background:#2563EB" data-color="#2563EB" onclick="setAccent('#2563EB','#EFF6FF','#BFDBFE')" title="Bleu"></div>
-        <div class="swatch" style="background:#16A34A" data-color="#16A34A" onclick="setAccent('#16A34A','#F0FDF4','#BBF7D0')" title="Vert"></div>
-      </div>
-    </div>
-
-    <div class="param-row">
-      <div><div class="param-lbl">Page d'accueil</div></div>
-      <select class="field-select" id="p-home" style="width:130px">
-        <option value="dashboard">Ancre du jour</option>
-        <option value="rituel">Rituel du matin</option>
-        <option value="habitudes">Habitudes</option>
-        <option value="budget">Finances</option>
-        <option value="coach">Coach IA</option>
-      </select>
-    </div>
-
-    <div class="param-row">
-      <div><div class="param-lbl">Toasts de confirmation</div><div class="param-sub">Afficher les messages "✓ Sauvegardé"</div></div>
-      <button class="toggle" onclick="toggleSwitch(this)" data-pref="prefs.showToasts" id="t-toasts" aria-label="toggle"></button>
-    </div>
-
-    <button class="save-btn secondary" onclick="saveAppearance()" style="width:100%;margin-top:.875rem">
-      <i class="ti ti-device-floppy"></i> Sauvegarder l'apparence
-    </button>
-  </div>
-</div>
-
-<!-- ── Danger zone ── -->
-<div class="card" style="border-color:var(--re-b)">
-  <div class="params-section-title" style="color:var(--re)"><i class="ti ti-alert-triangle"></i> Réinitialisation</div>
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
-    <div>
-      <div class="param-lbl">Remettre à zéro les données</div>
-      <div class="param-sub">Efface XP, paramètres et historique. Irréversible.</div>
-    </div>
-    <button onclick="resetAura()" style="font-size:12px;padding:7px 14px;border-radius:var(--r-md);border:1px solid var(--re);background:var(--re-l);color:var(--re);cursor:pointer;font-weight:700">
-      <i class="ti ti-trash"></i> Réinitialiser AURA
-    </button>
   </div>
 </div>
 
@@ -382,6 +440,69 @@ window.initModule = function(name) {
   initParams();
 };
 
+/* ══════════════════════════════════════════════════════════════
+   CARTES — aperçu de chaque section, ouvre le drawer correspondant
+══════════════════════════════════════════════════════════════ */
+const PAR_CARDS = [
+  { key:'gemini',     icon:'ti-sparkles',      color:'var(--pu)', bg:'var(--pu-l)', title:'Google Gemini IA' },
+  { key:'compte',     icon:'ti-shield-lock',   color:'var(--gr)', bg:'var(--gr-l)', title:'Mon compte' },
+  { key:'profil',     icon:'ti-user',          color:'var(--bl)', bg:'var(--bl-l)', title:'Mon profil' },
+  { key:'enveloppes', icon:'ti-chart-pie',     color:'var(--am)', bg:'var(--am-l)', title:'Enveloppes budgétaires' },
+  { key:'alertes',    icon:'ti-bell',          color:'var(--re)', bg:'var(--re-l)', title:'Alertes & notifications' },
+  { key:'liensapp',   icon:'ti-palette',       color:'var(--pk)', bg:'var(--pk-l)', title:'Liens & Apparence' },
+];
+
+function renderParamsCanvas() {
+  const prefs = AuraStore.get().prefs || {};
+  const isLoggedIn = window.SupaClient?.isLoggedIn?.();
+  const hasKey = !!(prefs.geminiKey || '');
+  const envCount = ParamsEnv.getEnveloppes().length;
+
+  const subs = {
+    gemini:     { sub: hasKey ? 'Clé configurée' : "Pas encore connectée à l'IA", status: hasKey?'ok':'ko', statusText: hasKey?'✓ Configurée':'⚠ Non configurée' },
+    compte:     { sub: isLoggedIn ? 'Connectée et synchronisée' : 'Mode local — non sauvegardé', status: isLoggedIn?'ok':'ko', statusText: isLoggedIn?'✓ Connectée':'⚠ Local' },
+    profil:     { sub: prefs.name ? `${prefs.name} · ${prefs.sign||'—'}` : 'Pas encore renseigné', status:'neutral', statusText:'Modifier' },
+    enveloppes: { sub: `${envCount} catégorie${envCount>1?'s':''} configurée${envCount>1?'s':''}`, status:'neutral', statusText:'Modifier' },
+    alertes:    { sub: 'Rappels et notifications', status:'neutral', statusText:'Modifier' },
+    liensapp:   { sub: 'Thème, couleur, raccourcis', status:'neutral', statusText:'Modifier' },
+  };
+
+  document.getElementById('par-canvas').innerHTML = PAR_CARDS.map(c => {
+    const s = subs[c.key];
+    return `<div class="par-card" onclick="openDrawer('${c.key}')">
+      <div class="par-card-icon" style="background:${c.bg};color:${c.color}"><i class="${c.icon}"></i></div>
+      <div class="par-card-title">${c.title}</div>
+      <div class="par-card-sub">${s.sub}</div>
+      <span class="par-card-status ${s.status}">${s.statusText}</span>
+    </div>`;
+  }).join('');
+}
+
+function openDrawer(key) {
+  document.getElementById(`drawer-${key}-overlay`).classList.add('open');
+  document.getElementById(`drawer-${key}-panel`).classList.add('open');
+  // Rafraîchit le contenu interne au moment de l'ouverture, pour
+  // refléter tout changement fait depuis une autre carte/onglet.
+  if (key === 'enveloppes') renderEnvelopes();
+  if (key === 'compte') renderAccountStatus();
+}
+function closeDrawer(key) {
+  document.getElementById(`drawer-${key}-overlay`).classList.remove('open');
+  document.getElementById(`drawer-${key}-panel`).classList.remove('open');
+  document.querySelectorAll('.env-color-picker').forEach(p => p.remove());
+  renderParamsCanvas(); // l'aperçu de la carte se met à jour après modification
+}
+
+function switchSubtab(tab) {
+  ['liens','app'].forEach(t => {
+    document.getElementById(`subtab-${t}`)?.classList.toggle('sel', t===tab);
+    document.getElementById(`subpane-${t}`)?.classList.toggle('on', t===tab);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ENVELOPPES — logique inchangée, partagée avec budget.html
+══════════════════════════════════════════════════════════════ */
 const ENV_COLOR_PALETTE = [
   { bg:'#FFF7ED', ic2:'#EA580C', name:'Orange' },
   { bg:'#FDF2F8', ic2:'#DB2777', name:'Rose'   },
@@ -400,19 +521,11 @@ const ENV_ICON_CHOICES = [
 
 const ParamsEnv = {
   _key: 'aura_finance_v1',
-
   _readAll() {
-    try {
-      const raw = localStorage.getItem(this._key);
-      if (raw) return JSON.parse(raw);
-    } catch(_) {}
+    try { const raw = localStorage.getItem(this._key); if (raw) return JSON.parse(raw); } catch(_) {}
     return null;
   },
-
-  _writeAll(data) {
-    try { localStorage.setItem(this._key, JSON.stringify(data)); } catch(_) {}
-  },
-
+  _writeAll(data) { try { localStorage.setItem(this._key, JSON.stringify(data)); } catch(_) {} },
   getEnveloppes() {
     const d = this._readAll();
     if (d && Array.isArray(d.enveloppes)) return d.enveloppes;
@@ -425,26 +538,19 @@ const ParamsEnv = {
       { id:6, label:'Restaurant',   budget:0, ic:'ti-tools-kitchen-2',bg:'#FEFCE8',ic2:'#C9A84C' },
     ];
   },
-
   saveEnveloppes(list) {
     let d = this._readAll();
-    if (!d) {
-      d = { revenus:[], charges:[], depenses:[], epargne:[], enveloppes:[], histChart:[] };
-    }
+    if (!d) d = { revenus:[], charges:[], depenses:[], epargne:[], enveloppes:[], histChart:[] };
     d.enveloppes = list;
     this._writeAll(d);
   },
-
-  nextId(list) {
-    return list.length ? Math.max(...list.map(e => e.id)) + 1 : 1;
-  },
+  nextId(list) { return list.length ? Math.max(...list.map(e => e.id)) + 1 : 1; },
 };
 
 function renderEnvelopes() {
   const list = ParamsEnv.getEnveloppes();
   const wrap = document.getElementById('env-list');
   if (!wrap) return;
-
   if (!list.length) {
     wrap.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:1rem 0">Aucune catégorie pour l\'instant — ajoute la première ci-dessous.</div>';
   } else {
@@ -459,21 +565,16 @@ function renderEnvelopes() {
           <span style="font-size:11px;color:var(--t2)">€</span>
         </div>
         <div class="env-actions">
-          <button class="env-action-btn danger" onclick="deleteEnvelope(${env.id})" title="Supprimer">
-            <i class="ti ti-trash" style="font-size:14px"></i>
-          </button>
+          <button class="env-action-btn danger" onclick="deleteEnvelope(${env.id})" title="Supprimer"><i class="ti ti-trash" style="font-size:14px"></i></button>
         </div>
       </div>`).join('');
   }
-
   const total = list.reduce((s, e) => s + (parseFloat(e.budget) || 0), 0);
   const totalEl = document.getElementById('env-total-display');
   if (totalEl) totalEl.textContent = total.toLocaleString('fr-FR') + ' €';
 }
 
-function _escAttr(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-}
+function _escAttr(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 function updateEnvField(id, field, value) {
   const list = ParamsEnv.getEnveloppes();
@@ -499,13 +600,11 @@ function addEnvelope() {
   const label  = labelEl?.value?.trim();
   const amount = parseFloat(amountEl?.value) || 0;
   if (!label) { AuraUI?.showToast?.('⚠ Donne un nom à la catégorie'); return; }
-
   const list = ParamsEnv.getEnveloppes();
   const palette = ENV_COLOR_PALETTE[list.length % ENV_COLOR_PALETTE.length];
   const icon = ENV_ICON_CHOICES[list.length % ENV_ICON_CHOICES.length];
   list.push({ id: ParamsEnv.nextId(list), label, budget: amount, ic: icon, bg: palette.bg, ic2: palette.ic2 });
   ParamsEnv.saveEnveloppes(list);
-
   labelEl.value = ''; amountEl.value = '';
   renderEnvelopes();
   AuraUI?.showToast?.('✓ "' + label + '" ajoutée');
@@ -514,11 +613,9 @@ function addEnvelope() {
 function openEnvColorPicker(envId, evt) {
   evt?.stopPropagation();
   document.querySelectorAll('.env-color-picker').forEach(p => p.remove());
-
   const list = ParamsEnv.getEnveloppes();
   const env = list.find(e => e.id === envId);
   if (!env) return;
-
   const picker = document.createElement('div');
   picker.className = 'env-color-picker';
   picker.innerHTML = '<div style="width:100%;font-size:10px;font-weight:700;color:var(--t3);margin-bottom:2px">Couleur</div>' +
@@ -526,14 +623,12 @@ function openEnvColorPicker(envId, evt) {
     '<div style="width:100%;font-size:10px;font-weight:700;color:var(--t3);margin:8px 0 2px">Icône</div>' +
     ENV_ICON_CHOICES.map(ic => '<button class="env-icon-btn" style="width:26px;height:26px;background:' + (ic===env.ic?'var(--pu-l)':'var(--bg)') + ';color:' + (ic===env.ic?'var(--pu)':'var(--t2)') + '" onclick="setEnvIcon(' + envId + ',\'' + ic + '\')"><i class="' + ic + '" style="font-size:13px"></i></button>').join('');
   document.body.appendChild(picker);
-
   const btn = evt?.currentTarget;
   if (btn) {
     const r = btn.getBoundingClientRect();
     picker.style.top  = (r.bottom + 6) + 'px';
     picker.style.left = r.left + 'px';
   }
-
   const closeOnOutside = (e) => {
     if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', closeOnOutside); }
   };
@@ -560,6 +655,48 @@ function setEnvIcon(id, ic) {
   renderEnvelopes();
 }
 
+/* ══════════════════════════════════════════════════════════════
+   RÉINITIALISATION PAR MODULE — inchangé
+══════════════════════════════════════════════════════════════ */
+const RESET_MODULE_LIST = [
+  { label: 'Finances', icon: 'ti-chart-pie', bg: 'var(--pu-l)', color: 'var(--pu)', keys: ['aura_finance_v1', 'aura_abo_usage_v1'], shared: 'Budget, Cagnottes, Charges et Abonnements partagent ces données' },
+  { label: 'Cuisine', icon: 'ti-tools-kitchen-2', bg: 'var(--am-l)', color: 'var(--am)', keys: ['aura_cuisine_v2', 'aura_cuisine_v1'] },
+  { label: 'Maison', icon: 'ti-home-2', bg: 'var(--bl-l)', color: 'var(--bl)', keys: ['aura_maison_v1'] },
+  { label: 'Agenda', icon: 'ti-calendar', bg: 'var(--gr-l)', color: 'var(--gr)', keys: ['aura_events_v1'], shared: 'Le Journal affiche aussi ces événements' },
+  { label: 'Habitudes', icon: 'ti-repeat', bg: 'var(--pk-l)', color: 'var(--pk)', keys: ['aura_habitudes_v1'] },
+  { label: 'Patrimoine', icon: 'ti-building-bank', bg: 'var(--pu-l)', color: 'var(--pu)', keys: ['aura_patrimoine_v1'] },
+  { label: 'Rituel du matin', icon: 'ti-sunrise', bg: 'var(--am-l)', color: 'var(--am)', keys: ['aura_rituels_v1'] },
+  { label: 'Santé', icon: 'ti-heart', bg: 'var(--re-l)', color: 'var(--re)', keys: ['aura_sante_v1'] },
+  { label: 'Social', icon: 'ti-users', bg: 'var(--bl-l)', color: 'var(--bl)', keys: ['aura_social_v1'] },
+  { label: 'Voyages', icon: 'ti-plane', bg: 'var(--gr-l)', color: 'var(--gr)', keys: ['aura_voyages_v1'] },
+  { label: 'Sphères de vie', icon: 'ti-circles', bg: 'var(--pu-l)', color: 'var(--pu)', keys: ['aura_spheres_v1'], shared: 'Coach IA et Journal lisent aussi ces données' },
+  { label: 'Vision Board', icon: 'ti-photo', bg: 'var(--pk-l)', color: 'var(--pk)', keys: ['aura_visionboard_v1'] },
+  { label: 'Coach IA', icon: 'ti-message-circle', bg: 'var(--bl-l)', color: 'var(--bl)', keys: ['aura_coach_sessions_v1'], shared: "Historique des échanges uniquement, pas tes Sphères" },
+];
+
+function renderResetModuleGrid() {
+  const wrap = document.getElementById('reset-module-grid');
+  if (!wrap) return;
+  wrap.innerHTML = RESET_MODULE_LIST.map((m, i) => `
+    <div class="reset-module-card">
+      <div class="reset-module-icon" style="background:${m.bg};color:${m.color}"><i class="${m.icon}"></i></div>
+      <div class="reset-module-name">${m.label}</div>
+      ${m.shared ? `<div class="reset-module-shared">⚠ ${m.shared}</div>` : ''}
+      <button class="reset-module-btn" onclick="resetModule(${i})">Vider les données</button>
+    </div>`).join('');
+}
+
+function resetModule(index) {
+  const m = RESET_MODULE_LIST[index];
+  if (!m) return;
+  if (!confirm(`Vider toutes les données de "${m.label}" ? ${m.shared ? m.shared + '. ' : ''}Irréversible.`)) return;
+  m.keys.forEach(k => { try { localStorage.removeItem(k); } catch(_) {} });
+  AuraUI.showToast(`"${m.label}" remis à zéro ✓`);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
 function initParams() {
   const d = AuraStore.get();
   const prefs = d.prefs || {};
@@ -590,34 +727,23 @@ function initParams() {
   });
 
   const key = prefs.geminiKey || '';
-  if (key) {
-    document.getElementById('gemini-key-input').value = key;
-    updateKeyStatus(true);
-  } else {
-    updateKeyStatus(false);
-  }
+  if (key) { document.getElementById('gemini-key-input').value = key; updateKeyStatus(true); }
+  else { updateKeyStatus(false); }
 
   renderEnvelopes();
+  renderResetModuleGrid();
   renderAccountStatus();
+  renderParamsCanvas();
 }
 
-function _val(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.value = val;
-}
-function _readPath(obj, path) {
-  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
-}
-function _setChecked(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.checked = !!val;
-}
+function _val(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
+function _readPath(obj, path) { return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj); }
+function _setChecked(id, val) { const el = document.getElementById(id); if (el) el.checked = !!val; }
 
 function renderAccountStatus() {
   const connectedEl = document.getElementById('account-status-connected');
   const localEl      = document.getElementById('account-status-local');
   if (!connectedEl || !localEl) return;
-
   const isLoggedIn = window.SupaClient?.isLoggedIn?.();
   if (isLoggedIn) {
     connectedEl.style.display = 'block';
@@ -645,20 +771,25 @@ function updateKeyStatus(ok) {
   b.textContent = ok ? '✓ Configurée' : '⚠ Non configurée';
 }
 
-function saveGeminiKey() {
+async function saveGeminiKey() {
   const val = document.getElementById('gemini-key-input')?.value?.trim();
   if (!val) { showSaveMsg('gemini-test-result', '⚠ Clé vide', 'var(--re)'); return; }
   AuraStore.set('prefs.geminiKey', val);
   window.AuraGemini.API_KEY = val;
   updateKeyStatus(true);
-  showSaveMsg('gemini-test-result', '✓ Clé sauvegardée avec succès !', 'var(--gr)');
+  await syncProfileToAccount();
+  const synced = window.SupaClient?.isLoggedIn?.();
+  showSaveMsg('gemini-test-result', synced ? '✓ Clé sauvegardée et synchronisée sur ton compte' : '✓ Clé sauvegardée avec succès !', 'var(--gr)');
+  renderParamsCanvas();
 }
 
-function clearGeminiKey() {
+async function clearGeminiKey() {
   if (!confirm('Supprimer la clé Gemini ?')) return;
   AuraStore.set('prefs.geminiKey', '');
   document.getElementById('gemini-key-input').value = '';
   updateKeyStatus(false);
+  await syncProfileToAccount();
+  renderParamsCanvas();
 }
 
 async function testGemini() {
@@ -681,6 +812,12 @@ async function testGemini() {
   }
 }
 
+async function syncProfileToAccount() {
+  if (!window.SupaClient?.isLoggedIn?.() || !window.AuraSync?.saveProfile) return;
+  try { await AuraSync.saveProfile(AuraStore.get().prefs); }
+  catch(e) { console.warn('[Params sync]', e.message); }
+}
+
 function saveProfile() {
   AuraStore.set('prefs.name',        document.getElementById('p-name')?.value || 'Mon AURA');
   AuraStore.set('prefs.affirmation', document.getElementById('p-affirmation')?.value || '');
@@ -693,6 +830,8 @@ function saveProfile() {
   });
   AuraUI.updateXPDisplays?.();
   AuraUI.showToast('Profil sauvegardé ✓');
+  syncProfileToAccount();
+  renderParamsCanvas();
 }
 
 function saveLinks() {
@@ -706,6 +845,7 @@ function saveLinks() {
 function saveAppearance() {
   AuraStore.set('prefs.homeModule', document.getElementById('p-home')?.value || 'dashboard');
   AuraUI.showToast('Apparence sauvegardée ✓');
+  syncProfileToAccount();
 }
 
 function setTheme(t) {
@@ -732,9 +872,17 @@ function toggleSwitch(btn) {
   if (path) AuraStore.set(path, !isOn);
 }
 
-function resetAura() {
-  if (!confirm('Réinitialiser complètement AURA ? Toutes tes données XP et paramètres seront effacés.')) return;
-  localStorage.removeItem('aura_data_v2');
+async function resetAura() {
+  if (!confirm('Réinitialiser complètement AURA ? Budget, enveloppes, profil, XP, connexion et personnalisation seront tous effacés. Irréversible.')) return;
+  try {
+    if (window.SupaClient?.isLoggedIn?.()) await SupaClient.signOut();
+  } catch(_) {}
+  const AURA_KEYS = [
+    'aura_data_v2', 'aura_finance_v1', 'aura_session', 'aura_known_email_v1',
+    'aura_onboarding_done_v1', 'aura_onboarding_priorities', 'aura_studio_v1',
+    'aura_gemini_key', 'aura_abo_history_v1',
+  ];
+  AURA_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(_) {} });
   AuraUI.showToast('AURA réinitialisée — rechargement...');
   setTimeout(() => location.reload(), 1500);
 }
