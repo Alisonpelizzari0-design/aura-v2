@@ -108,7 +108,7 @@
 .mai-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
 .mai-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
 .mai-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
-.mai-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+.mai-drawer-footer { padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom,0)); border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
 
 /* ── Tâches avec note repliable ── */
 .mai-task-card { border:1.5px solid var(--bd); border-radius:12px; padding:.625rem .75rem; margin-bottom:.5rem; }
@@ -487,7 +487,7 @@ const Maison = {
     const offset = circ - (avg/100)*circ;
     document.getElementById('mai-progress-circle').setAttribute('stroke-dasharray', circ.toFixed(0));
     document.getElementById('mai-progress-circle').setAttribute('stroke-dashoffset', offset.toFixed(0));
-    _set('mai-progress-pct', avg+'%');
+    AuraUI?.countUp?.(document.getElementById('mai-progress-pct'), avg, { suffix:'%' });
     _set('mai-progress-count', `${d.cards.length} carte${d.cards.length>1?'s':''}`);
   },
 
@@ -742,13 +742,18 @@ const Maison = {
     const el = document.getElementById('mai-declutter-list');
     el.innerHTML = this.declutterRows.map((it,i) => `
       <div class="mai-step-row">
-        <div class="mai-step-cb ${it.done?'on':''}" onclick="Maison.toggleDeclutterRow(${i})"><i class="ti ti-check"></i></div>
+        <div class="mai-step-cb ${it.done?'on':''}" onclick="Maison.toggleDeclutterRow(${i},event)"><i class="ti ti-check"></i></div>
         <input type="text" class="modal-input" value="${_escAttr(it.text)}" placeholder="Élément à désencombrer..." onchange="Maison.updateDeclutterText(${i},this.value)">
         <button class="mai-step-del" onclick="Maison.removeDeclutterRow(${i})"><i class="ti ti-x"></i></button>
       </div>`).join('');
   },
   addDeclutterRow() { this.declutterRows.push({text:'',done:false}); this.renderDeclutterRows(); },
-  toggleDeclutterRow(i) { this.declutterRows[i].done = !this.declutterRows[i].done; this.renderDeclutterRows(); },
+  toggleDeclutterRow(i,evt) {
+    const wasDone = this.declutterRows[i].done;
+    this.declutterRows[i].done = !wasDone;
+    if (!wasDone) AuraUI?.pop?.(evt?.currentTarget);
+    this.renderDeclutterRows();
+  },
   updateDeclutterText(i,val) { this.declutterRows[i].text = val; },
   removeDeclutterRow(i) { this.declutterRows.splice(i,1); this.renderDeclutterRows(); },
 
