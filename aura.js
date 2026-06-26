@@ -170,6 +170,60 @@ const AuraXP = {
    UI
 ══════════════════════════════════════════════════════════════ */
 const AuraUI = {
+  /* ── Pop satisfaisant sur un élément qu'on vient de cocher —
+       appelable depuis n'importe quel module : AuraUI.pop(element) ── */
+  pop(el) {
+    if (!el) return;
+    el.classList.remove('aura-pop');
+    void el.offsetWidth; // force le navigateur à relancer l'animation même si elle vient de jouer
+    el.classList.add('aura-pop');
+  },
+
+  /* ── Ripple tactile au clic — AuraUI.ripple(event) appelé en début
+       de gestionnaire de clic sur un bouton avec la classe aura-ripple ── */
+  ripple(evt) {
+    const btn = evt?.currentTarget;
+    if (!btn) return;
+    btn.classList.add('aura-ripple');
+    const rect = btn.getBoundingClientRect();
+    const wave = document.createElement('span');
+    const size = Math.max(rect.width, rect.height) * 1.4;
+    // Teinte sombre sur fond clair (btn-pill, save-btn — souvent blancs),
+    // teinte claire sur fond plein coloré (btn-primary, modal-btn.primary)
+    // — sinon le ripple blanc serait quasi invisible sur fond blanc.
+    const isFilled = btn.classList.contains('btn-primary') || (btn.classList.contains('modal-btn') && btn.classList.contains('primary'));
+    wave.className = 'aura-ripple-wave' + (isFilled ? '' : ' dark');
+    wave.style.width = wave.style.height = `${size}px`;
+    wave.style.left = `${(evt.clientX ?? rect.left + rect.width/2) - rect.left - size/2}px`;
+    wave.style.top  = `${(evt.clientY ?? rect.top + rect.height/2) - rect.top - size/2}px`;
+    btn.appendChild(wave);
+    setTimeout(() => wave.remove(), 520);
+  },
+
+  /* ── Incrémentation visuelle d'un chiffre — AuraUI.countUp(el, target)
+       anime de 0 (ou de la valeur déjà affichée) jusqu'à la valeur
+       finale, pour que les stats se sentent vivantes au chargement
+       plutôt que d'apparaître figées d'un coup. ── */
+  countUp(el, target, opts = {}) {
+    if (!el) return;
+    const duration = opts.duration || 700;
+    const decimals = opts.decimals || 0;
+    const suffix = opts.suffix || '';
+    const prefix = opts.prefix || '';
+    const start = parseFloat(el.dataset.countFrom) || 0;
+    const startTime = performance.now();
+
+    function tick(now) {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const current = start + (target - start) * eased;
+      el.textContent = prefix + current.toLocaleString('fr-FR', { minimumFractionDigits:decimals, maximumFractionDigits:decimals }) + suffix;
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.dataset.countFrom = target;
+    }
+    requestAnimationFrame(tick);
+  },
+
   showToast(msg) {
     const t = document.getElementById('aura-xp-toast');
     const s = document.getElementById('aura-xp-msg');
