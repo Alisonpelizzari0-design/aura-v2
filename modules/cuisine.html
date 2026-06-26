@@ -104,7 +104,7 @@
 .cui-cooking-step-label { font-size:13px; font-weight:700; color:#F97316; text-transform:uppercase; letter-spacing:.6px; }
 .cui-cooking-step-text { font-size:clamp(22px,5vw,32px); font-weight:700; line-height:1.4; max-width:560px; }
 .cui-cooking-step-note { font-size:14px; color:rgba(255,255,255,.6); font-style:italic; max-width:480px; }
-.cui-cooking-nav { display:flex; gap:10px; padding:1.5rem 2rem 2.5rem; }
+.cui-cooking-nav { display:flex; gap:10px; padding:1.5rem 2rem calc(2.5rem + env(safe-area-inset-bottom,0)); }
 .cui-cooking-nav-btn { flex:1; padding:1rem; border-radius:14px; border:1.5px solid rgba(255,255,255,.15); background:rgba(255,255,255,.08); color:#fff; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
 .cui-cooking-nav-btn.primary { background:#F97316; border-color:#F97316; flex:2; }
 .cui-cooking-nav-btn:disabled { opacity:.3; cursor:default; }
@@ -248,7 +248,7 @@
 .cui-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
 .cui-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
 .cui-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
-.cui-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+.cui-drawer-footer { padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom,0)); border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
 
 /* ── Ingrédient / étape avec note repliable ── */
 .cui-item-card { border:1.5px solid var(--bd); border-radius:12px; padding:.625rem .75rem; margin-bottom:.5rem; }
@@ -1448,7 +1448,13 @@ const Cuisine = {
   },
 
   cookingNext() {
-    if (this._cookingIdx >= this._cookingSteps.length-1) { this.exitCookingMode(); earnXP(10,'Recette terminée','👩‍🍳'); AuraUI.showToast('✓ Bravo, recette terminée !'); return; }
+    if (this._cookingIdx >= this._cookingSteps.length-1) {
+      AuraUI?.pop?.(document.getElementById('cooking-progress-fill'));
+      setTimeout(() => this.exitCookingMode(), 280); // laisse le pop se voir avant la fermeture
+      earnXP(10,'Recette terminée','👩‍🍳');
+      AuraUI.showToast('✓ Bravo, recette terminée !');
+      return;
+    }
     this._cookingIdx++;
     this.renderCookingStep();
   },
