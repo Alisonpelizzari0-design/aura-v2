@@ -127,7 +127,7 @@
   <div class="coach-hero-av"><i class="ti ti-sparkles"></i></div>
   <div>
     <div style="font-size:15px;font-weight:800;color:var(--pu-d)">Coach Intentionnel AURA ✦</div>
-    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Ton guide personnel — chaque session : +50 XP</div>
+    <div style="font-size:12px;color:#7C3AED;margin-top:2px">Ton guide personnel — disponible à tout moment</div>
   </div>
   <div class="coach-hero-stats">
     <div class="coach-hero-stat"><div class="coach-hero-stat-val" id="coach-stat-total">0</div><div class="coach-hero-stat-lbl">Sessions</div></div>
@@ -164,7 +164,7 @@
       <div class="prompt-suggestions" id="prompt-suggestions"></div>
       <textarea class="field-ta" id="coach-message" rows="3" placeholder="Décris ton état d'esprit, ta situation, ou pose ta question..." style="margin-bottom:.75rem"></textarea>
       <button class="btn-primary" onclick="CoachHub.activate()">
-        <i class="ti ti-sparkles"></i> Activer le Coach — +50 XP
+        <i class="ti ti-sparkles"></i> Activer le Coach
       </button>
 
       <div class="coach-resp" id="coach-resp-zone">
@@ -214,7 +214,7 @@ window.initModule = function(name) {
 /* ══════════════════════════════════════════════════
    DOMAINES = Sphères (cohérent avec spheres.html)
 ══════════════════════════════════════════════════ */
-const COACH_DOMAINS = [
+var COACH_DOMAINS = [
   { key:'global',   icon:'🌀', name:'Global'   },
   { key:'famille',  icon:'👨‍👩‍👧', name:'Famille'  },
   { key:'maison',   icon:'🏡', name:'Maison'   },
@@ -226,7 +226,7 @@ const COACH_DOMAINS = [
   { key:'vision',   icon:'✨', name:'Vision'   },
 ];
 
-const COACH_TYPES = [
+var COACH_TYPES = [
   { key:'deblocage', icon:'🔓', name:'Déblocage',     desc:'Lever un frein ou une peur' },
   { key:'plan',      icon:'⚡', name:'Plan d\'action', desc:'Structurer mes prochains pas' },
   { key:'loa',       icon:'🌙', name:'LOA & Ancrage',  desc:'Visualisation, manifestation' },
@@ -238,7 +238,7 @@ const COACH_TYPES = [
 /* ══════════════════════════════════════════════════
    STORE — Historique des sessions
 ══════════════════════════════════════════════════ */
-const CoachStore = {
+var CoachStore = {
   _key: 'aura_coach_sessions_v1',
   _data: null,
 
@@ -281,7 +281,7 @@ const CoachStore = {
 /* ══════════════════════════════════════════════════
    ENGINE
 ══════════════════════════════════════════════════ */
-const CoachHub = {
+var CoachHub = {
   selectedDomain: 'global',
   selectedType: 'deblocage',
   lastResponse: null,
