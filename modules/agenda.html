@@ -466,7 +466,7 @@ window.initModule = function(name) {
 /* ══════════════════════════════════════════════════
    CATÉGORIES
 ══════════════════════════════════════════════════ */
-const CATS = {
+var CATS = {
   perso:   { label:'Perso',      color:'#7C3AED', bg:'#F5F3FF', border:'#DDD6FE', dot:'#7C3AED' },
   pro:     { label:'Pro',        color:'#2563EB', bg:'#EFF6FF', border:'#BFDBFE', dot:'#2563EB' },
   sante:   { label:'Santé',      color:'#16A34A', bg:'#F0FDF4', border:'#BBF7D0', dot:'#16A34A' },
@@ -480,7 +480,7 @@ const CATS = {
 /* ══════════════════════════════════════════════════
    STORE ÉVÉNEMENTS
 ══════════════════════════════════════════════════ */
-const EvStore = {
+var EvStore = {
   _key: 'aura_events_v1',
   _data: null,
 
@@ -539,7 +539,7 @@ const EvStore = {
 /* ══════════════════════════════════════════════════
    CALENDRIER ENGINE
 ══════════════════════════════════════════════════ */
-const Cal = {
+var Cal = {
   view:         'month',
   cursor:       new Date(),
   miniCursor:   new Date(),
