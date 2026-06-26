@@ -133,7 +133,7 @@ window.initModule = function(name) {
   Sante.init();
 };
 
-const SanStore = {
+var SanStore = {
   _key: 'aura_sante_v1',
   _data: null,
 
@@ -159,7 +159,7 @@ const SanStore = {
   save() { localStorage.setItem(this._key, JSON.stringify(this._data)); },
 };
 
-const Sante = {
+var Sante = {
 
   init() {
     this.renderHero();
