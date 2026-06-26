@@ -278,19 +278,19 @@ window.initModule = function(name) {
    créées à l'intérieur définissent librement pièces,
    projets et équipements.
 ══════════════════════════════════════════════════ */
-const MAI_CATS = {
+var MAI_CATS = {
   piece:      { name:'Pièces',      icon:'🏠', color:'#1E40AF' },
   projet:     { name:'Projets',     icon:'🔨', color:'#C2410C' },
   equipement: { name:'Équipements', icon:'📦', color:'#5B21B6' },
 };
-const MAI_CAT_ORDER = ['piece','projet','equipement'];
-const MAI_EMOJIS = ['🏠','🛋️','🛏️','🛁','💻','🚪','🍳','🌿','🚗','🔧','🪴','📚','🧺','🪜','💡','🖼️','🧹','🛠️','📺','🚿'];
+var MAI_CAT_ORDER = ['piece','projet','equipement'];
+var MAI_EMOJIS = ['🏠','🛋️','🛏️','🛁','💻','🚪','🍳','🌿','🚗','🔧','🪴','📚','🧺','🪜','💡','🖼️','🧹','🛠️','📺','🚿'];
 
 /* ══════════════════════════════════════════════════
    STORE — fusionne pièces/projets/inventaire en un
    seul tableau de cartes typées
 ══════════════════════════════════════════════════ */
-const MaiStore = {
+var MaiStore = {
   _key: 'aura_maison_v1',
   _data: null,
 
@@ -376,7 +376,7 @@ const MaiStore = {
 /* ══════════════════════════════════════════════════
    ENGINE
 ══════════════════════════════════════════════════ */
-const Maison = {
+var Maison = {
   activeFilter: null,
   editingId: null,
   cardType: 'piece',
