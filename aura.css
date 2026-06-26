@@ -47,6 +47,22 @@
 [data-theme="dark"] .card,
 [data-theme="dark"] .aura-sb,
 [data-theme="dark"] .aura-topbar { box-shadow:0 1px 0 rgba(255,255,255,.02) inset; }
+/* ── Modal générique (overlay + box) ──────────────────────────
+   Déclaration de base manquante jusqu'ici — les modules l'utilisaient
+   déjà (social.html, sante.html) mais seules des variantes dark-mode
+   et responsive existaient, sans jamais définir position/centrage/fond. */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:flex; align-items:center; justify-content:center; padding:1rem; }
+.modal-box { background:var(--white); border-radius:var(--r-xl); padding:1.5rem; width:100%; max-width:420px; max-height:85vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,.18); }
+.modal-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:1.125rem; display:flex; align-items:center; gap:8px; }
+.modal-field { margin-bottom:.875rem; }
+.modal-lbl { display:block; font-size:11px; font-weight:700; color:var(--t2); margin-bottom:.375rem; }
+.modal-input { width:100%; font-size:13px; padding:9px 12px; border-radius:var(--r-md); border:1px solid var(--bd2); background:var(--bg); color:var(--text); outline:none; font-family:var(--font); }
+.modal-input:focus { border-color:var(--pu); }
+.modal-actions { display:flex; gap:8px; margin-top:1.125rem; }
+.modal-btn { flex:1; padding:10px; border-radius:var(--r-md); border:none; cursor:pointer; font-weight:700; font-size:13px; }
+.modal-btn.primary { background:var(--pu); color:#fff; }
+.modal-btn.cancel { background:var(--bg); color:var(--t2); border:1px solid var(--bd2); }
+
 [data-theme="dark"] .stat-mini,
 [data-theme="dark"] .qd-mod,
 [data-theme="dark"] .hab-row,
@@ -124,6 +140,37 @@ html,body { font-family:var(--font); background:var(--bg); color:var(--text); fo
 .aura-loading-icon i { font-size:22px; color:var(--pu); }
 .aura-loading p { font-size:13px; color:var(--t3); font-style:italic; }
 @keyframes auraPulse { 0%,100%{opacity:.6;transform:scale(.96)} 50%{opacity:1;transform:scale(1)} }
+
+/* ══════════════════════════════════════════════════════════════
+   ANIMATIONS DE VIVACITÉ — transition de page, pop de case cochée,
+   ripple tactile, incrémentation de chiffres. Centralisées ici pour
+   que tous les modules en profitent sans dupliquer le même CSS.
+══════════════════════════════════════════════════════════════ */
+
+/* ── Transition de page : glissement + fondu, remplace le simple
+     fondu d'opacité qui rendait la navigation un peu plate ── */
+@keyframes auraPageIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+#app-content.aura-page-enter { animation:auraPageIn .28s cubic-bezier(.2,.8,.2,1); }
+
+/* ── Pop satisfaisant quand on coche une case — rebond bref plutôt
+     qu'un simple changement de couleur instantané. S'applique à
+     toute case cochée (.cb, .toggle, .task-cb, .mai-step-cb,
+     .shop-cb, .cui-item-card .mai-step-cb...) via une classe commune
+     ajoutée brièvement au clic. ── */
+@keyframes auraCheckPop { 0%{transform:scale(1)} 35%{transform:scale(1.25)} 60%{transform:scale(.92)} 100%{transform:scale(1)} }
+.aura-pop { animation:auraCheckPop .35s cubic-bezier(.34,1.56,.64,1); }
+
+/* ── Ripple tactile au clic — vague qui part du point de contact,
+     façon Material Design, sur les boutons principaux. ── */
+.aura-ripple { position:relative; overflow:hidden; }
+.aura-ripple-wave {
+  position:absolute; border-radius:50%; background:rgba(255,255,255,.45);
+  transform:scale(0); animation:auraRipple .5s ease-out; pointer-events:none;
+}
+.aura-ripple-wave.dark { background:rgba(0,0,0,.08); }
+[data-theme="dark"] .aura-ripple-wave { background:rgba(255,255,255,.25); }
+[data-theme="dark"] .aura-ripple-wave.dark { background:rgba(255,255,255,.12); }
+@keyframes auraRipple { to { transform:scale(2.8); opacity:0; } }
 
 /* ── Grilles ────────────────────────────────────────────────── */
 .g2 { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
@@ -465,12 +512,14 @@ input[type="range"] { flex:1; accent-color:var(--pu); }
 }
 @keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 .mobile-more-handle { width:36px; height:4px; background:var(--bd2); border-radius:3px; margin:.625rem auto 1rem; }
-.mobile-more-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; }
+.mobile-more-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:0 .25rem .625rem; }
+.mobile-more-section-title:not(:first-of-type) { padding-top:.875rem; }
+.mobile-more-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; margin-bottom:.25rem; }
 .mobile-more-item {
   display:flex; flex-direction:column; align-items:center; gap:6px;
   padding:.75rem .25rem; border-radius:var(--r-md); background:none; border:none; cursor:pointer;
 }
-.mobile-more-item i { font-size:22px; color:var(--pu); }
+.mobile-more-item i { font-size:19px; color:var(--mi-color, var(--pu)); width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:11px; background:var(--mi-bg, var(--pu-l)); }
 .mobile-more-item span { font-size:10px; font-weight:600; color:var(--t2); text-align:center; line-height:1.2; }
 .mobile-more-item:active { background:var(--bg); }
 
