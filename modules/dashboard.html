@@ -591,7 +591,7 @@ function renderDashHabChecklist(habits) {
   wrap.innerHTML = habits.slice(0, 6).map(h => {
     const done = (h.log||[]).includes(today);
     const streak = _dashComputeStreak(h);
-    return `<div class="dash-hab-item" onclick="dashToggleHabit(${h.id})">
+    return `<div class="dash-hab-item" onclick="dashToggleHabit(${h.id}, event)">
       <div class="dash-hab-check ${done?'done':''}">${done?'<i class="ti ti-check"></i>':''}</div>
       <div class="dash-hab-name ${done?'done':''}">${h.icon||'⭐'} ${h.name}</div>
       ${streak > 0 ? `<span class="dash-hab-streak">${streak}🔥</span>` : ''}
@@ -601,7 +601,7 @@ function renderDashHabChecklist(habits) {
 
 /* ── Coche une habitude sans changer de page — réutilise la même
      fonction d'écriture que le module Habitudes lui-même. ── */
-function dashToggleHabit(habitId) {
+function dashToggleHabit(habitId, evt) {
   let d = { habits: [] };
   try { d = JSON.parse(localStorage.getItem('aura_habitudes_v1') || '{}'); } catch(_) {}
   const h = d.habits.find(x => x.id === habitId);
@@ -610,11 +610,15 @@ function dashToggleHabit(habitId) {
   const today = new Date().toISOString().slice(0,10);
   h.log = h.log || [];
   const idx = h.log.indexOf(today);
+  const justChecked = idx < 0;
   if (idx >= 0) { h.log.splice(idx, 1); } else { h.log.push(today); earnXP(3, `${h.name} cochée`, '✅'); }
 
   try { localStorage.setItem('aura_habitudes_v1', JSON.stringify(d)); } catch(_) {}
+  // Pop satisfaisant seulement quand on vient de cocher — sur une
+  // décoche, l'animation inverse serait contre-intuitive.
+  if (justChecked) AuraUI?.pop?.(evt?.currentTarget?.querySelector('.dash-hab-check'));
   renderDashHabitudes();
-  AuraUI?.showToast?.(idx >= 0 ? `${h.name} décochée` : `✓ ${h.name} cochée !`);
+  AuraUI?.showToast?.(justChecked ? `✓ ${h.name} cochée !` : `${h.name} décochée`);
 }
 
 /* ── Patrimoine net réel — même calcul que patrimoine.html ── */
@@ -631,9 +635,11 @@ function renderDashPatrimoine() {
   const evol = lastQuarter ? net - lastQuarter : null;
   const evolPct = (lastQuarter && lastQuarter !== 0) ? ((evol/lastQuarter)*100).toFixed(1) : null;
 
-  _setSafe('dash-pat-net', fmtE(net));
-  _setSafe('dash-pat-actifs', fmtE(totalActifs));
-  _setSafe('dash-pat-passifs', fmtE(totalPassifs));
+  // Chiffres animés au chargement plutôt qu'affichés figés d'un coup —
+  // countUp anime depuis 0 jusqu'à la vraie valeur sur ~700ms.
+  AuraUI?.countUp?.(document.getElementById('dash-pat-net'), net, { suffix:' €' });
+  AuraUI?.countUp?.(document.getElementById('dash-pat-actifs'), totalActifs, { suffix:' €' });
+  AuraUI?.countUp?.(document.getElementById('dash-pat-passifs'), totalPassifs, { suffix:' €' });
 
   // Historique honnête : on enregistre une fois par jour la vraie valeur
   // observée (même principe que le score de vie), plutôt que de dépendre
