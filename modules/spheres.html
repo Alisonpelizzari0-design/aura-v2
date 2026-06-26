@@ -312,7 +312,7 @@
 </div>
 
 <script>
-const SPHERES_DEF = {
+var SPHERES_DEF = {
   famille:  { key:'famille',  name:'Famille & Relations',   icon:'👨‍👩‍👧', color:'#9D174D', bg:'#FDF2F8', border:'#F9A8D4',
               subcats:['Couple & Vie à deux','Enfants & Éducation','Parents & Famille élargie','Amitiés profondes'],
               tip:'Les relations nourrissantes se cultivent par la présence, pas par la quantité de temps passé ensemble.' },
@@ -338,9 +338,9 @@ const SPHERES_DEF = {
               subcats:['Clarté de vision','Gratitude quotidienne','Visualisation & Manifestation','Alignement spirituel'],
               tip:'Ce sur quoi tu portes ton attention de façon répétée devient progressivement ta réalité perçue.' },
 };
-const SPH_ORDER = ['famille','maison','travail','finance','sante','creation','dev','vision'];
+var SPH_ORDER = ['famille','maison','travail','finance','sante','creation','dev','vision'];
 
-const SphStore = {
+var SphStore = {
   _key: 'aura_spheres_v1',
   _data: null,
 
@@ -423,7 +423,7 @@ const SphStore = {
   },
 };
 
-const Spheres = {
+var Spheres = {
   current: null,
 
   init() {
