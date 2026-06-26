@@ -34,7 +34,7 @@
 .par-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
 .par-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
 .par-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
-.par-drawer-footer { padding:1rem 1.25rem; border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+.par-drawer-footer { padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom,0)); border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
 
 .key-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:10px; }
 .key-status.ok  { background:var(--gr-l); color:var(--gr); border:1px solid var(--gr-b); }
@@ -443,7 +443,7 @@ window.initModule = function(name) {
 /* ══════════════════════════════════════════════════════════════
    CARTES — aperçu de chaque section, ouvre le drawer correspondant
 ══════════════════════════════════════════════════════════════ */
-const PAR_CARDS = [
+var PAR_CARDS = [
   { key:'gemini',     icon:'ti-sparkles',      color:'var(--pu)', bg:'var(--pu-l)', title:'Google Gemini IA' },
   { key:'compte',     icon:'ti-shield-lock',   color:'var(--gr)', bg:'var(--gr-l)', title:'Mon compte' },
   { key:'profil',     icon:'ti-user',          color:'var(--bl)', bg:'var(--bl-l)', title:'Mon profil' },
@@ -503,7 +503,7 @@ function switchSubtab(tab) {
 /* ══════════════════════════════════════════════════════════════
    ENVELOPPES — logique inchangée, partagée avec budget.html
 ══════════════════════════════════════════════════════════════ */
-const ENV_COLOR_PALETTE = [
+var ENV_COLOR_PALETTE = [
   { bg:'#FFF7ED', ic2:'#EA580C', name:'Orange' },
   { bg:'#FDF2F8', ic2:'#DB2777', name:'Rose'   },
   { bg:'#F0FDFA', ic2:'#0D9488', name:'Teal'   },
@@ -513,13 +513,13 @@ const ENV_COLOR_PALETTE = [
   { bg:'#F5F3FF', ic2:'#7C3AED', name:'Violet' },
   { bg:'#FEF2F2', ic2:'#DC2626', name:'Rouge'  },
 ];
-const ENV_ICON_CHOICES = [
+var ENV_ICON_CHOICES = [
   'ti-shopping-cart','ti-confetti','ti-car','ti-heart','ti-shirt',
   'ti-tools-kitchen-2','ti-home-2','ti-device-mobile','ti-paw',
   'ti-school','ti-gift','ti-plane','ti-dog','ti-gas-station','ti-tag',
 ];
 
-const ParamsEnv = {
+var ParamsEnv = {
   _key: 'aura_finance_v1',
   _readAll() {
     try { const raw = localStorage.getItem(this._key); if (raw) return JSON.parse(raw); } catch(_) {}
@@ -658,7 +658,7 @@ function setEnvIcon(id, ic) {
 /* ══════════════════════════════════════════════════════════════
    RÉINITIALISATION PAR MODULE — inchangé
 ══════════════════════════════════════════════════════════════ */
-const RESET_MODULE_LIST = [
+var RESET_MODULE_LIST = [
   { label: 'Finances', icon: 'ti-chart-pie', bg: 'var(--pu-l)', color: 'var(--pu)', keys: ['aura_finance_v1', 'aura_abo_usage_v1'], shared: 'Budget, Cagnottes, Charges et Abonnements partagent ces données' },
   { label: 'Cuisine', icon: 'ti-tools-kitchen-2', bg: 'var(--am-l)', color: 'var(--am)', keys: ['aura_cuisine_v2', 'aura_cuisine_v1'] },
   { label: 'Maison', icon: 'ti-home-2', bg: 'var(--bl-l)', color: 'var(--bl)', keys: ['aura_maison_v1'] },
