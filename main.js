@@ -42,6 +42,7 @@ const AuraApp = {
     if (!content) return;
 
     // Fade out
+    content.classList.remove('aura-page-enter');
     content.style.opacity = '0.3';
 
     try {
@@ -51,6 +52,11 @@ const AuraApp = {
 
       content.innerHTML = html;
       content.style.opacity = '1';
+      // Relance l'animation d'entrée — glissement + fondu plutôt que
+      // le simple fondu d'opacité brut précédent, pour une navigation
+      // qui se sent moins abrupte entre les modules.
+      content.classList.remove('aura-page-enter');
+      requestAnimationFrame(() => content.classList.add('aura-page-enter'));
 
       // ── Correctif crucial ──────────────────────────────────
       // innerHTML n'exécute JAMAIS les balises <script> qu'il contient
@@ -147,6 +153,18 @@ const AuraApp = {
 
     // Retour navigateur
     window.addEventListener('popstate', e => { if (e.state?.module) this.loadModule(e.state.module); });
+
+    // Ripple tactile global — un seul écouteur délégué couvre tous les
+    // boutons principaux de tous les modules (même ceux chargés
+    // dynamiquement après coup dans #app-content), sans avoir à ajouter
+    // la classe aura-ripple à des centaines de boutons individuellement.
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-primary, .btn-pill, .save-btn, .modal-btn.primary');
+      if (btn && window.AuraUI?.ripple) {
+        const evt = { currentTarget: btn, clientX: e.clientX, clientY: e.clientY };
+        AuraUI.ripple(evt);
+      }
+    });
 
     // Module de démarrage : hash ou préférence ou dashboard
     const hash  = location.hash.replace('#','');
