@@ -163,7 +163,7 @@ window.initModule = function(name) {
 /* ══════════════════════════════════════════════════
    STORE — entrées de journal, une par date
 ══════════════════════════════════════════════════ */
-const JournalStore = {
+var JournalStore = {
   _key: 'aura_journal_v1',
   _data: null,
 
@@ -189,12 +189,12 @@ const JournalStore = {
   },
 };
 
-const JOURNAL_MOODS = ['😢','😕','😐','🙂','😄','✨'];
+var JOURNAL_MOODS = ['😢','😕','😐','🙂','😄','✨'];
 
 /* ══════════════════════════════════════════════════
    ENGINE
 ══════════════════════════════════════════════════ */
-const Journal = {
+var Journal = {
   currentDate: null, // 'YYYY-MM-DD'
   _saveTimer: null,
 
