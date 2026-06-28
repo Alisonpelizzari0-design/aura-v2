@@ -200,6 +200,7 @@ const AuraSync = {
       gemini_key:    prefs.geminiKey     || '',
       home_module:   prefs.homeModule    || 'dashboard',
       theme:         prefs.theme         || 'light',
+      accent_color:  prefs.accentColor   || '#7C3AED',
       foyer:         parseInt(prefs.foyer) || 1,
       appareils:     JSON.stringify(prefs.appareils || {}),
     }, 'id');
@@ -446,10 +447,18 @@ const AuraSync = {
     return rows?.[0] || null;
   },
 
-  /* ── Sync complète : localStorage → Supabase ── */
+  /* ── Sync complète : localStorage → Supabase ──
+     IMPORTANT — ne couvre QUE le profil et le XP. Chaque module
+     (Agenda, Maison, Cuisine, Vision Board, Habitudes, Patrimoine...)
+     gère sa propre synchronisation individuelle via ses fonctions
+     syncXToDB() dédiées. pushAll() n'est donc pas une sauvegarde
+     complète de toute l'app — son nom peut laisser croire le
+     contraire, gardé tel quel pour ne pas casser les appels
+     existants (AuraAuth.register/logout), mais à interpréter
+     comme "synchronise le profil et le XP", pas "synchronise tout". */
   async pushAll() {
     if (!SupaClient.isLoggedIn()) return;
-    console.log('[AuraSync] Push localStorage → Supabase...');
+    console.log('[AuraSync] Push localStorage → Supabase (profil + XP uniquement — les autres modules se synchronisent individuellement)...');
     try {
       // Profil
       const d = AuraStore?.get();
@@ -462,10 +471,14 @@ const AuraSync = {
     }
   },
 
-  /* ── Sync complète : Supabase → localStorage ── */
+  /* ── Sync complète : Supabase → localStorage ──
+     Même remarque que pushAll() : ne récupère que profil + XP au
+     login. Les données de chaque module (finances, habitudes,
+     rituels...) sont rapatriées séparément par le syncFromDB() propre
+     à chaque module, lors de sa première visite après connexion. */
   async pullAll() {
     if (!SupaClient.isLoggedIn()) return;
-    console.log('[AuraSync] Pull Supabase → localStorage...');
+    console.log('[AuraSync] Pull Supabase → localStorage (profil + XP uniquement — les autres modules se synchronisent individuellement)...');
     try {
       const [profile, xp] = await Promise.all([this.loadProfile(), this.loadXP()]);
       if (profile && window.AuraStore) {
@@ -476,6 +489,7 @@ const AuraSync = {
         if (profile.gemini_key)  d.prefs.geminiKey   = profile.gemini_key;
         if (profile.home_module) d.prefs.homeModule  = profile.home_module;
         if (profile.theme)       d.prefs.theme       = profile.theme;
+        if (profile.accent_color) d.prefs.accentColor = profile.accent_color;
         AuraStore.save();
       }
       console.log('[AuraSync] Pull OK');
@@ -789,22 +803,26 @@ const AuraSynthese = {
   async genererHebdo() {
     const d      = AuraStore?.get() || {};
     const fin    = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}');
-    const lvl    = AuraXP?.getLevel?.(d.xp?.total || 0);
     const periode = _semaineStr();
+
+    // Score de vie honnête, calculé par aura-scores.js (moyenne des 8
+    // sphères, manuelles ou automatiques selon le module) — remplace
+    // l'ancien système niveau/XP qui n'existe plus depuis le retrait
+    // de la gamification. AuraXP n'a jamais été redéfini ailleurs après
+    // ce retrait, donc AuraXP?.getLevel?.() retournait toujours
+    // undefined silencieusement, laissant "niveau" et "niveau_nom"
+    // vides dans chaque synthèse générée jusqu'ici.
+    const scoreVie = window.AuraScores?.globalScore?.() ?? null;
 
     const contenu = {
       periode,
-      xp_total:   d.xp?.today  || 0,
-      score_vie:  74,
-      niveau:     lvl?.cur?.n  || 1,
-      niveau_nom: lvl?.cur?.name || '',
+      score_vie:  scoreVie, // peut être null si aucune sphère n'a encore de donnée — affiché honnêtement comme tel, jamais une valeur inventée
       rituels:    d.stats?.rituels || 0,
       streak:     d.stats?.streak  || 0,
       revenus:    (fin.revenus  || []).reduce((s,x)=>s+x.montant,0),
       charges:    (fin.charges  || []).reduce((s,x)=>s+x.montant,0),
       depenses:   (fin.depenses || []).reduce((s,x)=>s+x.montant,0),
       epargne:    (fin.epargne  || []).reduce((s,x)=>s+(x.mensuel||0),0),
-      log_xp:     (d.log || []).slice(0,5),
     };
 
     // Analyse IA si disponible
@@ -816,8 +834,7 @@ const AuraSynthese = {
         iaAnalyse = await AURA_GEMINI.call({
           system: 'Tu es le Coach AURA. Tu génères des synthèses hebdomadaires bienveillantes et motivantes.',
           prompt: `Synthèse de la semaine ${periode} :
-- XP gagnés : ${contenu.xp_total}
-- Niveau : ${contenu.niveau} (${contenu.niveau_nom})
+- Score de vie global : ${contenu.score_vie !== null ? contenu.score_vie + '/100' : 'pas encore calculé'}
 - Rituels complétés : ${contenu.rituels}
 - Streak habitudes : ${contenu.streak} jours
 - Revenus : ${contenu.revenus} €
@@ -855,7 +872,7 @@ Génère une synthèse courte (3-4 phrases), encourageante, avec 1 conseil actio
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem">
-            ${[['⭐','XP gagnés',c.xp_total+' XP','var(--go-l)','#92400E'],['🏆','Niveau',c.niveau+' — '+c.niveau_nom,'var(--pu-l)','var(--pu-d)'],['☀️','Rituels',c.rituels+' complétés','var(--gr-l)','var(--gr)'],['🔥','Streak',c.streak+' jours','#FFF7ED','#C2410C'],['💰','Revenus',_fmt(c.revenus),'var(--gr-l)','var(--gr)'],['💳','Dépenses',_fmt(c.depenses),'var(--re-l)','var(--re)']].map(([ico,lbl,val,bg,col])=>`
+            ${[['🌟','Score de vie',c.score_vie!==null?c.score_vie+'/100':'—','var(--pu-l)','var(--pu-d)'],['☀️','Rituels',c.rituels+' complétés','var(--gr-l)','var(--gr)'],['🔥','Streak',c.streak+' jours','#FFF7ED','#C2410C'],['💰','Revenus',_fmt(c.revenus),'var(--gr-l)','var(--gr)'],['💳','Dépenses',_fmt(c.depenses),'var(--re-l)','var(--re)'],['🏦','Épargne',_fmt(c.epargne),'var(--bl-l)','var(--bl)']].map(([ico,lbl,val,bg,col])=>`
             <div style="background:${bg};border-radius:var(--r-md);padding:.75rem;text-align:center">
               <div style="font-size:18px;margin-bottom:3px">${ico}</div>
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)">${lbl}</div>
@@ -895,9 +912,10 @@ Génère une synthèse courte (3-4 phrases), encourageante, avec 1 conseil actio
   exporter() {
     const d   = AuraStore?.get() || {};
     const fin = JSON.parse(localStorage.getItem('aura_finance_v1') || '{}');
+    const scoreVie = window.AuraScores?.globalScore?.();
     const txt = `AURA — Synthèse ${_semaineStr()}
 ==============================
-XP total : ${d.xp?.total || 0}
+Score de vie : ${scoreVie !== null && scoreVie !== undefined ? scoreVie + '/100' : 'non calculé'}
 Rituels  : ${d.stats?.rituels || 0}
 Streak   : ${d.stats?.streak  || 0} jours
 
