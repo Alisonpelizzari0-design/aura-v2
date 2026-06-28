@@ -87,6 +87,9 @@
         <button class="nav-item" data-module="rituel" onclick="navigate('rituel')">
           <i class="ti ti-sunrise"></i> Rituel du matin
         </button>
+        <button class="nav-item" data-module="journal" onclick="navigate('journal')">
+          <i class="ti ti-notebook"></i> Journal intime
+        </button>
         <button class="nav-item" data-module="habitudes" onclick="navigate('habitudes')">
           <i class="ti ti-repeat"></i> Habitudes
         </button>
@@ -260,38 +263,38 @@
   <div class="mobile-more-content">
     <div class="mobile-more-handle"></div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:0 .25rem .625rem">Intention</div>
+    <div class="mobile-more-section-title" style="color:#7C3AED">Intention</div>
     <div class="mobile-more-grid">
-      <button class="mobile-more-item" onclick="navAndClose('spheres')"><i class="ti ti-circles"></i><span>Sphères</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('visionboard')"><i class="ti ti-stars"></i><span>Vision Board</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('rituel')"><i class="ti ti-sunrise"></i><span>Rituel</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('habitudes')"><i class="ti ti-repeat"></i><span>Habitudes</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('xp')"><i class="ti ti-trophy"></i><span>XP & Badges</span></button>
+      <button class="mobile-more-item" style="--mi-color:#7C3AED;--mi-bg:#F5F3FF" onclick="navAndClose('spheres')"><i class="ti ti-circles"></i><span>Sphères</span></button>
+      <button class="mobile-more-item" style="--mi-color:#7C3AED;--mi-bg:#F5F3FF" onclick="navAndClose('visionboard')"><i class="ti ti-stars"></i><span>Vision Board</span></button>
+      <button class="mobile-more-item" style="--mi-color:#7C3AED;--mi-bg:#F5F3FF" onclick="navAndClose('rituel')"><i class="ti ti-sunrise"></i><span>Rituel</span></button>
+      <button class="mobile-more-item" style="--mi-color:#7C3AED;--mi-bg:#F5F3FF" onclick="navAndClose('journal')"><i class="ti ti-notebook"></i><span>Journal</span></button>
+      <button class="mobile-more-item" style="--mi-color:#7C3AED;--mi-bg:#F5F3FF" onclick="navAndClose('habitudes')"><i class="ti ti-repeat"></i><span>Habitudes</span></button>
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Patrimoine & Finances</div>
+    <div class="mobile-more-section-title" style="color:#C2410C">Finances</div>
     <div class="mobile-more-grid">
-      <button class="mobile-more-item" onclick="navAndClose('patrimoine')"><i class="ti ti-building-bank"></i><span>Patrimoine</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('cagnottes')"><i class="ti ti-pig-money"></i><span>Cagnottes</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('charges')"><i class="ti ti-receipt"></i><span>Charges</span></button>
+      <button class="mobile-more-item" style="--mi-color:#C2410C;--mi-bg:#FFF7ED" onclick="navAndClose('patrimoine')"><i class="ti ti-building-bank"></i><span>Patrimoine</span></button>
+      <button class="mobile-more-item" style="--mi-color:#C2410C;--mi-bg:#FFF7ED" onclick="navAndClose('cagnottes')"><i class="ti ti-pig-money"></i><span>Cagnottes</span></button>
+      <button class="mobile-more-item" style="--mi-color:#C2410C;--mi-bg:#FFF7ED" onclick="navAndClose('charges')"><i class="ti ti-receipt"></i><span>Charges</span></button>
+      <button class="mobile-more-item" style="--mi-color:#C2410C;--mi-bg:#FFF7ED" onclick="navAndClose('abonnements')"><i class="ti ti-credit-card"></i><span>Abonnements</span></button>
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Quotidien</div>
+    <div class="mobile-more-section-title" style="color:#1E40AF">Quotidien</div>
     <div class="mobile-more-grid">
-      <button class="mobile-more-item" onclick="navAndClose('cuisine')"><i class="ti ti-chef-hat"></i><span>Cuisine</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('maison')"><i class="ti ti-home-2"></i><span>Maison</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('sante')"><i class="ti ti-heart-rate-monitor"></i><span>Santé</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('social')"><i class="ti ti-users"></i><span>Social</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('voyages')"><i class="ti ti-plane"></i><span>Voyages</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('abonnements')"><i class="ti ti-credit-card"></i><span>Abonnements</span></button>
+      <button class="mobile-more-item" style="--mi-color:#1E40AF;--mi-bg:#EFF6FF" onclick="navAndClose('cuisine')"><i class="ti ti-chef-hat"></i><span>Cuisine</span></button>
+      <button class="mobile-more-item" style="--mi-color:#1E40AF;--mi-bg:#EFF6FF" onclick="navAndClose('maison')"><i class="ti ti-home-2"></i><span>Maison</span></button>
+      <button class="mobile-more-item" style="--mi-color:#1E40AF;--mi-bg:#EFF6FF" onclick="navAndClose('sante')"><i class="ti ti-heart-rate-monitor"></i><span>Santé</span></button>
+      <button class="mobile-more-item" style="--mi-color:#1E40AF;--mi-bg:#EFF6FF" onclick="navAndClose('social')"><i class="ti ti-users"></i><span>Social</span></button>
+      <button class="mobile-more-item" style="--mi-color:#1E40AF;--mi-bg:#EFF6FF" onclick="navAndClose('voyages')"><i class="ti ti-plane"></i><span>Voyages</span></button>
     </div>
 
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:.875rem .25rem .625rem">Réglages</div>
+    <div class="mobile-more-section-title" style="color:var(--t3)">Réglages</div>
     <div class="mobile-more-grid">
-      <button class="mobile-more-item" onclick="navAndClose('studio')"><i class="ti ti-wand"></i><span>Studio ✦</span></button>
-      <button class="mobile-more-item" onclick="navAndClose('params')"><i class="ti ti-settings"></i><span>Paramètres</span></button>
-      <button class="mobile-more-item" onclick="AuraSynthese?.afficherModal('hebdo');closeMoreSheet()"><i class="ti ti-chart-bar"></i><span>Synthèse</span></button>
-      <button class="mobile-more-item" onclick="toggleTheme();closeMoreSheet()"><i class="ti ti-moon" id="theme-icon-mobile"></i><span>Thème</span></button>
+      <button class="mobile-more-item" style="--mi-color:var(--t2);--mi-bg:var(--bg)" onclick="navAndClose('studio')"><i class="ti ti-wand"></i><span>Studio ✦</span></button>
+      <button class="mobile-more-item" style="--mi-color:var(--t2);--mi-bg:var(--bg)" onclick="navAndClose('params')"><i class="ti ti-settings"></i><span>Paramètres</span></button>
+      <button class="mobile-more-item" style="--mi-color:var(--t2);--mi-bg:var(--bg)" onclick="AuraSynthese?.afficherModal('hebdo');closeMoreSheet()"><i class="ti ti-chart-bar"></i><span>Synthèse</span></button>
+      <button class="mobile-more-item" style="--mi-color:var(--t2);--mi-bg:var(--bg)" onclick="toggleTheme();closeMoreSheet()"><i class="ti ti-moon" id="theme-icon-mobile"></i><span>Thème</span></button>
     </div>
   </div>
 </div>
