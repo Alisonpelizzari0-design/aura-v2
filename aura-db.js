@@ -780,16 +780,22 @@ const AuraAuth = {
     AuraUI?.showToast?.('Mode local activé — données non sauvegardées en ligne');
   },
 
-  /* ── Afficher le bouton profil dans la sidebar selon l'état ── */
+  /* ── Afficher le bouton profil dans la sidebar selon l'état ──
+     Compose le texte avec le statut de connexion ET le score de vie
+     (calculé par aura-scores.js), plutôt que d'écraser l'un avec
+     l'autre selon qui s'exécute en dernier — avant ce fix, les deux
+     scripts écrivaient dans le même élément #sb-user-level sans se
+     coordonner, donc un seul des deux finissait visible. */
   updateSidebarAuth() {
     const footer = document.getElementById('sb-footer-btn');
     if (!footer) return;
     const name = AuraStore?.get()?.prefs?.name || 'Mon AURA';
     document.getElementById('sb-user-name') && (document.getElementById('sb-user-name').textContent = name);
-    if (SupaClient.isLoggedIn()) {
-      document.getElementById('sb-user-level') && (document.getElementById('sb-user-level').textContent = '✓ Connectée');
-    } else {
-      document.getElementById('sb-user-level') && (document.getElementById('sb-user-level').textContent = 'Mode local · non connecté');
+    const levelEl = document.getElementById('sb-user-level');
+    if (levelEl) {
+      const statut = SupaClient.isLoggedIn() ? '✓ Connectée' : 'Mode local';
+      const score = window.AuraScores?.globalScore?.();
+      levelEl.textContent = score !== null && score !== undefined ? `${statut} · Score ${score}/100` : statut;
     }
   },
 };
