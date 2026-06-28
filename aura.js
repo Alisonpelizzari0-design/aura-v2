@@ -65,17 +65,28 @@ MODEL: 'gemini-flash-latest',
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   },
 
-  /* ── Parse JSON sécurisé depuis réponse Gemini ─────────────── */
+  /* ── Parse JSON sécurisé (Corrigé pour éviter les erreurs de parsing) ─────────────── */
   parseJSON(text) {
     if (!text || typeof text !== 'string') return {};
-    const clean = text.replace(/```json?|```/g, '').trim();
-    if (!clean.startsWith('{') && !clean.startsWith('[')) {
+    
+    // 1. Nettoyage agressif des balises Markdown et espaces inutiles
+    let clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    // 2. Isoler la zone JSON si l'IA a ajouté du texte avant/après
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    
+    if (start === -1 || end === -1) {
+      console.error("Format JSON introuvable dans la réponse IA");
       return {};
     }
+    
+    clean = clean.substring(start, end + 1);
+
     try {
       return JSON.parse(clean);
     } catch (e) {
-      console.error("Erreur de parsing JSON IA :", e);
+      console.error("Erreur de parsing JSON IA :", e, "\nContenu brut :", text);
       return {};
     }
   },
@@ -425,13 +436,17 @@ Génère un JSON avec ces clés exactes :
   "niveau_energie": "un mot: Basse/Moyenne/Haute/Maximale",
   "etoiles": 4
 }`,
-        maxTokens: 600,
-        json: false,
+        maxTokens: 1000,
+        json: true,
       });
 
       const h = AURA_GEMINI.parseJSON(text);
+      if (!h || Object.keys(h).length === 0 || !h.amour || !h.travail) {
+          throw new Error("Format JSON invalide ou incomplet");
+      }
+      
       const stars = '⭐'.repeat(Math.min(5, h.etoiles || 4)) + '☆'.repeat(Math.max(0, 5 - (h.etoiles || 4)));
-
+       
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:.875rem">
           <div style="font-size:32px">${info.emoji}</div>
