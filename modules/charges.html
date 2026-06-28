@@ -34,7 +34,6 @@
 .cha-del { background:none; border:none; color:var(--t3); cursor:pointer; font-size:14px; }
 .cha-del:hover { color:var(--re); }
 
-/* ── Camembert simple (CSS conic-gradient) ── */
 .pie-chart { width:160px; height:160px; border-radius:50%; margin:0 auto; }
 .pie-legend { display:flex; flex-direction:column; gap:.5rem; margin-top:1rem; }
 .pie-legend-item { display:flex; align-items:center; gap:8px; font-size:12px; }
@@ -42,18 +41,44 @@
 .pie-legend-label { flex:1; color:var(--t2); }
 .pie-legend-val { font-weight:700; color:var(--text); }
 
-/* ── Alertes révision ── */
 .review-alert { display:flex; align-items:flex-start; gap:10px; padding:.875rem; border-radius:var(--r-md); border:1px solid var(--am-b); background:var(--am-l); margin-bottom:.625rem; }
 .review-alert:last-child { margin-bottom:0; }
 
 @media(max-width:768px) {
   .pie-chart { width:130px; height:130px; }
 }
+
+/* ══════════════════════════════════════════════════
+   PANNEAU LATÉRAL (DRAWER) — création/édition charge
+   et gestion des catégories, même pattern que
+   maison.html/cuisine.html/params.html.
+══════════════════════════════════════════════════ */
+.cha-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:200; display:none; }
+.cha-drawer-overlay.open { display:block; }
+.cha-drawer-panel {
+  position:fixed; top:0; right:0; bottom:0; width:92%; max-width:420px;
+  background:var(--white); z-index:201; transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1); overflow-y:auto;
+  box-shadow:-12px 0 32px rgba(0,0,0,.12); display:flex; flex-direction:column;
+}
+.cha-drawer-panel.open { transform:translateX(0); }
+.cha-drawer-header { padding:1.125rem 1.25rem; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--bd); flex-shrink:0; }
+.cha-drawer-close { width:32px; height:32px; border-radius:50%; background:var(--bg); border:none; font-size:14px; cursor:pointer; flex-shrink:0; }
+.cha-drawer-title { font-size:14.5px; font-weight:700; color:var(--text); }
+.cha-drawer-body { padding:1.25rem; display:flex; flex-direction:column; gap:1.125rem; flex:1; }
+.cha-drawer-footer { padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom,0)); border-top:1px solid var(--bd); display:flex; gap:8px; flex-shrink:0; }
+
+.cha-cat-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:.625rem; border-radius:10px; border:1.5px solid var(--bd2); background:var(--white); color:var(--t2); font-size:12px; font-weight:700; cursor:pointer; }
+.cha-cat-btn:hover { border-color:var(--re-b); color:var(--re); }
+
+.cha-item-card { border:1.5px solid var(--bd); border-radius:12px; padding:.625rem .75rem; margin-bottom:.5rem; }
+.cha-item-top { display:flex; align-items:center; gap:8px; }
+.cha-item-top input[type=text] { flex:1; border:none; background:none; font-size:13px; outline:none; }
+.cha-emoji-picker { display:flex; gap:6px; flex-wrap:wrap; margin-top:.5rem; }
+.cha-emoji-btn { width:30px; height:30px; border-radius:8px; border:1.5px solid var(--bd2); background:var(--white); font-size:14px; cursor:pointer; }
+.cha-emoji-btn.sel { border-color:var(--re); background:var(--re-l); }
 </style>
 
-<!-- ════════════════════════════════════════════════════
-     HERO
-════════════════════════════════════════════════════ -->
 <div class="cha-hero">
   <div style="flex:1;min-width:200px">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#991B1B">Total charges fixes mensuelles</div>
@@ -83,18 +108,19 @@
   <button class="cha-tab" onclick="Charges.showTab('simulateur')"><i class="ti ti-calculator" style="font-size:13px"></i> Simuler un ajout</button>
 </div>
 
-<!-- ════════ LISTE COMPLÈTE ════════ -->
 <div class="cha-panel on" id="cha-panel-liste">
   <div class="card">
     <div class="card-header">
       <span class="card-title"><i class="ti ti-receipt"></i> <span data-aura-edit="charges.title.1" data-aura-edit-label="Titre : Toutes mes charges fixes">Toutes mes charges fixes</span></span>
-      <button class="btn-pill pu" onclick="navigate('budget')"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter via Finance</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost" onclick="Charges.openCategoryManager()"><i class="ti ti-tags" style="font-size:13px"></i> Catégories</button>
+        <button class="btn-pill pu" onclick="Charges.openChargeDrawer()"><i class="ti ti-plus" style="font-size:12px"></i> Ajouter</button>
+      </div>
     </div>
     <div id="cha-list"></div>
   </div>
 </div>
 
-<!-- ════════ RÉPARTITION ════════ -->
 <div class="cha-panel" id="cha-panel-repartition">
   <div class="g2">
     <div class="card">
@@ -114,7 +140,6 @@
   </div>
 </div>
 
-<!-- ════════ À RÉVISER ════════ -->
 <div class="cha-panel" id="cha-panel-revision">
   <div class="card">
     <div class="card-header">
@@ -126,7 +151,6 @@
   </div>
 </div>
 
-<!-- ════════ SIMULATEUR ════════ -->
 <div class="cha-panel" id="cha-panel-simulateur">
   <div class="card">
     <div class="card-header"><span class="card-title"><i class="ti ti-calculator"></i> <span data-aura-edit="charges.title.5" data-aura-edit-label="Titre : Quel impact si j'ajoute une charge ?">Quel impact si j'ajoute une charge ?</span></span></div>
@@ -148,13 +172,76 @@
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Nouvelle / modifier une charge
+════════════════════════════════════════════════════ -->
+<div class="cha-drawer-overlay" id="cha-modal-overlay" onclick="if(event.target===this)Charges.closeChargeDrawer()">
+  <div class="cha-drawer-panel" id="cha-drawer-panel" onclick="event.stopPropagation()">
+    <div class="cha-drawer-header">
+      <button class="cha-drawer-close" onclick="Charges.closeChargeDrawer()">✕</button>
+      <div class="cha-drawer-title" id="cha-drawer-title"><i class="ti ti-plus"></i> Nouvelle charge</div>
+    </div>
+    <div class="cha-drawer-body">
+      <div class="modal-field"><label class="modal-lbl">Nom</label><input class="modal-input" id="chm-label" placeholder="Ex: Loyer, Netflix, Mutuelle..."></div>
+      <div class="modal-field"><label class="modal-lbl">Montant mensuel (€)</label><input class="modal-input" id="chm-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="modal-field">
+        <label class="modal-lbl">Catégorie</label>
+        <select class="modal-input" id="chm-cat"></select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-lbl">Fréquence</label>
+        <select class="modal-input" id="chm-period">
+          <option value="Mensuel">Mensuel</option>
+          <option value="Trimestriel">Trimestriel</option>
+          <option value="Annuel">Annuel</option>
+        </select>
+      </div>
+    </div>
+    <div class="cha-drawer-footer">
+      <button class="modal-btn primary" onclick="Charges.saveCharge()">Enregistrer</button>
+      <button class="modal-btn cancel" onclick="Charges.closeChargeDrawer()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DRAWER — Gestion des catégories de charges
+════════════════════════════════════════════════════ -->
+<div class="cha-drawer-overlay" id="cha-cat-overlay" onclick="if(event.target===this)Charges.closeCategoryManager()">
+  <div class="cha-drawer-panel" id="cha-cat-panel" onclick="event.stopPropagation()">
+    <div class="cha-drawer-header">
+      <button class="cha-drawer-close" onclick="Charges.closeCategoryManager()">✕</button>
+      <div class="cha-drawer-title"><i class="ti ti-tags"></i> Catégories de charges</div>
+    </div>
+    <div class="cha-drawer-body">
+      <div id="cha-cat-manager-list"></div>
+      <div class="cha-item-card" style="background:var(--bg);border-style:dashed">
+        <div class="cha-item-top">
+          <span style="font-size:16px" id="cha-new-cat-emoji-preview">📦</span>
+          <input type="text" id="cha-new-cat-name" placeholder="Nouvelle catégorie...">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:.5rem;align-items:center">
+          <label style="font-size:10px;color:var(--t3)">Icône</label>
+          <input type="color" id="cha-new-cat-icolor" value="#64748B" style="width:28px;height:28px;border:none;border-radius:7px;cursor:pointer;padding:0">
+          <label style="font-size:10px;color:var(--t3);margin-left:.5rem">Fond</label>
+          <input type="color" id="cha-new-cat-color" value="#F8F7FF" style="width:28px;height:28px;border:none;border-radius:7px;cursor:pointer;padding:0">
+        </div>
+        <button class="cha-cat-btn" onclick="Charges.addCategoryRow()" style="margin-top:.5rem">+ Créer cette catégorie</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 window.initModule = function(name) {
   if (name !== 'charges') return;
   Charges.init();
 };
 
-const Charges = {
+/* var au lieu de const : ce script est réinjecté à chaque navigation
+   vers ce module — const/let lèvent une SyntaxError de redéclaration
+   à la 2e visite, var ne pose pas ce problème. */
+var Charges = {
 
   init() {
     this.render();
@@ -168,7 +255,6 @@ const Charges = {
     document.getElementById('cha-panel-'+tab)?.classList.add('on');
   },
 
-  /* ── Source de données partagée avec budget.html ── */
   getFinanceData() {
     try { return JSON.parse(localStorage.getItem('aura_finance_v1')||'{}'); }
     catch(_) { return {}; }
@@ -193,18 +279,30 @@ const Charges = {
 
   renderList(charges) {
     const el = document.getElementById('cha-list');
-    if (!charges.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--t3);font-size:12px">Aucune charge — ajoute-en une depuis le module Finance</div>'; return; }
-    el.innerHTML = charges.map(c => `
-      <div class="cha-row">
+    if (!charges.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--t3);font-size:12px">Aucune charge — clique sur "Ajouter" pour créer la première</div>'; return; }
+    el.innerHTML = charges.map(c => {
+      const catLabel = this.getCategoryLabel(c.cat);
+      return `<div class="cha-row">
         <div class="cha-ic" style="background:${c.color||'var(--bg)'}"><i class="ti ${c.ic||'ti-receipt'}" style="color:${c.icolor||'var(--t2)'}"></i></div>
         <div>
           <div class="cha-name">${c.label}</div>
-          <div class="cha-sub">${c.cat||'Charge'}</div>
+          <div class="cha-sub">${catLabel}</div>
         </div>
         <span class="cha-period-tag">${c.period||'Mensuel'}</span>
         <span class="cha-amount">${fmtE(c.montant)}</span>
-        <button class="cha-del" onclick="Charges.deleteCharge(${c.id})"><i class="ti ti-trash"></i></button>
-      </div>`).join('');
+        <div style="display:flex;gap:2px">
+          <button class="cha-del" onclick="Charges.openChargeDrawer(${c.id})" title="Modifier"><i class="ti ti-edit"></i></button>
+          <button class="cha-del" onclick="Charges.deleteCharge(${c.id})" title="Supprimer"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  /* ── Résout le vrai libellé d'une catégorie depuis le store partagé
+       avec Budget — jamais la clé brute, qui n'est qu'un identifiant. ── */
+  getCategoryLabel(key) {
+    const cats = this.getChargeCategories();
+    return cats.find(c => c.key === key)?.label || key || 'Autre';
   },
 
   deleteCharge(id) {
@@ -220,13 +318,189 @@ const Charges = {
     AuraUI.showToast('Charge supprimée ✓');
   },
 
+  /* ══════════════════════════════════════════════════════════════
+     CATÉGORIES DE CHARGES — store partagé avec budget.html
+     (aura_finance_v1.chargeCategories), pour que toute modification
+     ici se reflète immédiatement aussi dans Budget, et vice-versa.
+  ══════════════════════════════════════════════════════════════ */
+  CAT_ICONS: ['ti-receipt','ti-home-2','ti-device-mobile','ti-shield','ti-activity','ti-car','ti-wifi','ti-bolt','ti-droplet','ti-school','ti-paw','ti-package'],
+
+  getChargeCategories() {
+    const fin = this.getFinanceData();
+    if (Array.isArray(fin.chargeCategories) && fin.chargeCategories.length) return fin.chargeCategories;
+    // Repli sur les 6 catégories par défaut si le store n'a jamais été
+    // initialisé (ex: première visite avant tout passage par Budget).
+    return [
+      { key:'logement',   label:'Logement',   ic:'ti-home-2',       icolor:'#2563EB', color:'#EFF6FF' },
+      { key:'abonnement', label:'Abonnement',  ic:'ti-device-mobile',icolor:'#7C3AED', color:'#F5F3FF' },
+      { key:'assurance',  label:'Assurance',   ic:'ti-shield',       icolor:'#EA580C', color:'#FFF7ED' },
+      { key:'sante',      label:'Santé',       ic:'ti-activity',     icolor:'#16A34A', color:'#F0FDF4' },
+      { key:'transport',  label:'Transport',   ic:'ti-car',          icolor:'#0D9488', color:'#F0FDFA' },
+      { key:'autre',      label:'Autre',       ic:'ti-package',      icolor:'#64748B', color:'#F8F7FF' },
+    ];
+  },
+  saveChargeCategories(list) {
+    const fin = this.getFinanceData();
+    fin.chargeCategories = list;
+    localStorage.setItem('aura_finance_v1', JSON.stringify(fin));
+  },
+
+  openCategoryManager() {
+    this.renderCategoryManager();
+    document.getElementById('cha-cat-overlay').classList.add('open');
+    document.getElementById('cha-cat-panel').classList.add('open');
+  },
+  closeCategoryManager() {
+    document.getElementById('cha-cat-overlay').classList.remove('open');
+    document.getElementById('cha-cat-panel').classList.remove('open');
+  },
+
+  renderCategoryManager() {
+    const cats = this.getChargeCategories();
+    const el = document.getElementById('cha-cat-manager-list');
+    el.innerHTML = cats.map((c,i) => `
+      <div class="cha-item-card">
+        <div class="cha-item-top">
+          <select onchange="Charges.updateCategoryIcon(${i},this.value)" style="width:90px;font-size:10.5px;border:1px solid var(--bd2);border-radius:6px;background:var(--white);padding:4px">
+            ${this.CAT_ICONS.map(ic => `<option value="${ic}" ${ic===c.ic?'selected':''}>${ic.replace('ti-','')}</option>`).join('')}
+          </select>
+          <input type="text" value="${_escAttr(c.label)}" onchange="Charges.updateCategoryName(${i},this.value)">
+          <input type="color" value="${c.icolor}" onchange="Charges.updateCategoryIcolor(${i},this.value)" title="Couleur icône" style="width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;padding:0;flex-shrink:0">
+          <input type="color" value="${c.color}" onchange="Charges.updateCategoryColor(${i},this.value)" title="Couleur fond" style="width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;padding:0;flex-shrink:0">
+          ${cats.length>1 ? `<button class="cha-del" onclick="Charges.removeCategoryRow(${i})"><i class="ti ti-trash"></i></button>` : ''}
+        </div>
+      </div>`).join('');
+  },
+
+  updateCategoryName(i,val) {
+    if (!val.trim()) return;
+    const cats = this.getChargeCategories();
+    cats[i].label = val.trim();
+    this.saveChargeCategories(cats);
+    this.render();
+  },
+  updateCategoryIcon(i,val) { const cats=this.getChargeCategories(); cats[i].ic=val; this.saveChargeCategories(cats); this.render(); },
+  updateCategoryIcolor(i,val) { const cats=this.getChargeCategories(); cats[i].icolor=val; this.saveChargeCategories(cats); this.render(); },
+  updateCategoryColor(i,val) { const cats=this.getChargeCategories(); cats[i].color=val; this.saveChargeCategories(cats); this.render(); },
+
+  addCategoryRow() {
+    const name = document.getElementById('cha-new-cat-name')?.value?.trim();
+    if (!name) { AuraUI.showToast('⚠ Donne un nom à la catégorie'); return; }
+    const icolor = document.getElementById('cha-new-cat-icolor')?.value || '#64748B';
+    const color = document.getElementById('cha-new-cat-color')?.value || '#F8F7FF';
+    const cats = this.getChargeCategories();
+    // Clé technique dérivée du nom — utilisée pour relier les charges
+    // existantes à cette catégorie, jamais affichée directement.
+    const key = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || `cat${Date.now()}`;
+    cats.push({ key, label:name, ic:'ti-package', icolor, color });
+    this.saveChargeCategories(cats);
+    document.getElementById('cha-new-cat-name').value = '';
+    this.renderCategoryManager();
+    this.render();
+    AuraUI.showToast(`✓ "${name}" créée`);
+  },
+
+  removeCategoryRow(i) {
+    const cats = this.getChargeCategories();
+    const removed = cats[i];
+    if (!confirm(`Supprimer "${removed.label}" ? Les charges déjà classées ici basculeront vers "Autre".`)) return;
+    cats.splice(i,1);
+    this.saveChargeCategories(cats);
+    // Les charges déjà classées sous la catégorie supprimée basculent
+    // vers "autre" plutôt que de référencer une catégorie qui n'existe
+    // plus — même filet de sécurité que pour les catégories Cuisine.
+    const fin = this.getFinanceData();
+    (fin.charges||[]).forEach(c => { if (c.cat === removed.key) c.cat = 'autre'; });
+    localStorage.setItem('aura_finance_v1', JSON.stringify(fin));
+    this.renderCategoryManager();
+    this.render();
+    AuraUI.showToast('Catégorie supprimée');
+  },
+
+  /* ══════════════════════════════════════════════════════════════
+     CRÉATION / ÉDITION D'UNE CHARGE — directement ici, sans passer
+     par Budget. Écrit dans la même clé aura_finance_v1.charges que
+     budget.html, donc toute charge créée ici apparaît immédiatement
+     là-bas aussi (et inversement).
+  ══════════════════════════════════════════════════════════════ */
+  editingChargeId: null,
+
+  openChargeDrawer(id) {
+    const cats = this.getChargeCategories();
+    const selHtml = cats.map(c => `<option value="${c.key}">${c.label}</option>`).join('');
+    document.getElementById('chm-cat').innerHTML = selHtml;
+
+    if (id) {
+      const fin = this.getFinanceData();
+      const c = (fin.charges||[]).find(x=>x.id===id);
+      if (!c) return;
+      this.editingChargeId = id;
+      document.getElementById('cha-drawer-title').innerHTML = '<i class="ti ti-edit"></i> Modifier la charge';
+      document.getElementById('chm-label').value = c.label;
+      document.getElementById('chm-amount').value = c.montant;
+      document.getElementById('chm-cat').value = c.cat;
+      document.getElementById('chm-period').value = c.period || 'Mensuel';
+    } else {
+      this.editingChargeId = null;
+      document.getElementById('cha-drawer-title').innerHTML = '<i class="ti ti-plus"></i> Nouvelle charge';
+      document.getElementById('chm-label').value = '';
+      document.getElementById('chm-amount').value = '';
+      document.getElementById('chm-period').value = 'Mensuel';
+    }
+    document.getElementById('cha-modal-overlay').classList.add('open');
+    document.getElementById('cha-drawer-panel').classList.add('open');
+  },
+  closeChargeDrawer() {
+    document.getElementById('cha-modal-overlay').classList.remove('open');
+    document.getElementById('cha-drawer-panel').classList.remove('open');
+  },
+
+  saveCharge() {
+    const label = document.getElementById('chm-label')?.value?.trim();
+    const amount = parseFloat(document.getElementById('chm-amount')?.value);
+    if (!label) { AuraUI.showToast('⚠ Donne un nom à la charge'); return; }
+    if (isNaN(amount) || amount <= 0) { AuraUI.showToast('⚠ Indique un montant valide'); return; }
+
+    const catKey = document.getElementById('chm-cat')?.value || 'autre';
+    const catDef = this.getChargeCategories().find(c=>c.key===catKey) || this.getChargeCategories()[0];
+    const period = document.getElementById('chm-period')?.value || 'Mensuel';
+    const fin = this.getFinanceData();
+    fin.charges = fin.charges || [];
+
+    if (this.editingChargeId) {
+      const c = fin.charges.find(x=>x.id===this.editingChargeId);
+      if (c) { c.label=label; c.montant=amount; c.cat=catKey; c.period=period; c.ic=catDef.ic; c.icolor=catDef.icolor; c.color=catDef.color; }
+      AuraUI.showToast('✓ Charge mise à jour');
+    } else {
+      const id = fin.charges.length ? Math.max(...fin.charges.map(x=>x.id))+1 : 1;
+      const newItem = { id, label, montant:amount, cat:catKey, period, ic:catDef.ic, icolor:catDef.icolor, color:catDef.color };
+      fin.charges.push(newItem);
+      this.syncChargeToDB(newItem);
+      AuraUI.showToast('✓ Charge ajoutée');
+    }
+    localStorage.setItem('aura_finance_v1', JSON.stringify(fin));
+    this.closeChargeDrawer();
+    this.render();
+  },
+
+  async syncChargeToDB(item) {
+    if (!window.SupaClient?.isLoggedIn()) return;
+    try {
+      const res = await SupaClient.insert('finance_charges', { user_id:SupaClient.userId(), label:item.label, montant:item.montant, categorie:item.cat, period:item.period });
+      if (res?.id) {
+        const fin = this.getFinanceData();
+        const c = (fin.charges||[]).find(x=>x.id===item.id);
+        if (c) { c.db_id = res.id; localStorage.setItem('aura_finance_v1', JSON.stringify(fin)); }
+      }
+    } catch(e) { console.warn('[Charge create sync]', e.message); }
+  },
+
   renderRepartition(charges, total, revenus) {
     const secteurs = {};
     charges.forEach(c => { secteurs[c.cat||'autre'] = (secteurs[c.cat||'autre']||0) + c.montant; });
     const colors = ['#7C3AED','#0D9488','#EA580C','#DB2777','#16A34A','#2563EB','#C9A84C','#64748B'];
     const entries = Object.entries(secteurs).sort((a,b)=>b[1]-a[1]);
 
-    // Conic gradient camembert
     let acc = 0;
     const gradParts = entries.map(([k,v],i) => {
       const pct = (v/total)*100;
@@ -263,14 +537,11 @@ const Charges = {
     const el = document.getElementById('review-list');
     const alerts = [];
 
-    // Doublons potentiels (même catégorie "abonnement")
     const abos = charges.filter(c => c.cat==='abonnement');
     if (abos.length >= 3) alerts.push({ title:`${abos.length} abonnements actifs`, sub:`Total: ${fmtE(abos.reduce((s,x)=>s+x.montant,0))}/mois — vérifie lesquels sont encore utilisés.` });
 
-    // Charge élevée isolée
     charges.forEach(c => { if (c.montant > 200) alerts.push({ title:`${c.label} — ${fmtE(c.montant)}/mois`, sub:'Charge importante — vérifie si une renégociation est possible.' }); });
 
-    // Total trop élevé
     const total = charges.reduce((s,x)=>s+x.montant,0);
     if (revenus>0 && (total/revenus) > 0.35) alerts.push({ title:'Charges fixes élevées', sub:`${Math.round((total/revenus)*100)}% des revenus partent en charges fixes — marge de manœuvre réduite.` });
 
@@ -313,6 +584,7 @@ const Charges = {
 };
 
 function _set(id,val){ const e=document.getElementById(id); if(e) e.textContent=val; }
+function _escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function fmtE(n){ return Number(n||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
 
 if (document.readyState !== 'loading') Charges.init();
