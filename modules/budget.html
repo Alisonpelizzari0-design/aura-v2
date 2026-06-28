@@ -670,7 +670,7 @@ window.initModule = function(name) {
 };
 
 /* ── State ── */
-const FinState = {
+var FinState = {
   type: 'revenu', // type de saisie rapide actif
   iaType: 'bilan',
   modalType: null,
@@ -679,7 +679,15 @@ const FinState = {
   get() {
     if (this.data) return this.data;
     const stored = localStorage.getItem('aura_finance_v1');
-    if (stored) { this.data = JSON.parse(stored); return this.data; }
+    if (stored) {
+      this.data = JSON.parse(stored);
+      // Migration douce : ajoute le store de catégories de charges s'il
+      // n'existe pas encore sur des données déjà sauvegardées avant cette
+      // mise à jour — sans ça, les charges existantes perdraient leur
+      // icône/couleur en passant par le nouveau système partagé.
+      if (!this.data.chargeCategories) this.data.chargeCategories = this._defaultChargeCategories();
+      return this.data;
+    }
     this.data = {
       revenus: [],
       charges: [],
@@ -694,9 +702,29 @@ const FinState = {
         { id:6, label:'Restaurant',   budget:0, ic:'ti-tools-kitchen-2',bg:'#FEFCE8',ic2:'#C9A84C' },
       ],
       histChart: [],
+      // Catégories de charges — entièrement éditables (créer, renommer,
+      // changer emoji/couleur, supprimer) depuis charges.html, et lues
+      // ici dans Budget pour rester toujours cohérentes entre les deux.
+      chargeCategories: this._defaultChargeCategories(),
     };
     this.save();
     return this.data;
+  },
+
+  _defaultChargeCategories() {
+    return [
+      { key:'logement',   label:'Logement',   ic:'ti-home-2',       icolor:'#2563EB', color:'#EFF6FF' },
+      { key:'abonnement', label:'Abonnement',  ic:'ti-device-mobile',icolor:'#7C3AED', color:'#F5F3FF' },
+      { key:'assurance',  label:'Assurance',   ic:'ti-shield',       icolor:'#EA580C', color:'#FFF7ED' },
+      { key:'sante',      label:'Santé',       ic:'ti-activity',     icolor:'#16A34A', color:'#F0FDF4' },
+      { key:'transport',  label:'Transport',   ic:'ti-car',          icolor:'#0D9488', color:'#F0FDFA' },
+      { key:'autre',      label:'Autre',       ic:'ti-package',      icolor:'#64748B', color:'#F8F7FF' },
+    ];
+  },
+
+  getChargeCategory(key) {
+    const cats = this.get().chargeCategories || [];
+    return cats.find(c => c.key === key) || cats.find(c => c.key === 'autre') || { key:'autre', label:'Autre', ic:'ti-package', icolor:'#64748B', color:'#F8F7FF' };
   },
 
   save() { localStorage.setItem('aura_finance_v1', JSON.stringify(this.data)); },
@@ -924,7 +952,7 @@ function renderChart() {
 }
 
 /* ── Catégories ── */
-const CAT_META = {
+var CAT_META = {
   alimentation:{ label:'Alimentation', color:'#EA580C', bg:'#FFF7ED' },
   loisirs:     { label:'Loisirs',      color:'#DB2777', bg:'#FDF2F8' },
   transport:   { label:'Transport',    color:'#0D9488', bg:'#F0FDFA' },
@@ -1017,7 +1045,7 @@ function updateEnvBudget(id) {
 }
 
 /* ── Revenus ── */
-const CAT_ICON_R = { salaire:'ti-briefcase', freelance:'ti-rocket', remboursement:'ti-receipt-refund', 'autre-revenu':'ti-plus' };
+var CAT_ICON_R = { salaire:'ti-briefcase', freelance:'ti-rocket', remboursement:'ti-receipt-refund', 'autre-revenu':'ti-plus' };
 function renderRevenus() {
   const d  = FinState.get();
   const el = document.getElementById('revenus-list');
@@ -1055,7 +1083,7 @@ function renderCharges() {
       <div class="charge-ic" style="background:${c.color||'var(--bg)'}"><i class="ti ${c.ic}" style="color:${c.icolor}"></i></div>
       <div>
         <div class="charge-info-name">${c.label}</div>
-        <div class="charge-info-cat">${c.cat} · ${c.period||'Mensuel'}</div>
+        <div class="charge-info-cat">${FinState.getChargeCategory(c.cat).label} · ${c.period||'Mensuel'}</div>
       </div>
       <div>
         <div class="charge-amount">${fmtEuro(c.montant)}</div>
@@ -1079,7 +1107,7 @@ function renderCharges() {
 }
 
 /* ── Dépenses ── */
-const CAT_ICON_D = { alimentation:'ti-shopping-cart', loisirs:'ti-confetti', transport:'ti-car', sante:'ti-pill', vetements:'ti-shirt', beaute:'ti-sparkles', restaurant:'ti-tools-kitchen-2', technologie:'ti-device-mobile', autre:'ti-package' };
+var CAT_ICON_D = { alimentation:'ti-shopping-cart', loisirs:'ti-confetti', transport:'ti-car', sante:'ti-pill', vetements:'ti-shirt', beaute:'ti-sparkles', restaurant:'ti-tools-kitchen-2', technologie:'ti-device-mobile', autre:'ti-package' };
 function renderDepenses() {
   const d      = FinState.get();
   const el     = document.getElementById('depenses-list');
@@ -1189,7 +1217,7 @@ function openCagnottEdit(id) {
 }
 
 /* ── Modals ── */
-let _modalData = {};
+var _modalData = {};
 function openModal(type) {
   FinState.modalType = type;
   const titles = { revenu:'+ Nouveau revenu', depense:'+ Nouvelle dépense', charge:'+ Nouvelle charge fixe', cagnotte:'✦ Nouvelle cagnotte', env:'+ Nouvelle enveloppe' };
@@ -1207,7 +1235,7 @@ function openModal(type) {
     charge: `
       <div class="modal-field"><label class="modal-lbl">Label</label><input class="modal-input" id="m-label" placeholder="Ex: Loyer, Netflix..."></div>
       <div class="modal-field"><label class="modal-lbl">Montant mensuel (€)</label><input class="modal-input" id="m-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
-      <div class="modal-field"><label class="modal-lbl">Catégorie</label><select class="modal-input" id="m-cat"><option value="logement">🏠 Logement</option><option value="abonnement">📱 Abonnement</option><option value="assurance">🛡 Assurance</option><option value="sante">💊 Santé</option><option value="transport">🚗 Transport</option><option value="autre">📦 Autre</option></select></div>`,
+      <div class="modal-field"><label class="modal-lbl">Catégorie</label><select class="modal-input" id="m-cat"></select></div>`,
     cagnotte: `
       <div class="modal-field"><label class="modal-lbl">Nom du projet</label><input class="modal-input" id="m-label" placeholder="Ex: Vacances, Immo..."></div>
       <div class="modal-field"><label class="modal-lbl">Emoji</label><input class="modal-input" id="m-emoji" placeholder="✈️" maxlength="4" style="font-size:20px"></div>
@@ -1225,6 +1253,13 @@ function openModal(type) {
     document.getElementById('modal-title').innerHTML = `<i class="ti ti-plus"></i> ${titles[type]}`;
     document.getElementById('modal-body').innerHTML  = body[type] || '';
     document.getElementById('modal-confirm').className = conf[type] || 'modal-btn primary';
+    // Le select catégorie des charges est rempli dynamiquement depuis le
+    // store partagé, pour rester toujours cohérent avec charges.html.
+    if (type === 'charge') {
+      const sel = document.getElementById('m-cat');
+      if (sel) sel.innerHTML = FinState.get().chargeCategories.map(c =>
+        `<option value="${c.key}">${c.label}</option>`).join('');
+    }
   }
 }
 
@@ -1247,10 +1282,9 @@ async function confirmModal() {
     newItem = { id:FinState.nextId(d.depenses), label, cat:document.getElementById('m-cat')?.value||'autre', montant:amount, date:document.getElementById('m-date')?.value||new Date().toISOString().slice(0,10) };
     d.depenses.unshift(newItem);
   } else if (type === 'charge') {
-    const icMap = { logement:['ti-home-2','#2563EB','#EFF6FF'], abonnement:['ti-device-mobile','#7C3AED','#F5F3FF'], assurance:['ti-shield','#EA580C','#FFF7ED'], sante:['ti-activity','#16A34A','#F0FDF4'], transport:['ti-car','#0D9488','#F0FDFA'], autre:['ti-package','#64748B','#F8F7FF'] };
-    const cat = document.getElementById('m-cat')?.value||'autre';
-    const [ic, icolor, color] = icMap[cat]||icMap.autre;
-    newItem = { id:FinState.nextId(d.charges), label, cat, montant:amount, ic, icolor, color, period:'Mensuel' };
+    const catKey = document.getElementById('m-cat')?.value||'autre';
+    const catDef = FinState.getChargeCategory(catKey);
+    newItem = { id:FinState.nextId(d.charges), label, cat:catKey, montant:amount, ic:catDef.ic, icolor:catDef.icolor, color:catDef.color, period:'Mensuel' };
     d.charges.push(newItem);
   } else if (type === 'cagnotte') {
     const emoji   = document.getElementById('m-emoji')?.value?.trim() || '💰';
@@ -1350,7 +1384,7 @@ function calcCredit() {
 }
 
 /* ── IA Analyse ── */
-let _iaType = 'bilan';
+var _iaType = 'bilan';
 function setIaType(t) {
   _iaType = t;
   document.querySelectorAll('#ia-type-btns .coach-type').forEach(b => b.classList.remove('sel'));
@@ -1402,7 +1436,7 @@ Fournis une analyse claire, chaleureuse, actionnable et bienveillante. Utilise d
    Chaque euro de revenu doit être assigné à une ligne.
    Stocké séparément : aura_finance_zero_v1
 ══════════════════════════════════════════════════ */
-const ZeroBudget = {
+var ZeroBudget = {
   _key: 'aura_finance_zero_v1',
   _data: null,
 
@@ -1538,7 +1572,7 @@ function renderCashflowForecast() {
    (façon Rocket Money pour la détection, mais avec
    des règles transparentes que TU contrôles)
 ══════════════════════════════════════════════════ */
-const CategorizationRules = {
+var CategorizationRules = {
   _key: 'aura_finance_rules_v1',
   _data: null,
 
