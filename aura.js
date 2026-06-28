@@ -27,20 +27,9 @@ MODEL: 'gemini-flash-latest',
     return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   },
 
-  /* ── Appel central Gemini ────────────────────────────────────
-     Note : le paramètre "force" a été retiré du disjoncteur.
-     Dans la version précédente, TOUT appel (Coach, Horoscope IA,
-     Assistant...) était bloqué par défaut car aucun appelant ne
-     passait force:true — donc l'IA ne répondait jamais nulle part,
-     même en cliquant sur les boutons prévus pour ça. Le filtre
-     "économie de quota" doit se faire en amont (ne pas appeler
-     cette fonction automatiquement au chargement), pas ici. */
-  async call({ system = '', prompt, maxTokens = 800, json = false }) {
-    const parts = [];
-    // Gemini : system prompt intégré dans le premier turn utilisateur
-    const fullPrompt = system ? `${system}\n\n---\n${prompt}` : prompt;
-    parts.push({ text: fullPrompt });
-
+  /* ── Appel central Gemini avec gestion de résilience (Retry automatique) ─────── */
+  async call({ system = '', prompt, maxTokens = 800, json = false, retries = 2 }) {
+    const parts = [{ text: system ? `${system}\n\n---\n${prompt}` : prompt }];
     const body = {
       contents: [{ role: 'user', parts }],
       generationConfig: {
@@ -50,19 +39,35 @@ MODEL: 'gemini-flash-latest',
       },
     };
 
-    const res  = await fetch(this.endpoint(this.MODEL), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const res = await fetch(this.endpoint(this.MODEL), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(`Gemini ${res.status}: ${err.error?.message || 'Erreur inconnue'}`);
+        // Gestion automatique des erreurs 503 (Surcharge) et 429 (Quota)
+        if (res.status === 503 || res.status === 429) {
+          if (i === retries) throw new Error(`Serveur indisponible (${res.status})`);
+          // Attente progressive (1s, 2s) avant de réessayer
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          continue;
+        }
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(`Gemini ${res.status}: ${err.error?.message || 'Erreur inconnue'}`);
+        }
+
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        
+      } catch (err) {
+        if (i === retries) throw err;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
-
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   },
 
   /* ── Parse JSON sécurisé (Corrigé pour éviter les erreurs de parsing) ─────────────── */
