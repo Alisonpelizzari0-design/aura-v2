@@ -160,15 +160,19 @@ const AuraScores = {
     } catch(_) { return null; }
   },
 
-  /* ── Met à jour les affichages globaux (sidebar + topbar) sur TOUTE page ──
-     Appelée depuis main.js après chaque navigation, comme l'était
-     AuraUI.updateXPDisplays() avant — mais avec un vrai score calculé. */
+  /* ── Met à jour les affichages globaux (sidebar) sur TOUTE page ──
+     Compose le texte avec le statut de connexion (géré par
+     aura-db.js:updateSidebarAuth) plutôt que de l'écraser — les deux
+     fonctions écrivaient auparavant dans le même élément sans se
+     coordonner. #top-xp n'est plus ciblé : cet élément a été retiré
+     de index.html avec l'étoile XP de la topbar, en début de refonte. */
   updateGlobalDisplays() {
     const score = this.globalScore();
     const sidebarEl = document.getElementById('sb-user-level');
-    const topbarEl  = document.getElementById('top-xp');
-    if (sidebarEl) sidebarEl.textContent = score !== null ? `Score de vie : ${score}/100` : 'Score de vie : —';
-    if (topbarEl)  topbarEl.textContent  = score !== null ? `Score : ${score}/100` : 'Score : —';
+    if (sidebarEl) {
+      const statut = window.SupaClient?.isLoggedIn?.() ? '✓ Connectée' : 'Mode local';
+      sidebarEl.textContent = score !== null ? `${statut} · Score ${score}/100` : statut;
+    }
   },
 };
 
